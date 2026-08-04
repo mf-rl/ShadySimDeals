@@ -22,6 +22,11 @@ verification remain unchecked.
 - [x] Phone and computer unborn-Nooboo entry points packaged and unit-tested
 - [x] Phone and computer unborn-Nooboo visibility verified in game
 - [ ] Computer-use and phone-use animations
+  - [x] Native phone/computer tuning packaged and unit-tested
+  - [x] Device-first runtime order and failure policies unit-tested
+  - [ ] Live: both phone actions animate before the picker
+  - [ ] Live: both computer actions route and animate before the picker
+  - [ ] Live: inaccessible computer fails without opening a picker
 
 ### Phase 3: Household-member transaction
 
