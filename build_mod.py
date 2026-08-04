@@ -254,7 +254,7 @@ def main():
         build_script_archive(compile_scripts(Path(temporary)))
     build_tuning_package()
     print("built {} and {}".format(SCRIPT_TARGET, PACKAGE_TARGET))
-    print("included ENG_US localization and Lot51 Core phone injection")
+    print("included ENG_US localization and Lot51 Core phone/computer injection")
 
 
 if __name__ == "__main__":
