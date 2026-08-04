@@ -24,14 +24,16 @@ verification remain unchecked.
 - [ ] Computer-use and phone-use animations
   - [x] Native phone/computer tuning packaged and unit-tested
   - [x] Device-first runtime order and failure policies unit-tested
-  - [ ] Live: both phone actions animate before the picker
-  - [ ] Live: both computer actions route and animate before the picker
+  - [x] Live: both phone actions animate before the picker
+  - [x] Live: both computer actions route and animate before the picker
+  - [x] Live: computer screen is active during the animation
   - [ ] Live: inaccessible computer fails without opening a picker
 
 ### Phase 3: Household-member transaction
 
 - [ ] Real rabbit-hole workflow and timed return
 - [x] Safe household transfer with rollback
+  - [x] Live: sold child leaves the selectable household before payment
 - [x] Exactly-once payment ordering
 - [ ] Seller buffs
 - [ ] Relationship consequences
@@ -71,7 +73,9 @@ verification remain unchecked.
 - [x] 3. Both entry points expose household-member and unborn-Nooboo sales.
 - [ ] 4. Household picker supports every required age and excludes the actor.
   - [x] Actor exclusion and Teen-through-Elder filtering
-  - [ ] Baby, infant, toddler, and child support
+  - [x] Baby, infant, toddler, and child filtering and pricing
+  - [x] Live: child appears and completes a sale
+  - [ ] Live: newborn, infant, and toddler sales
 - [x] 5. Unborn picker includes only pregnant household members, including the actor.
   - [x] Repository filtering and picker-row tests
   - [x] Live: pregnant active Sim appears
