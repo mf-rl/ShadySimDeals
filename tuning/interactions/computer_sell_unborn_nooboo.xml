@@ -2,4 +2,5 @@
 <I c="ComputerSellUnbornNoobooInteraction" i="interaction" m="shady_sim_deals.sims4_runtime" n="ShadySimDeals:ComputerSellUnbornNooboo" s="16907111114276462596">
   <V n="_saveable" t="disabled" />
   <T n="allow_autonomous">False</T>
+  <T n="category">16906829660497641488</T>
 </I>

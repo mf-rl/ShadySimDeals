@@ -158,11 +158,33 @@ def package_resources():
                 ROOT
                 / "tuning"
                 / "interactions"
+                / "phone_sell_unborn_nooboo.xml"
+            ).read_bytes(),
+            INTERACTION_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E002,
+        ),
+        (
+            (
+                ROOT
+                / "tuning"
+                / "interactions"
                 / "computer_sell_household_member.xml"
             ).read_bytes(),
             INTERACTION_TUNING_TYPE,
             0,
             0xEAA21FFB1081E003,
+        ),
+        (
+            (
+                ROOT
+                / "tuning"
+                / "interactions"
+                / "computer_sell_unborn_nooboo.xml"
+            ).read_bytes(),
+            INTERACTION_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E004,
         ),
         (
             (ROOT / "tuning" / "categories" / "shady_sim_deals_phone.xml").read_bytes(),
