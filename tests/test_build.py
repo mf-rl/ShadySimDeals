@@ -24,12 +24,13 @@ def test_build_stbl_encodes_version_five_table():
     assert data[28:] == b"ShadySimDeals"
 
 
-def test_package_resources_are_phone_mvp_only():
+def test_package_resources_include_phone_and_computer_household_sales():
     resources = build_mod.package_resources()
     keys = {(resource_type, group, instance) for _, resource_type, group, instance in resources}
 
     assert keys == {
         (0xE882D22F, 0, 0xEAA1200000000001),
+        (0xE882D22F, 0, 0xEAA21FFB1081E003),
         (0x03E9D964, 0x80000000, 0xEAA1200000000010),
         (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
         (0x7DF2169C, 0, 0xEAA1200000000020),
@@ -39,17 +40,38 @@ def test_package_resources_are_phone_mvp_only():
 
 def test_tuning_xml_ids_match_packaged_instances_and_references():
     resources = build_mod.package_resources()
-    xml_resources = {
-        resource_type: (ET.fromstring(data), instance)
+    interactions = {
+        instance: ET.fromstring(data)
         for data, resource_type, _, instance in resources
-        if data.startswith(b"<?xml")
+        if resource_type == build_mod.INTERACTION_TUNING_TYPE
     }
-    interaction, interaction_id = xml_resources[0xE882D22F]
-    injector, injector_id = xml_resources[0x7DF2169C]
+    injector_data, _, _, injector_id = next(
+        resource
+        for resource in resources
+        if resource[1] == build_mod.SNIPPET_TYPE
+    )
+    injector = ET.fromstring(injector_data)
 
-    assert int(interaction.attrib["s"]) == interaction_id
+    assert all(int(xml.attrib["s"]) == instance for instance, xml in interactions.items())
     assert int(injector.attrib["s"]) == injector_id
-    assert int(injector.find(".//L[@n='phone_affordances']/T").text) == interaction_id
+    assert int(injector.find(".//L[@n='phone_affordances']/T").text) == int(
+        "EAA1200000000001", 16
+    )
+
+
+def test_lot51_injector_targets_computers_with_computer_interaction():
+    injector_data = next(
+        data
+        for data, resource_type, _, _ in build_mod.package_resources()
+        if resource_type == build_mod.SNIPPET_TYPE
+    )
+    injector = ET.fromstring(injector_data)
+    computer_entry = injector.find("./L[@n='inject_by_object_tags']/U")
+
+    assert computer_entry.find("./L[@n='tags']/E").text == "Func_Computer"
+    assert int(computer_entry.find("./L[@n='affordances']/T").text) == int(
+        "EAA21FFB1081E003", 16
+    )
 
 
 def test_phone_interaction_uses_matching_custom_category_resources():
@@ -120,6 +142,7 @@ def test_built_package_index_contains_every_planned_resource(tmp_path):
 
     assert keys == {
         (0xE882D22F, 0, 0xEAA1200000000001),
+        (0xE882D22F, 0, 0xEAA21FFB1081E003),
         (0x03E9D964, 0x80000000, 0xEAA1200000000010),
         (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
         (0x7DF2169C, 0, 0xEAA1200000000020),
