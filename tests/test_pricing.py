@@ -23,6 +23,46 @@ def test_unborn_multipliers():
         assert service.calculate_unborn_offer(target, BuyerContext()).amount == expected
 
 
+def test_pregnant_household_member_includes_unborn_bundle_value():
+    service = pricing()
+    buyer = BuyerContext()
+    expected = ((1, 19000), (2, 31000), (3, 40000))
+    for count, amount in expected:
+        offer = service.calculate_household_member_offer(
+            candidate(
+                "adult",
+                pregnant=True,
+                expected_offspring=count,
+            ),
+            buyer,
+        )
+        assert offer.amount == amount
+        assert offer.breakdown["pregnancy_bonus"] == amount - 4000
+
+
+def test_nonpregnant_household_member_has_no_pregnancy_bonus():
+    offer = pricing().calculate_household_member_offer(
+        candidate("child"), BuyerContext()
+    )
+    assert offer.amount == 8000
+    assert offer.breakdown["pregnancy_bonus"] == 0
+
+
+def test_pregnant_household_member_respects_combined_offer_cap():
+    offer = pricing().calculate_household_member_offer(
+        candidate(
+            "baby",
+            pregnant=True,
+            expected_offspring=3,
+            traits=("genius",),
+            fame_level=5,
+            occults=("ghost", "vampire"),
+        ),
+        BuyerContext(demand_multiplier=1.4),
+    )
+    assert offer.amount == 50000
+
+
 def test_modifiers_unknown_traits_caps_and_rounding():
     service = pricing()
     target = candidate(
