@@ -26,11 +26,13 @@ class Sims4TransactionValidator:
         household_lookup=None,
         reservation_check=None,
         shutdown_check=None,
+        pregnancy_check=None,
     ):
         self._sim_info_lookup = sim_info_lookup or self._find_sim_info
         self._household_lookup = household_lookup or self._find_household
         self._reservation_check = reservation_check or (lambda sim_id: False)
         self._shutdown_check = shutdown_check or self._is_shutting_down
+        self._pregnancy_check = pregnancy_check or (lambda sim_id: False)
 
     def validate(self, transaction):
         if self._shutdown_check():
@@ -41,14 +43,18 @@ class Sims4TransactionValidator:
         target = self._sim_info_lookup(str(transaction.target_id))
         if target is None:
             return "Target no longer exists"
-        if transaction.actor_id == transaction.target_id:
-            return "The actor cannot be the target"
-        if getattr(target, "is_pet", False):
-            return "Pets are not supported"
-        try:
-            age_key(target)
-        except ValueError as exc:
-            return str(exc)
+        if transaction.transaction_type == "unborn":
+            if not self._pregnancy_check(transaction.target_id):
+                return "Selected Sim is no longer pregnant"
+        else:
+            if transaction.actor_id == transaction.target_id:
+                return "The actor cannot be the target"
+            if getattr(target, "is_pet", False):
+                return "Pets are not supported"
+            try:
+                age_key(target)
+            except ValueError as exc:
+                return str(exc)
         household = self._household_lookup(str(transaction.household_id))
         if household is None or getattr(household, "funds", None) is None:
             return "Household funds are unavailable"
@@ -83,25 +89,29 @@ class Sims4TransactionValidator:
 
 
 class Sims4PregnancyAdapter:
+    def __init__(self, sim_info_lookup=None):
+        self._sim_info_lookup = sim_info_lookup or self._find_sim_info
+
+    def _tracker(self, sim_id):
+        sim_info = self._sim_info_lookup(str(sim_id))
+        if sim_info is None:
+            raise ValueError("SimInfo no longer exists")
+        return getattr(sim_info, "pregnancy_tracker", None)
+
     def is_pregnant(self, sim_id):
-        sim_info = self._find_sim_info(sim_id)
-        tracker = getattr(sim_info, "pregnancy_tracker", None)
+        tracker = self._tracker(sim_id)
         return bool(tracker is not None and getattr(tracker, "is_pregnant", False))
 
     def expected_offspring_count(self, sim_id):
-        tracker = getattr(self._find_sim_info(sim_id), "pregnancy_tracker", None)
-        if tracker is None:
-            return 0
-        # Verification item: confirm this method against the supported game build.
-        getter = getattr(tracker, "get_expected_offspring_count", None)
-        if not callable(getter):
-            raise IntegrationUnavailable("Pregnancy offspring-count API requires verification")
-        return max(1, int(getter()))
+        tracker = self._tracker(sim_id)
+        return max(1, int(getattr(tracker, "offspring_count", 1) or 1))
 
     def conclude_pregnancy(self, sim_id):
-        # Verification item: inspect PregnancyTracker in the supported game build. Removing
-        # buffs is intentionally not used because it does not safely end a pregnancy.
-        raise IntegrationUnavailable("Safe PregnancyTracker completion API requires verification")
+        tracker = self._tracker(sim_id)
+        if tracker is None or not tracker.is_pregnant:
+            return False
+        tracker.clear_pregnancy()
+        return not bool(tracker.is_pregnant)
 
     @staticmethod
     def _find_sim_info(sim_id):
@@ -239,3 +249,18 @@ class Sims4FundsAdapter:
             int(amount),
             Consts_pb2.TELEMETRY_MONEY_OBJECT_MARKETPLACE_SALE,
         )
+
+    def withdraw(self, household_id, amount):
+        import services
+        from protocolbuffers import Consts_pb2
+
+        household = services.household_manager().get(int(household_id))
+        if household is None or getattr(household, "funds", None) is None:
+            raise ValueError("Household funds are unavailable")
+        if not household.funds.try_remove(
+            int(amount),
+            Consts_pb2.TELEMETRY_MONEY_OBJECT_MARKETPLACE_SALE,
+            None,
+            True,
+        ):
+            raise RuntimeError("The prepaid amount could not be refunded")

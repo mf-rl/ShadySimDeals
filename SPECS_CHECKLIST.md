@@ -19,7 +19,8 @@ verification remain unchecked.
 - [x] Computer household-sale injection packaged and unit-tested
 - [x] Computer household-sale visibility verified in game
 - [x] Shared native household picker and confirmation dialog
-- [ ] Phone and computer unborn-Nooboo entry points
+- [x] Phone and computer unborn-Nooboo entry points packaged and unit-tested
+- [x] Phone and computer unborn-Nooboo visibility verified in game
 - [ ] Computer-use and phone-use animations
 
 ### Phase 3: Household-member transaction
@@ -32,10 +33,11 @@ verification remain unchecked.
 
 ### Phase 4: Unborn-Nooboo transaction
 
-- [ ] Pregnant-Sim picker
-- [ ] Verified pregnancy adapter and safe pregnancy conclusion
+- [x] Pregnant-Sim picker implemented and unit-tested
+- [x] Pregnancy adapter and safe pregnancy conclusion verified for patch `1.125.59.1030`
 - [ ] Unborn rabbit hole
-- [ ] Multiple-offspring pricing connected to game pregnancy data
+- [x] Multiple-offspring pricing connected to the public pregnancy tracker count
+- [ ] Forced early twin/triplet detection
 - [ ] Pregnant-Sim reaction
 
 ### Phase 5: Sold-Sim outcomes
@@ -61,19 +63,28 @@ verification remain unchecked.
 
 - [x] 1. ShadySimDeals appears on supported phones.
 - [x] 2. ShadySimDeals appears on supported computers.
-- [ ] 3. Both entry points expose household-member and unborn-Nooboo sales.
+- [x] 3. Both entry points expose household-member and unborn-Nooboo sales.
 - [ ] 4. Household picker supports every required age and excludes the actor.
   - [x] Actor exclusion and Teen-through-Elder filtering
   - [ ] Baby, infant, toddler, and child support
-- [ ] 5. Unborn picker includes only pregnant household members, including the actor.
+- [x] 5. Unborn picker includes only pregnant household members, including the actor.
+  - [x] Repository filtering and picker-row tests
+  - [x] Live: pregnant active Sim appears
+  - [x] Live: another pregnant household member appears
 - [x] 6. A calculated offer appears before confirmation.
 - [x] 7. Cancellation makes no changes.
 - [ ] 8. Confirmation starts the appropriate rabbit hole.
 - [ ] 9. Household-member transactions return only the seller from a rabbit hole.
 - [x] 10. Targets move out of the active household without hard deletion.
 - [x] 11. Payment is deposited exactly once and only after target processing.
-- [ ] 12. Unborn transactions safely conclude the selected pregnancy.
+- [x] 12. Unborn transactions safely conclude the selected pregnancy.
+  - [x] Public API adapter and compensated transaction tests
+  - [x] Live: selected pregnancy concludes after a successful transaction
+  - [ ] Live: active Sim pregnancy concludes with one payment
+  - [ ] Live: other household member pregnancy concludes with one payment
 - [ ] 13. Twins and triplets affect the live pregnancy offer.
+  - [x] Pricing uses the public expected-offspring count
+  - [ ] Live twin and triplet offers verified
 - [ ] 14. Sellers receive trait-appropriate buffs.
 - [ ] 15. Other selected pregnant Sims receive reaction buffs.
 - [x] 16. Transactions validate and fail safely, including transfer rollback.

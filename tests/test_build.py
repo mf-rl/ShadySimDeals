@@ -38,13 +38,15 @@ def test_build_stbl_encodes_version_five_table():
     assert data[28:] == b"ShadySimDeals"
 
 
-def test_package_resources_include_phone_and_computer_household_sales():
+def test_package_resources_include_phone_and_computer_sales():
     resources = build_mod.package_resources()
     keys = {(resource_type, group, instance) for _, resource_type, group, instance in resources}
 
     assert keys == {
         (0xE882D22F, 0, 0xEAA1200000000001),
+        (0xE882D22F, 0, 0xEAA21FFB1081E002),
         (0xE882D22F, 0, 0xEAA21FFB1081E003),
+        (0xE882D22F, 0, 0xEAA21FFB1081E004),
         (0x03E9D964, 0x80000000, 0xEAA1200000000010),
         (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
         (0x7DF2169C, 0, 0xEAA1200000000020),
@@ -68,9 +70,14 @@ def test_tuning_xml_ids_match_packaged_instances_and_references():
 
     assert all(int(xml.attrib["s"]) == instance for instance, xml in interactions.items())
     assert int(injector.attrib["s"]) == injector_id
-    assert int(injector.find(".//L[@n='phone_affordances']/T").text) == int(
-        "EAA1200000000001", 16
-    )
+    phone_ids = {
+        int(node.text)
+        for node in injector.findall(".//L[@n='phone_affordances']/T")
+    }
+    assert phone_ids == {
+        int("EAA1200000000001", 16),
+        int("EAA21FFB1081E002", 16),
+    }
 
 
 def test_lot51_injector_targets_computers_with_computer_interaction():
@@ -83,9 +90,14 @@ def test_lot51_injector_targets_computers_with_computer_interaction():
     computer_entry = injector.find("./L[@n='inject_by_object_tags']/U")
 
     assert computer_entry.find("./L[@n='tags']/E").text == "Func_Computer"
-    assert int(computer_entry.find("./L[@n='affordances']/T").text) == int(
-        "EAA21FFB1081E003", 16
-    )
+    computer_ids = {
+        int(node.text)
+        for node in computer_entry.findall("./L[@n='affordances']/T")
+    }
+    assert computer_ids == {
+        int("EAA21FFB1081E003", 16),
+        int("EAA21FFB1081E004", 16),
+    }
 
 
 def test_phone_interaction_uses_matching_custom_category_resources():
@@ -112,6 +124,21 @@ def test_phone_interaction_uses_matching_custom_category_resources():
     assert simdata.startswith(b"DATA\x01\x01\x00\x00")
     assert b"PieMenuCategory\0" in simdata
     assert b"ShadySimDeals:phoneCategory\0" in simdata
+
+
+def test_unborn_interactions_use_shady_sim_deals_category():
+    interactions = {
+        instance: ET.fromstring(data)
+        for data, resource_type, _, instance in build_mod.package_resources()
+        if resource_type == build_mod.INTERACTION_TUNING_TYPE
+        and instance in {0xEAA21FFB1081E002, 0xEAA21FFB1081E004}
+    }
+
+    assert set(interactions) == {0xEAA21FFB1081E002, 0xEAA21FFB1081E004}
+    assert all(
+        int(xml.find("./T[@n='category']").text) == build_mod.CUSTOM_CATEGORY_ID
+        for xml in interactions.values()
+    )
 
 
 def test_category_simdata_has_verified_schema_and_values():
@@ -156,7 +183,9 @@ def test_built_package_index_contains_every_planned_resource(tmp_path):
 
     assert keys == {
         (0xE882D22F, 0, 0xEAA1200000000001),
+        (0xE882D22F, 0, 0xEAA21FFB1081E002),
         (0xE882D22F, 0, 0xEAA21FFB1081E003),
+        (0xE882D22F, 0, 0xEAA21FFB1081E004),
         (0x03E9D964, 0x80000000, 0xEAA1200000000010),
         (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
         (0x7DF2169C, 0, 0xEAA1200000000020),

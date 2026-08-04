@@ -1,6 +1,6 @@
 # ShadySimDeals
 
-ShadySimDeals is a darkly satirical The Sims 4 script mod. The playable household-sale workflow is available from phones and compatible computers.
+ShadySimDeals is a darkly satirical The Sims 4 script mod. Household-member and unborn-Nooboo sales are available from phones and compatible computers.
 
 ## Requirements
 
@@ -16,18 +16,20 @@ ShadySimDeals is a darkly satirical The Sims 4 script mod. The playable househol
 4. Delete `Documents\Electronic Arts\The Sims 4\localthumbcache.package`.
 5. Start the game and load a household.
 6. Open a Sim's phone, or click a compatible computer and open **ShadySimDeals**.
-7. Choose **Sell Household Member**.
+7. Choose **Sell Household Member** or **Sell Unborn Nooboo**.
 8. Pick an eligible household member, review the offer, and confirm.
 
 Eligible targets are household members from Teen through Elder. The active Sim, babies, infants, toddlers, children, pets, already-sold Sims, and Sims involved in another transaction are excluded.
 
-The current offer is determined by age only. A completed sale transfers the target to a hidden **ShadySimDeals Holdings** household and then pays the active household. If payment fails, the transfer is rolled back.
+The household-member offer is determined by age only. A completed sale transfers the target to a hidden **ShadySimDeals Holdings** household and then pays the active household. If payment fails, the transfer is rolled back.
+
+The unborn picker includes every currently pregnant household member, including the active Sim. Its offer uses the pregnancy tracker's expected offspring count. Confirming immediately clears the selected pregnancy and deposits one payment; this version does not yet animate or delay the transaction through a rabbit hole. Because the count API only reports the current expected count, the mod does not force early twin or triplet detection.
 
 Do not remove the mod while sold Sims remain in the holding household; recover them first or keep a backup of the save.
 
 ## Current scope
 
-This release intentionally omits unborn-Nooboo sales, buffs, ghosts, delayed outcomes, and a real rabbit-hole animation. Those features remain isolated behind the existing domain services until their game APIs are verified. See [`SPECS_CHECKLIST.md`](SPECS_CHECKLIST.md) for detailed implementation status.
+This release intentionally omits buffs, ghosts, delayed outcomes, and a real rabbit-hole animation. Those features remain isolated behind the existing domain services until their game APIs are verified. See [`SPECS_CHECKLIST.md`](SPECS_CHECKLIST.md) for detailed implementation status.
 
 ## Build and test
 

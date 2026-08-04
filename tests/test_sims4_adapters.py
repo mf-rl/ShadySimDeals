@@ -72,6 +72,19 @@ class FakeHouseholdManager:
         return household
 
 
+class FakePregnancyTracker:
+    def __init__(self, pregnant=True, offspring_count=1, clear_succeeds=True):
+        self.is_pregnant = pregnant
+        self.offspring_count = offspring_count
+        self.clear_succeeds = clear_succeeds
+        self.cleared = 0
+
+    def clear_pregnancy(self):
+        self.cleared += 1
+        if self.clear_succeeds:
+            self.is_pregnant = False
+
+
 def test_age_key_maps_supported_game_ages():
     assert sims4_adapters.age_key(FakeSimInfo("TEEN")) == "teen"
     assert sims4_adapters.age_key(FakeSimInfo("YOUNGADULT")) == "young_adult"
@@ -129,6 +142,56 @@ def test_transaction_validator_accepts_only_safe_current_household_targets():
 
     households["home"].funds = None
     assert validator().validate(deal) == "Household funds are unavailable"
+
+
+def test_unborn_validator_allows_pregnant_actor_and_rejects_ended_pregnancy():
+    actor = FakeSimInfo("ADULT", sim_id="actor")
+    households = {"home": FakeHousehold()}
+    pregnancy = {"actor": True}
+    validator = sims4_adapters.Sims4TransactionValidator(
+        sim_info_lookup={"actor": actor}.get,
+        household_lookup=households.get,
+        pregnancy_check=lambda sim_id: pregnancy.get(str(sim_id), False),
+        shutdown_check=lambda: False,
+    )
+    deal = SaleTransaction("unborn", "actor", "actor", "home")
+
+    assert validator.validate(deal) is None
+    pregnancy["actor"] = False
+    assert validator.validate(deal) == "Selected Sim is no longer pregnant"
+
+
+def test_pregnancy_adapter_reads_public_count_without_generating_data():
+    tracker = FakePregnancyTracker(offspring_count=2)
+    sim_info = SimpleNamespace(pregnancy_tracker=tracker)
+    adapter = sims4_adapters.Sims4PregnancyAdapter(
+        sim_info_lookup=lambda sim_id: sim_info
+    )
+
+    assert adapter.expected_offspring_count("pregnant") == 2
+    assert not hasattr(tracker, "create_offspring_data")
+
+
+def test_pregnancy_adapter_clears_and_verifies_pregnancy():
+    tracker = FakePregnancyTracker()
+    sim_info = SimpleNamespace(pregnancy_tracker=tracker)
+    adapter = sims4_adapters.Sims4PregnancyAdapter(
+        sim_info_lookup=lambda sim_id: sim_info
+    )
+
+    assert adapter.conclude_pregnancy("pregnant") is True
+    assert tracker.cleared == 1
+    assert adapter.is_pregnant("pregnant") is False
+
+
+def test_pregnancy_adapter_reports_failed_clear():
+    tracker = FakePregnancyTracker(clear_succeeds=False)
+    sim_info = SimpleNamespace(pregnancy_tracker=tracker)
+    adapter = sims4_adapters.Sims4PregnancyAdapter(
+        sim_info_lookup=lambda sim_id: sim_info
+    )
+
+    assert adapter.conclude_pregnancy("pregnant") is False
 
 
 def test_household_adapter_moves_target_to_reused_hidden_holdings_and_rolls_back():
@@ -196,3 +259,28 @@ def test_funds_adapter_uses_marketplace_sale_telemetry_reason(monkeypatch):
     sims4_adapters.Sims4FundsAdapter().deposit("7", 6500)
 
     assert calls == [(6500, 25)]
+
+
+def test_funds_adapter_refund_removes_full_marketplace_payment(monkeypatch):
+    calls = []
+    funds = SimpleNamespace(
+        try_remove=lambda amount, reason, sim, require_full: calls.append(
+            (amount, reason, sim, require_full)
+        )
+        or True
+    )
+    household = SimpleNamespace(funds=funds)
+    services = SimpleNamespace(
+        household_manager=lambda: SimpleNamespace(get=lambda household_id: household)
+    )
+    consts = SimpleNamespace(TELEMETRY_MONEY_OBJECT_MARKETPLACE_SALE=25)
+    monkeypatch.setitem(sys.modules, "services", services)
+    monkeypatch.setitem(
+        sys.modules,
+        "protocolbuffers",
+        SimpleNamespace(Consts_pb2=consts),
+    )
+
+    sims4_adapters.Sims4FundsAdapter().withdraw("7", 15000)
+
+    assert calls == [(15000, 25, None, True)]

@@ -9,7 +9,8 @@
 - Interaction tuning uses resource type `0xE882D22F`.
 - Lot 51's `TuningInjector` injects the phone affordance into Sim object tuning `14965` through `phone_affordances`.
 - Lot 51's `inject_by_object_tags` injects the computer affordance into objects tagged `Func_Computer` through their normal `affordances` list.
-- The package contains both household-sale interactions, the injector snippet, the custom category XML and SimData, and ENG_US STBL resources.
+- The package contains phone and computer interactions for household-member and unborn-Nooboo sales, the injector snippet, the custom category XML and SimData, and ENG_US STBL resources.
+- Patch `1.125.59.1030` exposes pregnancy state through `SimInfo.pregnancy_tracker.is_pregnant`, expected offspring through `offspring_count`, and safe conclusion through `clear_pregnancy()`.
 
 Run tests with `py -3.12 -m pytest -q -p no:cacheprovider tests`. Build with `py -3.12 build_mod.py`; the build invokes Python 3.7 for game bytecode.
 
@@ -25,10 +26,15 @@ After every supported game patch:
 6. Confirm cancelling the picker and confirmation dialog changes nothing.
 7. Confirm a completed sale moves the target to **ShadySimDeals Holdings** and pays exactly once.
 8. Confirm saving, reloading, and travelling preserve the sold Sim.
-9. Check `Documents\Electronic Arts\The Sims 4` for `lastException.txt` and review `ShadySimDeals.log`.
+9. Confirm **Sell Unborn Nooboo** appears from both the phone and a compatible computer.
+10. With the active Sim pregnant, confirm the unborn picker includes the actor and excludes non-pregnant household members.
+11. With another household member pregnant, confirm the same picker includes that Sim.
+12. Confirm cancellation leaves pregnancy and funds unchanged.
+13. Confirm each pregnant-Sim path clears the selected pregnancy and deposits exactly one offspring-count-adjusted payment.
+14. Check `Documents\Electronic Arts\The Sims 4` for `lastException.txt` and review `ShadySimDeals.log`.
 
 Do not install or replace `.package` or `.ts4script` files while the game is running.
 
 ## Deferred work
 
-Unborn-Nooboo sales, native phone/computer animations, rabbit holes, buffs, persistence, pregnancy completion, and ghost/delayed outcomes still require patch-specific verification. Keep discovered identifiers in `sims4_adapters.py` or tuning, rather than spreading game calls through the domain code.
+Native phone/computer animations, rabbit holes, buffs, persistence, forced early multiple-birth detection, and ghost/delayed outcomes still require patch-specific verification. Keep discovered identifiers in `sims4_adapters.py` or tuning, rather than spreading game calls through the domain code.

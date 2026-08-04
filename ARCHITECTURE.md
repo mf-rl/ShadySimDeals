@@ -10,17 +10,21 @@
 - `outcomes.py` and `reactions.py`: injected random selection and priority rules.
 - `registry.py`: sold-Sim tracking and participant reservations.
 - `sims4_adapters.py`: all version-sensitive game calls.
-- `sims4_runtime.py`: phone picker, confirmation, notification, and transaction composition boundary.
+- `sims4_runtime.py`: shared phone/computer pickers, confirmation, notification, and transaction composition boundary.
 
 ## Transaction order
 
 `CREATED -> VALIDATED -> OFFER_CALCULATED -> PLAYER_CONFIRMED -> RABBIT_HOLE_STARTED -> TARGET_DISPOSITION_PENDING -> TARGET_PROCESSED -> PAYMENT_COMPLETED -> CONSEQUENCES_APPLIED -> COMPLETED`
 
-Cancellation is allowed before confirmation. Failures are terminal, release reservations, and never pay before target processing. Repeated completion is idempotent. A payment failure after transfer invokes the target processor's rollback path.
+Cancellation is allowed before confirmation. Failures are terminal and release reservations. Repeated completion is idempotent. Household sales pay after the reversible transfer and roll it back if payment fails. Unborn sales prepay because clearing a pregnancy is irreversible; if pregnancy processing fails before completion, the orchestrator refunds that exact payment.
 
 ## Pricing pipeline
 
-The service supports age, pregnancy count, traits, skills, fame, occults, and buyer demand. The playable phone MVP supplies verified age data only; results are rounded to the nearest 50 Simoleons and clamped.
+The service supports age, pregnancy count, traits, skills, fame, occults, and buyer demand. Household sales currently supply verified age data; unborn sales supply the pregnancy tracker's public expected offspring count. Results are rounded to the nearest 50 Simoleons and clamped.
+
+## Pregnancy integration
+
+Phone and computer interactions share one unborn workflow. `Sims4PregnancyAdapter` contains the patch-sensitive `is_pregnant`, `offspring_count`, and `clear_pregnancy()` calls; the runtime and pure transaction services do not reach into pregnancy trackers directly.
 
 ## Persistence
 

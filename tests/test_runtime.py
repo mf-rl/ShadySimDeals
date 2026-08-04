@@ -52,6 +52,18 @@ class FakePicker:
         self.on_response = on_response
 
 
+class FakePregnancies:
+    def __init__(self, pregnant_ids=(), counts=None):
+        self.pregnant_ids = {str(sim_id) for sim_id in pregnant_ids}
+        self.counts = counts or {}
+
+    def is_pregnant(self, sim_id):
+        return str(sim_id) in self.pregnant_ids
+
+    def expected_offspring_count(self, sim_id):
+        return self.counts.get(str(sim_id), 1)
+
+
 def test_build_sale_candidate_uses_verified_age_only():
     candidate = sims4_runtime.build_sale_candidate(FakeSimInfo())
 
@@ -134,6 +146,61 @@ def test_complete_household_sale_uses_shared_transaction_workflow():
     assert events.index("target") < events.index(("payment", "home", 4000))
 
 
+def test_unborn_candidates_include_pregnant_actor_and_household_member():
+    sims = (
+        FakeSimInfo("actor"),
+        FakeSimInfo("pregnant"),
+        FakeSimInfo("not-pregnant"),
+        FakeSimInfo("elsewhere", household_id="other"),
+    )
+    pregnancies = FakePregnancies(("actor", "pregnant", "elsewhere"))
+
+    assert sims4_runtime.eligible_unborn_ids(
+        sims,
+        household_id="home",
+        pregnancy_check=pregnancies.is_pregnant,
+        sold_check=lambda sim_id: False,
+        reserved_check=lambda sim_id: False,
+    ) == ("actor", "pregnant")
+
+
+def test_build_unborn_candidate_uses_public_offspring_count():
+    target = FakeSimInfo("pregnant")
+    pregnancies = FakePregnancies(("pregnant",), {"pregnant": 2})
+
+    candidate = sims4_runtime.build_unborn_candidate(target, pregnancies)
+
+    assert candidate.age == "unborn"
+    assert candidate.expected_offspring == 2
+
+
+def test_complete_unborn_sale_uses_unborn_pricing_and_workflow():
+    events = []
+    recorder = RuntimeRecorder(events)
+    recorder.requires_prepayment = True
+    recorder.withdraw = lambda household_id, amount: events.append(
+        ("refund", household_id, amount)
+    )
+    workflow = TransactionOrchestrator(
+        recorder, recorder, recorder, recorder, recorder, recorder
+    )
+    target = FakeSimInfo("pregnant")
+    pregnancies = FakePregnancies(("pregnant",), {"pregnant": 2})
+
+    deal = sims4_runtime.complete_unborn_sale(
+        "actor",
+        "pregnant",
+        "home",
+        lambda sim_id: target,
+        pregnancies,
+        workflow,
+        SimSalePricingService(),
+    )
+
+    assert deal.state == "completed"
+    assert deal.offer.amount == 27000
+
+
 def test_confirm_if_accepted_runs_only_for_ok_response():
     calls = []
     dialog = type("Dialog", (), {"response": 0})()
@@ -196,6 +263,59 @@ def test_phone_and_computer_household_sales_share_one_implementation():
     assert "_run_interaction_gen" not in (
         sims4_runtime.ComputerSellHouseholdMemberInteraction.__dict__
     )
+
+
+def test_phone_and_computer_unborn_sales_share_one_implementation():
+    shared = sims4_runtime._UnbornSaleInteraction
+
+    assert issubclass(sims4_runtime.PhoneSellUnbornNoobooInteraction, shared)
+    assert issubclass(sims4_runtime.ComputerSellUnbornNoobooInteraction, shared)
+
+
+def test_unborn_picker_includes_pregnant_actor(monkeypatch):
+    FakePicker.last = None
+    actor_info = FakeSimInfo(sim_id=42)
+    actor = type(
+        "Actor",
+        (),
+        {
+            "sim_id": 42,
+            "household": type(
+                "Household", (), {"id": "home", "sim_infos": (actor_info,)}
+            )(),
+        },
+    )()
+    never = type(
+        "Never",
+        (),
+        {
+            "is_sold": lambda self, sim_id: False,
+            "is_reserved": lambda self, sim_id: False,
+        },
+    )()
+    pregnancies = FakePregnancies((42,))
+    monkeypatch.setattr(sims4_runtime, "UiSimPicker", FakePicker)
+    monkeypatch.setattr(
+        sims4_runtime,
+        "SimPickerRow",
+        lambda sim_id, tag: type("Row", (), {"sim_id": sim_id, "tag": tag})(),
+    )
+    monkeypatch.setattr(
+        sims4_runtime,
+        "_runtime_services",
+        lambda: {
+            "sold": never,
+            "reservations": never,
+            "pregnancies": pregnancies,
+        },
+    )
+    interaction = object.__new__(sims4_runtime.PhoneSellUnbornNoobooInteraction)
+    interaction.sim = actor
+    interaction.get_resolver = lambda: "resolver"
+
+    list(interaction._run_interaction_gen(None))
+
+    assert [row.tag for row in FakePicker.last.rows] == ["42"]
 
 
 def test_computer_household_sale_opens_shared_picker(monkeypatch):

@@ -19,5 +19,7 @@
   "0xA1100012": "Choose the Teen or older household member whose paperwork has become unexpectedly negotiable.",
   "0xA1100013": "No eligible Teen or older household members are currently available.",
   "0xA1100014": "ShadySimDeals requires Lot51 Core Library 1.43 or newer.",
-  "0xA1100015": "The payment failed and the target could not be returned automatically. Exit without saving and inspect the ShadySimDeals log."
+  "0xA1100015": "The payment failed and the target could not be returned automatically. Exit without saving and inspect the ShadySimDeals log.",
+  "0xA1100016": "Select a Prenatal Business Partner",
+  "0xA1100017": "Choose the pregnant household member whose future nursery expenses have become negotiable."
 }

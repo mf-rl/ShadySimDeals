@@ -31,6 +31,9 @@ class Recorder:
     def deposit(self, household_id, amount):
         self.events.append(("payment", household_id, amount))
 
+    def withdraw(self, household_id, amount):
+        self.events.append(("refund", household_id, amount))
+
     def apply(self, transaction):
         self.events.append("consequences")
 
@@ -116,3 +119,43 @@ def test_payment_failure_rolls_back_processed_target():
     assert events[-2:] == ["rollback", "release"]
     assert not deal.payment_completed
     assert deal.state == "failed"
+
+
+def test_irreversible_target_is_prepaid_before_processing():
+    events = []
+    target = Recorder(events)
+    target.requires_prepayment = True
+    workflow = TransactionOrchestrator(
+        Recorder(events),
+        Recorder(events),
+        Recorder(events),
+        target,
+        Recorder(events),
+        Recorder(events),
+    )
+    deal = SaleTransaction("unborn", "actor", "pregnant", "home")
+    workflow.prepare(deal, SaleOffer(15000, {}, "buyer"))
+
+    assert workflow.confirm_and_complete(deal)
+    assert events.index(("payment", "home", 15000)) < events.index("target")
+    assert deal.payment_completed
+
+
+def test_failed_irreversible_target_refunds_prepayment():
+    events = []
+    target = Recorder(events, failure="pregnancy completion failed")
+    target.requires_prepayment = True
+    workflow = TransactionOrchestrator(
+        Recorder(events),
+        Recorder(events),
+        Recorder(events),
+        target,
+        Recorder(events),
+        Recorder(events),
+    )
+    deal = SaleTransaction("unborn", "actor", "pregnant", "home")
+    workflow.prepare(deal, SaleOffer(15000, {}, "buyer"))
+
+    assert not workflow.confirm_and_complete(deal)
+    assert events[-2:] == [("refund", "home", 15000), "release"]
+    assert not deal.payment_completed

@@ -47,6 +47,7 @@ class TransactionOrchestrator:
         if transaction.state != "offer_calculated":
             raise TransactionError("Transaction is not ready for confirmation")
         target_processed = False
+        prepaid = False
         try:
             error = self._validator.validate(transaction)
             if error:
@@ -56,6 +57,15 @@ class TransactionOrchestrator:
             self._rabbit_holes.run(transaction)
             self._states.transition(transaction, "rabbit_hole_started")
             self._states.transition(transaction, "target_disposition_pending")
+            if (
+                getattr(self._target_processor, "requires_prepayment", False)
+                and not transaction.payment_completed
+            ):
+                self._funds.deposit(
+                    transaction.household_id, transaction.offer.amount
+                )
+                transaction.payment_completed = True
+                prepaid = True
             self._target_processor.process(transaction)
             target_processed = True
             self._states.transition(transaction, "target_processed")
@@ -69,7 +79,17 @@ class TransactionOrchestrator:
             return True
         except Exception as exc:
             transaction.failure_reason = str(exc)
-            if target_processed and not transaction.payment_completed:
+            if prepaid and not target_processed and transaction.payment_completed:
+                try:
+                    self._funds.withdraw(
+                        transaction.household_id, transaction.offer.amount
+                    )
+                    transaction.payment_completed = False
+                except Exception as refund_exc:
+                    transaction.failure_reason += "; refund failed: {}".format(
+                        refund_exc
+                    )
+            elif target_processed and not transaction.payment_completed:
                 rollback = getattr(self._target_processor, "rollback", None)
                 if callable(rollback):
                     try:

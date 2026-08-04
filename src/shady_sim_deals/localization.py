@@ -22,6 +22,8 @@ STRING_IDS = {
     "no_eligible_targets": 0xA1100013,
     "lot51_missing": 0xA1100014,
     "holding_rollback_failed": 0xA1100015,
+    "unborn_picker_title": 0xA1100016,
+    "unborn_picker_body": 0xA1100017,
 }
 
 
