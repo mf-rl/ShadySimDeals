@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<I c="PhoneSellHouseholdMemberInteraction" i="interaction" m="shady_sim_deals.sims4_runtime" n="ShadySimDeals:PhoneSellHouseholdMember" s="16906829660497641473">
+  <V n="_saveable" t="disabled" />
+  <T n="allow_autonomous">False</T>
+  <T n="category">16906829660497641488</T>
+</I>

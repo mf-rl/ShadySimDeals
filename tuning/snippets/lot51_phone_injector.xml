@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<I c="TuningInjector" i="snippet" m="lot51_core.snippets.injector" n="ShadySimDeals:Lot51PhoneInjector" s="16906829660497641504">
+  <T n="creator_name">ShadySimDeals</T>
+  <T n="mod_name">ShadySimDeals</T>
+  <T n="minimum_core_version">1.43</T>
+  <T n="minimum_game_version">1.125.59</T>
+  <L n="inject_by_object_tuning">
+    <U>
+      <T n="query">14965</T>
+      <L n="phone_affordances">
+        <T>16906829660497641473</T>
+      </L>
+    </U>
+  </L>
+</I>

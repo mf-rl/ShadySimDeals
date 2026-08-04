@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<I c="ComputerSellUnbornNoobooInteraction" i="interaction" m="shady_sim_deals.sims4_runtime" n="ShadySimDeals:ComputerSellUnbornNooboo" s="16907111114276462596">
+  <V n="_saveable" t="disabled" />
+  <T n="allow_autonomous">False</T>
+</I>

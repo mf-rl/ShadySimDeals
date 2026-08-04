@@ -1,0 +1,23 @@
+{
+  "0xA1100001": "ShadySimDeals",
+  "0xA1100002": "Sell Household Member",
+  "0xA1100003": "Sell Unborn Nooboo",
+  "0xA1100004": "A Definitely Legitimate Offer",
+  "0xA1100005": "A buyer has offered \u00167{0.Money} for {1.SimFirstName}. Processing fees, suspicious paperwork, and absolutely no refunds are included.",
+  "0xA1100006": "Complete Deal",
+  "0xA1100007": "Suddenly Develop Morals",
+  "0xA1100008": "Deal Temporarily Less Than Legal",
+  "0xA1100009": "The paperwork encountered an inconvenient fact. No Sims or Simoleons were moved.",
+  "0xA110000A": "Attend a Definitely Legal Exchange",
+  "0xA110000B": "Arrange a Pre-Order",
+  "0xA110000C": "Another Successful Reassignment",
+  "0xA110000D": "The household received \u00167{0.Money}. {1.SimFirstName} is now somebody else's paperwork problem.",
+  "0xA110000E": "Premium Pre-Order Completed",
+  "0xA110000F": "The household received \u00167{0.Money}. The nursery has become unexpectedly spacious.",
+  "0xA1100010": "ShadySimDeals integration is unavailable for this game version.",
+  "0xA1100011": "Select a Household Asset",
+  "0xA1100012": "Choose the Teen or older household member whose paperwork has become unexpectedly negotiable.",
+  "0xA1100013": "No eligible Teen or older household members are currently available.",
+  "0xA1100014": "ShadySimDeals requires Lot51 Core Library 1.43 or newer.",
+  "0xA1100015": "The payment failed and the target could not be returned automatically. Exit without saving and inspect the ShadySimDeals log."
+}
