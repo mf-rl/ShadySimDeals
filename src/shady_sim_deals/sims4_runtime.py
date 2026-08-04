@@ -164,8 +164,7 @@ class _ShadySimDealsInteraction(SuperInteraction):
         return False
 
 
-class PhoneSellHouseholdMemberInteraction(_ShadySimDealsInteraction):
-    entry_point = "phone"
+class _HouseholdMemberSaleInteraction(_ShadySimDealsInteraction):
     transaction_type = "household_member"
     string_key = "sell_household_member"
 
@@ -278,16 +277,18 @@ class PhoneSellHouseholdMemberInteraction(_ShadySimDealsInteraction):
             )
 
 
+class PhoneSellHouseholdMemberInteraction(_HouseholdMemberSaleInteraction):
+    entry_point = "phone"
+
+
 class PhoneSellUnbornNoobooInteraction(_ShadySimDealsInteraction):
     entry_point = "phone"
     transaction_type = "unborn"
     string_key = "sell_unborn_nooboo"
 
 
-class ComputerSellHouseholdMemberInteraction(_ShadySimDealsInteraction):
+class ComputerSellHouseholdMemberInteraction(_HouseholdMemberSaleInteraction):
     entry_point = "computer"
-    transaction_type = "household_member"
-    string_key = "sell_household_member"
 
 
 class ComputerSellUnbornNoobooInteraction(_ShadySimDealsInteraction):
