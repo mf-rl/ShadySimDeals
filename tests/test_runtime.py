@@ -64,8 +64,18 @@ class FakePregnancies:
         return self.counts.get(str(sim_id), 1)
 
 
+def run_generator(generator):
+    while True:
+        try:
+            next(generator)
+        except StopIteration as stop:
+            return stop.value
+
+
 def test_build_sale_candidate_uses_verified_age_only():
-    candidate = sims4_runtime.build_sale_candidate(FakeSimInfo())
+    candidate = sims4_runtime.build_sale_candidate(
+        FakeSimInfo(), FakePregnancies()
+    )
 
     assert candidate.sim_id == "42"
     assert candidate.name == "Ada Lovelace"
@@ -76,13 +86,31 @@ def test_build_sale_candidate_uses_verified_age_only():
     assert candidate.occults == ()
     assert candidate.career_level == 0
     assert candidate.education == "none"
+    assert candidate.pregnant is False
+    assert candidate.expected_offspring == 1
+
+
+def test_build_sale_candidate_uses_public_pregnancy_count():
+    target = FakeSimInfo("pregnant", age="ADULT")
+    pregnancies = FakePregnancies(("pregnant",), {"pregnant": 2})
+
+    candidate = sims4_runtime.build_sale_candidate(target, pregnancies)
+
+    assert candidate.pregnant is True
+    assert candidate.expected_offspring == 2
 
 
 def test_eligible_household_member_ids_apply_shared_picker_rules():
     sim_infos = (
         FakeSimInfo("actor", age="ADULT"),
-        FakeSimInfo("valid", age="TEEN"),
+        FakeSimInfo("baby", age="BABY"),
+        FakeSimInfo("infant", age="INFANT"),
+        FakeSimInfo("toddler", age="TODDLER"),
         FakeSimInfo("child", age="CHILD"),
+        FakeSimInfo("teen", age="TEEN"),
+        FakeSimInfo("young-adult", age="YOUNGADULT"),
+        FakeSimInfo("adult", age="ADULT"),
+        FakeSimInfo("elder", age="ELDER"),
         FakeSimInfo("pet", age="ADULT", is_pet=True),
         FakeSimInfo("sold", age="ELDER"),
         FakeSimInfo("reserved", age="ADULT"),
@@ -95,7 +123,16 @@ def test_eligible_household_member_ids_apply_shared_picker_rules():
         household_id="home",
         sold_check=lambda sim_id: sim_id == "sold",
         reserved_check=lambda sim_id: sim_id == "reserved",
-    ) == ("valid",)
+    ) == (
+        "baby",
+        "infant",
+        "toddler",
+        "child",
+        "teen",
+        "young-adult",
+        "adult",
+        "elder",
+    )
 
 
 class RuntimeRecorder:
@@ -144,6 +181,30 @@ def test_complete_household_sale_uses_shared_transaction_workflow():
     assert transaction.state == "completed"
     assert transaction.offer.amount == 4000
     assert events.index("target") < events.index(("payment", "home", 4000))
+
+
+def test_complete_pregnant_household_sale_pays_bundle_and_keeps_pregnancy():
+    events = []
+    recorder = RuntimeRecorder(events)
+    workflow = TransactionOrchestrator(
+        recorder, recorder, recorder, recorder, recorder, recorder
+    )
+    target = FakeSimInfo("pregnant", age="ADULT")
+    pregnancies = FakePregnancies(("pregnant",))
+
+    transaction = sims4_runtime.complete_household_sale(
+        "actor",
+        "pregnant",
+        "home",
+        lambda sim_id: target,
+        workflow,
+        SimSalePricingService(),
+        pregnancies,
+    )
+
+    assert transaction.offer.amount == 19000
+    assert ("payment", "home", 19000) in events
+    assert pregnancies.is_pregnant("pregnant")
 
 
 def test_unborn_candidates_include_pregnant_actor_and_household_member():
@@ -270,6 +331,77 @@ def test_phone_and_computer_unborn_sales_share_one_implementation():
 
     assert issubclass(sims4_runtime.PhoneSellUnbornNoobooInteraction, shared)
     assert issubclass(sims4_runtime.ComputerSellUnbornNoobooInteraction, shared)
+
+
+def test_device_content_finishes_before_picker(monkeypatch):
+    events = []
+
+    def run_device(self, timeline):
+        events.append("device")
+        yield from ()
+        return True
+
+    monkeypatch.setattr(
+        sims4_runtime.SuperInteraction, "_run_interaction_gen", run_device
+    )
+    interaction = object.__new__(
+        sims4_runtime.PhoneSellHouseholdMemberInteraction
+    )
+    interaction._open_picker = lambda: events.append("picker") or True
+
+    assert run_generator(interaction._run_interaction_gen(None)) is True
+    assert events == ["device", "picker"]
+
+
+def test_phone_device_exception_logs_and_opens_picker(monkeypatch):
+    events = []
+
+    def fail_device(self, timeline):
+        yield from ()
+        raise RuntimeError("animation failed")
+
+    monkeypatch.setattr(
+        sims4_runtime.SuperInteraction, "_run_interaction_gen", fail_device
+    )
+    monkeypatch.setattr(
+        sims4_runtime.LOGGER,
+        "exception",
+        lambda event, **data: events.append((event, data)),
+    )
+    interaction = object.__new__(sims4_runtime.PhoneSellUnbornNoobooInteraction)
+    interaction._open_picker = lambda: events.append("picker") or True
+
+    assert run_generator(interaction._run_interaction_gen(None)) is True
+    assert events[-1] == "picker"
+    assert events[0][0] == "device_animation_failed"
+    assert events[0][1]["entry_point"] == "phone"
+
+
+def test_computer_device_failure_suppresses_picker(monkeypatch):
+    events = []
+
+    def fail_device(self, timeline):
+        yield from ()
+        return False
+
+    monkeypatch.setattr(
+        sims4_runtime.SuperInteraction, "_run_interaction_gen", fail_device
+    )
+    monkeypatch.setattr(
+        sims4_runtime.LOGGER,
+        "log",
+        lambda event, **data: events.append((event, data)),
+    )
+    interaction = object.__new__(
+        sims4_runtime.ComputerSellHouseholdMemberInteraction
+    )
+    interaction._open_picker = lambda: events.append("picker") or True
+
+    assert run_generator(interaction._run_interaction_gen(None)) is False
+    assert "picker" not in events
+    assert events == [
+        ("device_animation_failed", {"entry_point": "computer"})
+    ]
 
 
 def test_unborn_picker_includes_pregnant_actor(monkeypatch):
@@ -416,7 +548,10 @@ def test_picker_response_looks_up_selected_row_tag(monkeypatch):
     monkeypatch.setattr(
         sims4_runtime,
         "_runtime_services",
-        lambda: {"pricing": SimSalePricingService()},
+        lambda: {
+            "pricing": SimSalePricingService(),
+            "pregnancies": FakePregnancies(),
+        },
     )
     monkeypatch.setattr(sims4_runtime, "UiDialogOkCancel", Confirmation)
     interaction = object.__new__(sims4_runtime.PhoneSellHouseholdMemberInteraction)
@@ -460,7 +595,10 @@ def test_offer_confirmation_uses_tuned_factory_defaults(monkeypatch):
     monkeypatch.setattr(
         sims4_runtime,
         "_runtime_services",
-        lambda: {"pricing": SimSalePricingService()},
+        lambda: {
+            "pricing": SimSalePricingService(),
+            "pregnancies": FakePregnancies(),
+        },
     )
     monkeypatch.setattr(sims4_runtime, "UiDialogOkCancel", Confirmation)
     interaction = object.__new__(sims4_runtime.PhoneSellHouseholdMemberInteraction)

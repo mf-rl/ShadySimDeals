@@ -55,9 +55,13 @@ class FakeHousehold:
 
 
 class FakeHouseholdManager:
-    def __init__(self, households, fail_created_add=False):
+    def __init__(
+        self, households, fail_created_add=False, switch_result=True
+    ):
         self.households = list(households)
         self.fail_created_add = fail_created_add
+        self.switch_result = switch_result
+        self.switch_calls = []
 
     def values(self):
         return tuple(self.households)
@@ -70,6 +74,33 @@ class FakeHouseholdManager:
         household.fail_add = self.fail_created_add
         self.households.append(household)
         return household
+
+    def switch_sim_from_household_to_target_household(
+        self,
+        sim_info,
+        starting_household,
+        destination_household,
+        destroy_if_empty_household=False,
+        reason=None,
+    ):
+        self.switch_calls.append(
+            (
+                sim_info,
+                starting_household,
+                destination_household,
+                destroy_if_empty_household,
+                reason,
+            )
+        )
+        if not self.switch_result:
+            return False
+        starting_household.remove_sim_info(
+            sim_info,
+            destroy_if_empty_household=destroy_if_empty_household,
+            assign_to_none=False,
+        )
+        destination_household.add_sim_info_to_household(sim_info, reason=reason)
+        return True
 
 
 class FakePregnancyTracker:
@@ -85,16 +116,37 @@ class FakePregnancyTracker:
             self.is_pregnant = False
 
 
-def test_age_key_maps_supported_game_ages():
-    assert sims4_adapters.age_key(FakeSimInfo("TEEN")) == "teen"
-    assert sims4_adapters.age_key(FakeSimInfo("YOUNGADULT")) == "young_adult"
-    assert sims4_adapters.age_key(FakeSimInfo("ADULT")) == "adult"
-    assert sims4_adapters.age_key(FakeSimInfo("ELDER")) == "elder"
+@pytest.fixture
+def household_change_origin(monkeypatch):
+    origin = SimpleNamespace(UNKNOWN="unknown")
+    household_enums = SimpleNamespace(HouseholdChangeOrigin=origin)
+    monkeypatch.setitem(
+        sys.modules, "sims", SimpleNamespace(household_enums=household_enums)
+    )
+    monkeypatch.setitem(sys.modules, "sims.household_enums", household_enums)
+    return origin
+
+
+@pytest.mark.parametrize(
+    ("game_age", "expected"),
+    (
+        ("BABY", "baby"),
+        ("INFANT", "infant"),
+        ("TODDLER", "toddler"),
+        ("CHILD", "child"),
+        ("TEEN", "teen"),
+        ("YOUNGADULT", "young_adult"),
+        ("ADULT", "adult"),
+        ("ELDER", "elder"),
+    ),
+)
+def test_age_key_maps_supported_game_ages(game_age, expected):
+    assert sims4_adapters.age_key(FakeSimInfo(game_age)) == expected
 
 
 def test_age_key_rejects_unsupported_game_age():
     with pytest.raises(ValueError, match="Unsupported age"):
-        sims4_adapters.age_key(FakeSimInfo("CHILD"))
+        sims4_adapters.age_key(FakeSimInfo("UNKNOWN"))
 
 
 def test_transaction_validator_accepts_only_safe_current_household_targets():
@@ -121,8 +173,8 @@ def test_transaction_validator_accepts_only_safe_current_household_targets():
     same_sim = SaleTransaction("household_member", "actor", "actor", "home")
     assert validator().validate(same_sim) == "The actor cannot be the target"
 
-    sims["target"].age = FakeAge("CHILD")
-    assert validator().validate(deal) == "Unsupported age: CHILD"
+    sims["target"].age = FakeAge("UNKNOWN")
+    assert validator().validate(deal) == "Unsupported age: UNKNOWN"
     sims["target"].age = FakeAge("TEEN")
 
     sims["target"].is_pet = True
@@ -194,7 +246,9 @@ def test_pregnancy_adapter_reports_failed_clear():
     assert adapter.conclude_pregnancy("pregnant") is False
 
 
-def test_household_adapter_moves_target_to_reused_hidden_holdings_and_rolls_back():
+def test_household_adapter_moves_target_to_reused_hidden_holdings_and_rolls_back(
+    household_change_origin,
+):
     target = FakeSimInfo("TEEN")
     source = FakeHousehold()
     source.sim_infos.append(target)
@@ -219,9 +273,15 @@ def test_household_adapter_moves_target_to_reused_hidden_holdings_and_rolls_back
     assert target in source.sim_infos
     assert target not in existing.sim_infos
     assert target.household_id == "home"
+    assert manager.switch_calls == [
+        (target, source, existing, False, household_change_origin.UNKNOWN),
+        (target, existing, source, False, household_change_origin.UNKNOWN),
+    ]
 
 
-def test_household_adapter_restores_source_when_holding_add_fails():
+def test_household_adapter_restores_source_when_holding_add_fails(
+    household_change_origin,
+):
     target = FakeSimInfo("TEEN")
     source = FakeHousehold()
     source.sim_infos.append(target)
@@ -238,6 +298,26 @@ def test_household_adapter_restores_source_when_holding_add_fails():
     assert target.household_id == "home"
     holdings = manager.get("holdings")
     assert holdings.hidden
+
+
+def test_household_adapter_rejects_failed_native_switch(
+    household_change_origin,
+):
+    target = FakeSimInfo("CHILD")
+    source = FakeHousehold()
+    source.sim_infos.append(target)
+    manager = FakeHouseholdManager((source,), switch_result=False)
+    adapter = sims4_adapters.Sims4HouseholdAdapter(
+        household_manager=manager,
+        sim_info_lookup=lambda sim_id: target if sim_id == "target" else None,
+    )
+
+    with pytest.raises(sims4_adapters.IntegrationUnavailable, match="transfer failed"):
+        adapter.transfer_to_holding_household("target")
+
+    assert target in source.sim_infos
+    assert target.household_id == "home"
+    assert len(manager.switch_calls) == 1
 
 
 def test_funds_adapter_uses_marketplace_sale_telemetry_reason(monkeypatch):

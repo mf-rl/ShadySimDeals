@@ -10,13 +10,34 @@ def _round_to_fifty(value):
 
 class SimSalePricingService:
     def calculate_household_member_offer(self, candidate, buyer_context, rare=False):
-        return self._calculate(candidate, buyer_context, candidate.age, 1.0, rare)
+        pregnancy_bonus = 0
+        if candidate.pregnant:
+            pregnancy_bonus = int(
+                config.BASE_PRICES["unborn"]
+                * config.pregnancy_multiplier(candidate.expected_offspring)
+            )
+        return self._calculate(
+            candidate,
+            buyer_context,
+            candidate.age,
+            1.0,
+            rare,
+            special_bonus=pregnancy_bonus,
+        )
 
     def calculate_unborn_offer(self, candidate, buyer_context, rare=False):
         multiplier = config.pregnancy_multiplier(candidate.expected_offspring)
         return self._calculate(candidate, buyer_context, "unborn", multiplier, rare)
 
-    def _calculate(self, candidate, buyer_context, age_key, pregnancy_factor, rare):
+    def _calculate(
+        self,
+        candidate,
+        buyer_context,
+        age_key,
+        pregnancy_factor,
+        rare,
+        special_bonus=0,
+    ):
         if age_key not in config.BASE_PRICES:
             raise ValueError("Unsupported age: {}".format(age_key))
         demand = buyer_context.demand_multiplier
@@ -47,6 +68,7 @@ class SimSalePricingService:
             * status_factor
             * demand
             * risk_factor
+            + special_bonus
         )
         maximum = config.MAXIMUM_RARE_OFFER if rare else config.MAXIMUM_OFFER
         amount = min(maximum, max(config.MINIMUM_OFFER, _round_to_fifty(raw)))
@@ -55,6 +77,7 @@ class SimSalePricingService:
             {
                 "base_price": base_price,
                 "pregnancy_multiplier": pregnancy_factor,
+                "pregnancy_bonus": int(special_bonus),
                 "trait_multiplier": trait_factor,
                 "skill_multiplier": skill_factor,
                 "fame_multiplier": fame_factor,

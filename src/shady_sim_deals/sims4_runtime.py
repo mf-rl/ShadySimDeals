@@ -22,11 +22,21 @@ LOGGER = ModLogger()
 RUNTIME = {}
 
 
-def build_sale_candidate(sim_info):
+def build_sale_candidate(sim_info, pregnancy_adapter=None):
+    pregnant = bool(
+        pregnancy_adapter is not None
+        and pregnancy_adapter.is_pregnant(sim_info.sim_id)
+    )
     return SaleCandidate(
         sim_info.sim_id,
         "{} {}".format(sim_info.first_name, sim_info.last_name).strip(),
         age_key(sim_info),
+        pregnant=pregnant,
+        expected_offspring=(
+            pregnancy_adapter.expected_offspring_count(sim_info.sim_id)
+            if pregnant
+            else 1
+        ),
     )
 
 
@@ -98,13 +108,19 @@ def build_unborn_candidate(sim_info, pregnancy_adapter):
 
 
 def complete_household_sale(
-    actor_id, target_id, household_id, sim_info_lookup, workflow, pricing
+    actor_id,
+    target_id,
+    household_id,
+    sim_info_lookup,
+    workflow,
+    pricing,
+    pregnancy_adapter=None,
 ):
     target = sim_info_lookup(str(target_id))
     if target is None:
         raise ValueError("Target no longer exists")
     offer = pricing.calculate_household_member_offer(
-        build_sale_candidate(target), BuyerContext()
+        build_sale_candidate(target, pregnancy_adapter), BuyerContext()
     )
     transaction = SaleTransaction(
         "household_member", actor_id, target_id, household_id
@@ -153,7 +169,9 @@ except ImportError:
     UiSimPicker = None
 
     class SuperInteraction:
-        pass
+        def _run_interaction_gen(self, timeline):
+            yield from ()
+            return True
 
     def flexmethod(function):
         return function
@@ -224,29 +242,36 @@ class _ShadySimDealsInteraction(SuperInteraction):
     entry_point = "unknown"
     transaction_type = "unknown"
     string_key = "integration_unavailable"
+    continue_after_device_failure = False
 
     @flexmethod
     def get_name(cls, inst, *args, **kwargs):
         return localized_string(cls.string_key)
 
     def _run_interaction_gen(self, timeline):
-        yield from ()
-        LOGGER.log(
-            "integration_unavailable",
-            entry_point=self.entry_point,
-            transaction_type=self.transaction_type,
-        )
-        # The interaction intentionally performs no mutation until picker, registration,
-        # rabbit-hole, and pregnancy APIs are verified against game tuning.
-        return False
+        try:
+            device_succeeded = yield from super()._run_interaction_gen(timeline)
+        except Exception:
+            LOGGER.exception(
+                "device_animation_failed", entry_point=self.entry_point
+            )
+            if not self.continue_after_device_failure:
+                return False
+        else:
+            if device_succeeded is False:
+                LOGGER.log(
+                    "device_animation_failed", entry_point=self.entry_point
+                )
+                if not self.continue_after_device_failure:
+                    return False
+        return self._open_picker()
 
 
 class _HouseholdMemberSaleInteraction(_ShadySimDealsInteraction):
     transaction_type = "household_member"
     string_key = "sell_household_member"
 
-    def _run_interaction_gen(self, timeline):
-        yield from ()
+    def _open_picker(self):
         try:
             runtime = _runtime_services()
             household = self.sim.household
@@ -285,7 +310,7 @@ class _HouseholdMemberSaleInteraction(_ShadySimDealsInteraction):
             target_id = str(rows[0].tag)
             runtime = _runtime_services()
             target = Sims4TransactionValidator._find_sim_info(target_id)
-            candidate = build_sale_candidate(target)
+            candidate = build_sale_candidate(target, runtime["pregnancies"])
             offer = runtime["pricing"].calculate_household_member_offer(
                 candidate, BuyerContext()
             )
@@ -319,13 +344,15 @@ class _HouseholdMemberSaleInteraction(_ShadySimDealsInteraction):
     def _complete_sale(self, target_id):
         try:
             household = self.sim.household
+            runtime = _runtime_services()
             transaction = complete_household_sale(
                 self.sim.sim_id,
                 target_id,
                 household.id,
                 Sims4TransactionValidator._find_sim_info,
-                _runtime_services()["workflow"],
-                _runtime_services()["pricing"],
+                runtime["workflow"],
+                runtime["pricing"],
+                runtime["pregnancies"],
             )
             if transaction.state != "completed":
                 raise RuntimeError(transaction.failure_reason or "Transaction failed")
@@ -356,14 +383,14 @@ class _HouseholdMemberSaleInteraction(_ShadySimDealsInteraction):
 
 class PhoneSellHouseholdMemberInteraction(_HouseholdMemberSaleInteraction):
     entry_point = "phone"
+    continue_after_device_failure = True
 
 
 class _UnbornSaleInteraction(_ShadySimDealsInteraction):
     transaction_type = "unborn"
     string_key = "sell_unborn_nooboo"
 
-    def _run_interaction_gen(self, timeline):
-        yield from ()
+    def _open_picker(self):
         try:
             runtime = _runtime_services()
             household = self.sim.household
@@ -486,6 +513,7 @@ class _UnbornSaleInteraction(_ShadySimDealsInteraction):
 
 class PhoneSellUnbornNoobooInteraction(_UnbornSaleInteraction):
     entry_point = "phone"
+    continue_after_device_failure = True
 
 
 class ComputerSellHouseholdMemberInteraction(_HouseholdMemberSaleInteraction):

@@ -11,6 +11,9 @@
 - Lot 51's `inject_by_object_tags` injects the computer affordance into objects tagged `Func_Computer` through their normal `affordances` list.
 - The package contains phone and computer interactions for household-member and unborn-Nooboo sales, the injector snippet, the custom category XML and SimData, and ENG_US STBL resources.
 - Patch `1.125.59.1030` exposes pregnancy state through `SimInfo.pregnancy_tracker.is_pregnant`, expected offspring through `offspring_count`, and safe conclusion through `clear_pregnancy()`.
+- Device tuning was extracted with `ssinakhot/sims4-workspace` commit `15b984081907ad6961839db47a31331d749de294`.
+- Phone device use derives from `phone_BrowseWebsites` (`13782`), `Phone_Browse` (`11701`), cellphone prop definition `62464`, and compatibility filter `76418`.
+- Computer device use derives from `computer_Browse_Web` (`13187`), `Computer_Use_Type` (`31395`), mixers `13188`, `13189`, and `99858`, compatibility filter `77330`, and broken-state value `15080`.
 
 Run tests with `py -3.12 -m pytest -q -p no:cacheprovider tests`. Build with `py -3.12 build_mod.py`; the build invokes Python 3.7 for game bytecode.
 
@@ -31,10 +34,13 @@ After every supported game patch:
 11. With another household member pregnant, confirm the same picker includes that Sim.
 12. Confirm cancellation leaves pregnancy and funds unchanged.
 13. Confirm each pregnant-Sim path clears the selected pregnancy and deposits exactly one offspring-count-adjusted payment.
-14. Check `Documents\Electronic Arts\The Sims 4` for `lastException.txt` and review `ShadySimDeals.log`.
+14. Confirm both phone actions visibly use the phone before their pickers.
+15. Confirm both computer actions route to and visibly use a reachable computer before their pickers.
+16. Confirm an inaccessible computer ends the interaction without opening a picker or changing game state.
+17. Check `Documents\Electronic Arts\The Sims 4` for `lastException.txt` and review `ShadySimDeals.log`.
 
 Do not install or replace `.package` or `.ts4script` files while the game is running.
 
 ## Deferred work
 
-Native phone/computer animations, rabbit holes, buffs, persistence, forced early multiple-birth detection, and ghost/delayed outcomes still require patch-specific verification. Keep discovered identifiers in `sims4_adapters.py` or tuning, rather than spreading game calls through the domain code.
+Rabbit holes, buffs, persistence, forced early multiple-birth detection, and ghost/delayed outcomes still require patch-specific verification. Recheck the recorded native device tuning after every supported patch. Keep discovered identifiers in `sims4_adapters.py` or tuning, rather than spreading game calls through the domain code.

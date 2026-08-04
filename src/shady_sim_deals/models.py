@@ -49,6 +49,7 @@ class SaleCandidate:
         occults=(),
         career_level=0,
         education="none",
+        pregnant=False,
         expected_offspring=1,
     ):
         self.sim_id = str(sim_id)
@@ -60,6 +61,7 @@ class SaleCandidate:
         self.occults = tuple(occults)
         self.career_level = int(career_level or 0)
         self.education = str(education)
+        self.pregnant = bool(pregnant)
         self.expected_offspring = max(1, int(expected_offspring or 1))
 
 

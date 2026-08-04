@@ -26,6 +26,10 @@ The service supports age, pregnancy count, traits, skills, fame, occults, and bu
 
 Phone and computer interactions share one unborn workflow. `Sims4PregnancyAdapter` contains the patch-sensitive `is_pregnant`, `offspring_count`, and `clear_pregnancy()` calls; the runtime and pure transaction services do not reach into pregnancy trackers directly.
 
+## Device integration
+
+The four interaction tunings reuse minimal native phone or computer content verified against patch `1.125.59.1030`. The shared runtime base delegates to `SuperInteraction` before calling the household or unborn `_open_picker()` hook. Phone device failure is cosmetic and falls back to the picker; computer routing or device failure ends without opening one.
+
 ## Persistence
 
 The current registries are session-local. Sold Sims themselves remain in the hidden **ShadySimDeals Holdings** household, preserving their `SimInfo`; transaction markers and reservations reset when the game process restarts. Add save-slot-aware persistence only after its hook is verified.
