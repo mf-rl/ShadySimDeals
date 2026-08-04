@@ -154,6 +154,17 @@ def package_resources():
             0xEAA1200000000001,
         ),
         (
+            (
+                ROOT
+                / "tuning"
+                / "interactions"
+                / "computer_sell_household_member.xml"
+            ).read_bytes(),
+            INTERACTION_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E003,
+        ),
+        (
             (ROOT / "tuning" / "categories" / "shady_sim_deals_phone.xml").read_bytes(),
             PIE_MENU_CATEGORY_TYPE,
             CATEGORY_XML_GROUP,
@@ -243,7 +254,7 @@ def main():
         build_script_archive(compile_scripts(Path(temporary)))
     build_tuning_package()
     print("built {} and {}".format(SCRIPT_TARGET, PACKAGE_TARGET))
-    print("included ENG_US localization and Lot51 Core phone injection")
+    print("included ENG_US localization and Lot51 Core phone/computer injection")
 
 
 if __name__ == "__main__":

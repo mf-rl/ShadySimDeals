@@ -1,6 +1,6 @@
 # ShadySimDeals
 
-ShadySimDeals is a darkly satirical The Sims 4 script mod. The first playable release adds **Sell Household Member** directly to the phone.
+ShadySimDeals is a darkly satirical The Sims 4 script mod. The playable household-sale workflow is available from phones and compatible computers.
 
 ## Requirements
 
@@ -14,8 +14,10 @@ ShadySimDeals is a darkly satirical The Sims 4 script mod. The first playable re
 2. Install Lot 51 Core Library 1.43 or newer.
 3. Copy `ShadySimDeals.package` and `ShadySimDeals.ts4script` into `Documents\Electronic Arts\The Sims 4\Mods\ShadySimDeals`.
 4. Delete `Documents\Electronic Arts\The Sims 4\localthumbcache.package`.
-5. Start the game, load a household, open a Sim's phone, and choose **Sell Household Member**.
-6. Pick an eligible household member, review the offer, and confirm.
+5. Start the game and load a household.
+6. Open a Sim's phone, or click a compatible computer and open **ShadySimDeals**.
+7. Choose **Sell Household Member**.
+8. Pick an eligible household member, review the offer, and confirm.
 
 Eligible targets are household members from Teen through Elder. The active Sim, babies, infants, toddlers, children, pets, already-sold Sims, and Sims involved in another transaction are excluded.
 
@@ -25,7 +27,7 @@ Do not remove the mod while sold Sims remain in the holding household; recover t
 
 ## Current scope
 
-This release intentionally omits computer actions, unborn-Nooboo sales, buffs, ghosts, delayed outcomes, and a real rabbit-hole animation. Those features remain isolated behind the existing domain services until their game APIs are verified.
+This release intentionally omits unborn-Nooboo sales, buffs, ghosts, delayed outcomes, and a real rabbit-hole animation. Those features remain isolated behind the existing domain services until their game APIs are verified. See [`SPECS_CHECKLIST.md`](SPECS_CHECKLIST.md) for detailed implementation status.
 
 ## Build and test
 
@@ -36,4 +38,4 @@ py -3.12 -m pytest -q -p no:cacheprovider tests
 py -3.12 build_mod.py
 ```
 
-The build creates `dist/ShadySimDeals.ts4script` and `dist/ShadySimDeals.package`, including the English string table and Lot 51 phone injection tuning.
+The build creates `dist/ShadySimDeals.ts4script` and `dist/ShadySimDeals.package`, including the English string table and Lot 51 phone/computer injection tuning.

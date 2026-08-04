@@ -185,6 +185,58 @@ def test_empty_household_still_opens_zero_row_picker(monkeypatch):
     assert FakePicker.last.max_selectable == 1
 
 
+def test_phone_and_computer_household_sales_share_one_implementation():
+    shared = sims4_runtime._HouseholdMemberSaleInteraction
+
+    assert issubclass(sims4_runtime.PhoneSellHouseholdMemberInteraction, shared)
+    assert issubclass(sims4_runtime.ComputerSellHouseholdMemberInteraction, shared)
+    assert "_run_interaction_gen" not in (
+        sims4_runtime.PhoneSellHouseholdMemberInteraction.__dict__
+    )
+    assert "_run_interaction_gen" not in (
+        sims4_runtime.ComputerSellHouseholdMemberInteraction.__dict__
+    )
+
+
+def test_computer_household_sale_opens_shared_picker(monkeypatch):
+    FakePicker.last = None
+    actor_info = FakeSimInfo(sim_id=42)
+    actor = type(
+        "Actor",
+        (),
+        {
+            "sim_id": 42,
+            "household": type(
+                "Household", (), {"id": "home", "sim_infos": (actor_info,)}
+            )(),
+        },
+    )()
+    never = type(
+        "Never",
+        (),
+        {
+            "is_sold": lambda self, sim_id: False,
+            "is_reserved": lambda self, sim_id: False,
+        },
+    )()
+    monkeypatch.setattr(sims4_runtime, "UiSimPicker", FakePicker)
+    monkeypatch.setattr(
+        sims4_runtime,
+        "_runtime_services",
+        lambda: {"sold": never, "reservations": never},
+    )
+    interaction = object.__new__(
+        sims4_runtime.ComputerSellHouseholdMemberInteraction
+    )
+    interaction.sim = actor
+    interaction.get_resolver = lambda: "resolver"
+
+    list(interaction._run_interaction_gen(None))
+
+    assert FakePicker.last.shown is True
+    assert FakePicker.last.rows == []
+
+
 def test_notification_uses_tuned_factory_defaults(monkeypatch):
     calls = {}
 

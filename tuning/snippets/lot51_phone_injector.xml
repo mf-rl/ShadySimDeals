@@ -12,4 +12,14 @@
       </L>
     </U>
   </L>
+  <L n="inject_by_object_tags">
+    <U>
+      <L n="tags">
+        <E>Func_Computer</E>
+      </L>
+      <L n="affordances">
+        <T>16907111114276462595</T>
+      </L>
+    </U>
+  </L>
 </I>
