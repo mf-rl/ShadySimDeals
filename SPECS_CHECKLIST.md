@@ -17,7 +17,7 @@ verification remain unchecked.
 
 - [x] Phone household-sale injection
 - [x] Computer household-sale injection packaged and unit-tested
-- [ ] Computer household-sale visibility verified in game
+- [x] Computer household-sale visibility verified in game
 - [x] Shared native household picker and confirmation dialog
 - [ ] Phone and computer unborn-Nooboo entry points
 - [ ] Computer-use and phone-use animations
@@ -52,13 +52,13 @@ verification remain unchecked.
 - [x] English localization resources
 - [x] Architecture, build, installation, and usage documentation
 - [x] Automated regression suite
-- [ ] Computer interaction live compatibility check
+- [x] Computer interaction live compatibility check
 - [ ] Full acceptance regression in the supported game patch
 
 ## Acceptance criteria
 
 - [x] 1. ShadySimDeals appears on supported phones.
-- [ ] 2. ShadySimDeals appears on supported computers.
+- [x] 2. ShadySimDeals appears on supported computers.
 - [ ] 3. Both entry points expose household-member and unborn-Nooboo sales.
 - [ ] 4. Household picker supports every required age and excludes the actor.
   - [x] Actor exclusion and Teen-through-Elder filtering

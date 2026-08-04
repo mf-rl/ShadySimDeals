@@ -1,7 +1,21 @@
+import json
 import struct
 import xml.etree.ElementTree as ET
 
 import build_mod
+
+
+def test_localized_money_tokens_have_no_control_character_prefix():
+    strings = json.loads(
+        (build_mod.ROOT / "localization" / "en_us.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    money_strings = tuple(text for text in strings.values() if "{0.Money}" in text)
+
+    assert money_strings
+    assert all(not any(ord(character) < 32 for character in text) for text in money_strings)
+    assert all("7{0.Money}" not in text for text in money_strings)
 
 
 def test_build_stbl_encodes_version_five_table():
