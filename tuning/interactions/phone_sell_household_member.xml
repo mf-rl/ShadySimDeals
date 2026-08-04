@@ -3,4 +3,36 @@
   <V n="_saveable" t="disabled" />
   <T n="allow_autonomous">False</T>
   <T n="category">16906829660497641488</T>
+  <L n="_constraints">
+    <V t="circle"><U n="circle"><T n="require_los">False</T></U></V>
+  </L>
+  <V n="basic_content" t="flexible_length">
+    <U n="flexible_length">
+      <L n="conditional_actions">
+        <V t="literal">
+          <U n="literal">
+            <L n="conditions">
+              <V t="time_based"><U n="time_based"><T n="max_time">5</T><T n="min_time">5</T></U></V>
+            </L>
+            <E n="interaction_action">EXIT_NATURALLY</E>
+          </U>
+        </V>
+      </L>
+      <V n="content" t="looping_content">
+        <U n="looping_content">
+          <U n="animation_ref">
+            <T n="factory">11701</T>
+            <U n="overrides">
+              <L n="props">
+                <U><T n="key">cellphone</T><U n="value"><T n="definition">62464</T></U></U>
+              </L>
+            </U>
+          </U>
+        </U>
+      </V>
+    </U>
+  </V>
+  <U n="posture_preferences"><T n="find_best_posture">False</T></U>
+  <V n="super_affordance_compatibility" t="reference"><T n="reference">76418</T></V>
+  <E n="target_type">ACTOR</E>
 </I>

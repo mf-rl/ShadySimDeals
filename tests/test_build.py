@@ -5,6 +5,14 @@ import xml.etree.ElementTree as ET
 import build_mod
 
 
+def packaged_interactions():
+    return {
+        instance: ET.fromstring(data)
+        for data, resource_type, _, instance in build_mod.package_resources()
+        if resource_type == build_mod.INTERACTION_TUNING_TYPE
+    }
+
+
 def test_localized_money_tokens_have_no_control_character_prefix():
     strings = json.loads(
         (build_mod.ROOT / "localization" / "en_us.json").read_text(
@@ -52,6 +60,57 @@ def test_package_resources_include_phone_and_computer_sales():
         (0x7DF2169C, 0, 0xEAA1200000000020),
         (0x220557DA, 0x80000000, 0x00A1100000000001),
     }
+
+
+def test_phone_sales_use_verified_phone_browse_content():
+    interactions = packaged_interactions()
+    for instance in (0xEAA1200000000001, 0xEAA21FFB1081E002):
+        xml = interactions[instance]
+        content = xml.find("./V[@n='basic_content']/U/V[@n='content']")
+        timer = xml.find(
+            "./V[@n='basic_content']/U/L[@n='conditional_actions']"
+            "/V/U/L[@n='conditions']/V/U"
+        )
+        assert content.attrib["t"] == "looping_content"
+        assert int(
+            content.find("./U/U[@n='animation_ref']/T[@n='factory']").text
+        ) == 11701
+        assert int(
+            content.find(
+                ".//L[@n='props']/U/U[@n='value']/T[@n='definition']"
+            ).text
+        ) == 62464
+        assert (
+            int(timer.find("./T[@n='min_time']").text),
+            int(timer.find("./T[@n='max_time']").text),
+        ) == (5, 5)
+        assert xml.find("./E[@n='target_type']").text == "ACTOR"
+        assert int(
+            xml.find("./V[@n='super_affordance_compatibility']/T").text
+        ) == 76418
+
+
+def test_computer_sales_use_verified_computer_browse_content():
+    interactions = packaged_interactions()
+    for instance in (0xEAA21FFB1081E003, 0xEAA21FFB1081E004):
+        xml = interactions[instance]
+        content = xml.find("./V[@n='basic_content']/U/V[@n='content']")
+        links = {
+            int(node.text)
+            for node in content.findall(".//L[@n='affordance_links']/T")
+        }
+        assert content.attrib["t"] == "staging_content"
+        assert links == {13188, 13189, 99858}
+        assert int(
+            xml.find("./V[@n='canonical_animation']/U/T[@n='factory']").text
+        ) == 31395
+        assert xml.find("./E[@n='target_type']").text == "OBJECT"
+        assert int(
+            xml.find("./V[@n='super_affordance_compatibility']/T").text
+        ) == 77330
+        assert int(
+            xml.find("./L[@n='test_globals']/V/U/T[@n='value']").text
+        ) == 15080
 
 
 def test_tuning_xml_ids_match_packaged_instances_and_references():
