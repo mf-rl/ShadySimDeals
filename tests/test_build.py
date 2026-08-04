@@ -111,6 +111,23 @@ def test_computer_sales_use_verified_computer_browse_content():
         assert int(
             xml.find("./L[@n='test_globals']/V/U/T[@n='value']").text
         ) == 15080
+        state_changes = xml.findall(
+            "./L[@n='basic_extras']/V[@t='state_change']/U"
+        )
+        assert [
+            int(node.find(".//T[@n='new_value']").text)
+            for node in state_changes
+        ] == [15103, 15106]
+        assert (
+            state_changes[0].find("./V[@n='timing']").attrib["t"]
+            == "immediately"
+        )
+        end_timing = state_changes[1].find("./V[@n='timing']")
+        assert end_timing.attrib["t"] == "at_end"
+        assert (
+            end_timing.find("./U/E[@n='criticality']").text
+            == "OnCancelOrException"
+        )
 
 
 def test_tuning_xml_ids_match_packaged_instances_and_references():
