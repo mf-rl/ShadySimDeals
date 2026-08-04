@@ -20,9 +20,9 @@ ShadySimDeals is a darkly satirical The Sims 4 script mod. Household-member and 
 8. Phone actions briefly animate in place. Computer actions route the Sim to the clicked computer and briefly use it.
 9. Pick an eligible household member, review the offer, and confirm.
 
-Eligible targets are household members from Teen through Elder. The active Sim, babies, infants, toddlers, children, pets, already-sold Sims, and Sims involved in another transaction are excluded.
+Eligible targets are household members from newborn/baby through elder. The active Sim, pets, already-sold Sims, and Sims involved in another transaction are excluded.
 
-The household-member offer is determined by age only. A completed sale transfers the target to a hidden **ShadySimDeals Holdings** household and then pays the active household. If payment fails, the transfer is rolled back.
+The household-member offer starts with the target's age value. If the target is pregnant, the configured unborn value and multiple-offspring multiplier are added to the offer; the pregnancy remains with the transferred Sim. A completed sale transfers the target to a hidden **ShadySimDeals Holdings** household and then pays the active household. If payment fails, the transfer is rolled back.
 
 The unborn picker includes every currently pregnant household member, including the active Sim. Its offer uses the pregnancy tracker's expected offspring count. Confirming immediately clears the selected pregnancy and deposits one payment; this version does not yet animate or delay the transaction through a rabbit hole. Because the count API only reports the current expected count, the mod does not force early twin or triplet detection.
 

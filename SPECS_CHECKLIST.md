@@ -81,6 +81,9 @@ verification remain unchecked.
   - [x] Live: pregnant active Sim appears
   - [x] Live: another pregnant household member appears
 - [x] 6. A calculated offer appears before confirmation.
+  - [x] Pregnant household-member offers bundle the configured unborn value
+  - [ ] Live: singleton pregnancy bonus and retained pregnancy
+  - [ ] Live: twin and triplet household-member pregnancy bonuses
 - [x] 7. Cancellation makes no changes.
 - [ ] 8. Confirmation starts the appropriate rabbit hole.
 - [ ] 9. Household-member transactions return only the seller from a rabbit hole.
