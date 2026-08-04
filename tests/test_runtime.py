@@ -64,6 +64,14 @@ class FakePregnancies:
         return self.counts.get(str(sim_id), 1)
 
 
+def run_generator(generator):
+    while True:
+        try:
+            next(generator)
+        except StopIteration as stop:
+            return stop.value
+
+
 def test_build_sale_candidate_uses_verified_age_only():
     candidate = sims4_runtime.build_sale_candidate(FakeSimInfo())
 
@@ -270,6 +278,77 @@ def test_phone_and_computer_unborn_sales_share_one_implementation():
 
     assert issubclass(sims4_runtime.PhoneSellUnbornNoobooInteraction, shared)
     assert issubclass(sims4_runtime.ComputerSellUnbornNoobooInteraction, shared)
+
+
+def test_device_content_finishes_before_picker(monkeypatch):
+    events = []
+
+    def run_device(self, timeline):
+        events.append("device")
+        yield from ()
+        return True
+
+    monkeypatch.setattr(
+        sims4_runtime.SuperInteraction, "_run_interaction_gen", run_device
+    )
+    interaction = object.__new__(
+        sims4_runtime.PhoneSellHouseholdMemberInteraction
+    )
+    interaction._open_picker = lambda: events.append("picker") or True
+
+    assert run_generator(interaction._run_interaction_gen(None)) is True
+    assert events == ["device", "picker"]
+
+
+def test_phone_device_exception_logs_and_opens_picker(monkeypatch):
+    events = []
+
+    def fail_device(self, timeline):
+        yield from ()
+        raise RuntimeError("animation failed")
+
+    monkeypatch.setattr(
+        sims4_runtime.SuperInteraction, "_run_interaction_gen", fail_device
+    )
+    monkeypatch.setattr(
+        sims4_runtime.LOGGER,
+        "exception",
+        lambda event, **data: events.append((event, data)),
+    )
+    interaction = object.__new__(sims4_runtime.PhoneSellUnbornNoobooInteraction)
+    interaction._open_picker = lambda: events.append("picker") or True
+
+    assert run_generator(interaction._run_interaction_gen(None)) is True
+    assert events[-1] == "picker"
+    assert events[0][0] == "device_animation_failed"
+    assert events[0][1]["entry_point"] == "phone"
+
+
+def test_computer_device_failure_suppresses_picker(monkeypatch):
+    events = []
+
+    def fail_device(self, timeline):
+        yield from ()
+        return False
+
+    monkeypatch.setattr(
+        sims4_runtime.SuperInteraction, "_run_interaction_gen", fail_device
+    )
+    monkeypatch.setattr(
+        sims4_runtime.LOGGER,
+        "log",
+        lambda event, **data: events.append((event, data)),
+    )
+    interaction = object.__new__(
+        sims4_runtime.ComputerSellHouseholdMemberInteraction
+    )
+    interaction._open_picker = lambda: events.append("picker") or True
+
+    assert run_generator(interaction._run_interaction_gen(None)) is False
+    assert "picker" not in events
+    assert events == [
+        ("device_animation_failed", {"entry_point": "computer"})
+    ]
 
 
 def test_unborn_picker_includes_pregnant_actor(monkeypatch):

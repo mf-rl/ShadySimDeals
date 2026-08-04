@@ -153,7 +153,9 @@ except ImportError:
     UiSimPicker = None
 
     class SuperInteraction:
-        pass
+        def _run_interaction_gen(self, timeline):
+            yield from ()
+            return True
 
     def flexmethod(function):
         return function
@@ -224,29 +226,36 @@ class _ShadySimDealsInteraction(SuperInteraction):
     entry_point = "unknown"
     transaction_type = "unknown"
     string_key = "integration_unavailable"
+    continue_after_device_failure = False
 
     @flexmethod
     def get_name(cls, inst, *args, **kwargs):
         return localized_string(cls.string_key)
 
     def _run_interaction_gen(self, timeline):
-        yield from ()
-        LOGGER.log(
-            "integration_unavailable",
-            entry_point=self.entry_point,
-            transaction_type=self.transaction_type,
-        )
-        # The interaction intentionally performs no mutation until picker, registration,
-        # rabbit-hole, and pregnancy APIs are verified against game tuning.
-        return False
+        try:
+            device_succeeded = yield from super()._run_interaction_gen(timeline)
+        except Exception:
+            LOGGER.exception(
+                "device_animation_failed", entry_point=self.entry_point
+            )
+            if not self.continue_after_device_failure:
+                return False
+        else:
+            if device_succeeded is False:
+                LOGGER.log(
+                    "device_animation_failed", entry_point=self.entry_point
+                )
+                if not self.continue_after_device_failure:
+                    return False
+        return self._open_picker()
 
 
 class _HouseholdMemberSaleInteraction(_ShadySimDealsInteraction):
     transaction_type = "household_member"
     string_key = "sell_household_member"
 
-    def _run_interaction_gen(self, timeline):
-        yield from ()
+    def _open_picker(self):
         try:
             runtime = _runtime_services()
             household = self.sim.household
@@ -356,14 +365,14 @@ class _HouseholdMemberSaleInteraction(_ShadySimDealsInteraction):
 
 class PhoneSellHouseholdMemberInteraction(_HouseholdMemberSaleInteraction):
     entry_point = "phone"
+    continue_after_device_failure = True
 
 
 class _UnbornSaleInteraction(_ShadySimDealsInteraction):
     transaction_type = "unborn"
     string_key = "sell_unborn_nooboo"
 
-    def _run_interaction_gen(self, timeline):
-        yield from ()
+    def _open_picker(self):
         try:
             runtime = _runtime_services()
             household = self.sim.household
@@ -486,6 +495,7 @@ class _UnbornSaleInteraction(_ShadySimDealsInteraction):
 
 class PhoneSellUnbornNoobooInteraction(_UnbornSaleInteraction):
     entry_point = "phone"
+    continue_after_device_failure = True
 
 
 class ComputerSellHouseholdMemberInteraction(_HouseholdMemberSaleInteraction):
