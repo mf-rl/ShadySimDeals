@@ -19,6 +19,8 @@ class HouseholdMemberTargetProcessor:
 
 
 class UnbornTargetProcessor:
+    requires_prepayment = True
+
     def __init__(self, pregnancy_adapter):
         self._pregnancies = pregnancy_adapter
 

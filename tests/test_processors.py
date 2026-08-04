@@ -52,6 +52,10 @@ def test_pregnancy_processor_checks_before_concluding():
     assert pregnancy.calls == [("check", "target"), ("conclude", "target")]
 
 
+def test_unborn_processor_requires_prepayment():
+    assert UnbornTargetProcessor.requires_prepayment is True
+
+
 def test_registry_reserves_and_releases_both_participants():
     registry = TransactionRegistry()
     deal = SaleTransaction("household_member", "actor", "target", "home")

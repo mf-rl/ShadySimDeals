@@ -249,3 +249,18 @@ class Sims4FundsAdapter:
             int(amount),
             Consts_pb2.TELEMETRY_MONEY_OBJECT_MARKETPLACE_SALE,
         )
+
+    def withdraw(self, household_id, amount):
+        import services
+        from protocolbuffers import Consts_pb2
+
+        household = services.household_manager().get(int(household_id))
+        if household is None or getattr(household, "funds", None) is None:
+            raise ValueError("Household funds are unavailable")
+        if not household.funds.try_remove(
+            int(amount),
+            Consts_pb2.TELEMETRY_MONEY_OBJECT_MARKETPLACE_SALE,
+            None,
+            True,
+        ):
+            raise RuntimeError("The prepaid amount could not be refunded")

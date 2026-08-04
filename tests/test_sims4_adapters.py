@@ -259,3 +259,28 @@ def test_funds_adapter_uses_marketplace_sale_telemetry_reason(monkeypatch):
     sims4_adapters.Sims4FundsAdapter().deposit("7", 6500)
 
     assert calls == [(6500, 25)]
+
+
+def test_funds_adapter_refund_removes_full_marketplace_payment(monkeypatch):
+    calls = []
+    funds = SimpleNamespace(
+        try_remove=lambda amount, reason, sim, require_full: calls.append(
+            (amount, reason, sim, require_full)
+        )
+        or True
+    )
+    household = SimpleNamespace(funds=funds)
+    services = SimpleNamespace(
+        household_manager=lambda: SimpleNamespace(get=lambda household_id: household)
+    )
+    consts = SimpleNamespace(TELEMETRY_MONEY_OBJECT_MARKETPLACE_SALE=25)
+    monkeypatch.setitem(sys.modules, "services", services)
+    monkeypatch.setitem(
+        sys.modules,
+        "protocolbuffers",
+        SimpleNamespace(Consts_pb2=consts),
+    )
+
+    sims4_adapters.Sims4FundsAdapter().withdraw("7", 15000)
+
+    assert calls == [(15000, 25, None, True)]
