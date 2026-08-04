@@ -42,7 +42,9 @@ verification remain unchecked.
 
 - [x] Hidden ShadySimDeals Holdings household
 - [x] Session-local sold-Sim registry
+- [x] Same-session sold marker blocks repeat sales after external household restoration
 - [ ] Save-slot-aware sold-Sim registry
+- [ ] Explicit recovery command to return and unmark a deliberately restored sold Sim
 - [ ] Ghost-return outcome
 - [ ] Delayed events
 
