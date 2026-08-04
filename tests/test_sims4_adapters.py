@@ -55,9 +55,13 @@ class FakeHousehold:
 
 
 class FakeHouseholdManager:
-    def __init__(self, households, fail_created_add=False):
+    def __init__(
+        self, households, fail_created_add=False, switch_result=True
+    ):
         self.households = list(households)
         self.fail_created_add = fail_created_add
+        self.switch_result = switch_result
+        self.switch_calls = []
 
     def values(self):
         return tuple(self.households)
@@ -71,6 +75,33 @@ class FakeHouseholdManager:
         self.households.append(household)
         return household
 
+    def switch_sim_from_household_to_target_household(
+        self,
+        sim_info,
+        starting_household,
+        destination_household,
+        destroy_if_empty_household=False,
+        reason=None,
+    ):
+        self.switch_calls.append(
+            (
+                sim_info,
+                starting_household,
+                destination_household,
+                destroy_if_empty_household,
+                reason,
+            )
+        )
+        if not self.switch_result:
+            return False
+        starting_household.remove_sim_info(
+            sim_info,
+            destroy_if_empty_household=destroy_if_empty_household,
+            assign_to_none=False,
+        )
+        destination_household.add_sim_info_to_household(sim_info, reason=reason)
+        return True
+
 
 class FakePregnancyTracker:
     def __init__(self, pregnant=True, offspring_count=1, clear_succeeds=True):
@@ -83,6 +114,17 @@ class FakePregnancyTracker:
         self.cleared += 1
         if self.clear_succeeds:
             self.is_pregnant = False
+
+
+@pytest.fixture
+def household_change_origin(monkeypatch):
+    origin = SimpleNamespace(UNKNOWN="unknown")
+    household_enums = SimpleNamespace(HouseholdChangeOrigin=origin)
+    monkeypatch.setitem(
+        sys.modules, "sims", SimpleNamespace(household_enums=household_enums)
+    )
+    monkeypatch.setitem(sys.modules, "sims.household_enums", household_enums)
+    return origin
 
 
 @pytest.mark.parametrize(
@@ -204,7 +246,9 @@ def test_pregnancy_adapter_reports_failed_clear():
     assert adapter.conclude_pregnancy("pregnant") is False
 
 
-def test_household_adapter_moves_target_to_reused_hidden_holdings_and_rolls_back():
+def test_household_adapter_moves_target_to_reused_hidden_holdings_and_rolls_back(
+    household_change_origin,
+):
     target = FakeSimInfo("TEEN")
     source = FakeHousehold()
     source.sim_infos.append(target)
@@ -229,9 +273,15 @@ def test_household_adapter_moves_target_to_reused_hidden_holdings_and_rolls_back
     assert target in source.sim_infos
     assert target not in existing.sim_infos
     assert target.household_id == "home"
+    assert manager.switch_calls == [
+        (target, source, existing, False, household_change_origin.UNKNOWN),
+        (target, existing, source, False, household_change_origin.UNKNOWN),
+    ]
 
 
-def test_household_adapter_restores_source_when_holding_add_fails():
+def test_household_adapter_restores_source_when_holding_add_fails(
+    household_change_origin,
+):
     target = FakeSimInfo("TEEN")
     source = FakeHousehold()
     source.sim_infos.append(target)
@@ -248,6 +298,26 @@ def test_household_adapter_restores_source_when_holding_add_fails():
     assert target.household_id == "home"
     holdings = manager.get("holdings")
     assert holdings.hidden
+
+
+def test_household_adapter_rejects_failed_native_switch(
+    household_change_origin,
+):
+    target = FakeSimInfo("CHILD")
+    source = FakeHousehold()
+    source.sim_infos.append(target)
+    manager = FakeHouseholdManager((source,), switch_result=False)
+    adapter = sims4_adapters.Sims4HouseholdAdapter(
+        household_manager=manager,
+        sim_info_lookup=lambda sim_id: target if sim_id == "target" else None,
+    )
+
+    with pytest.raises(sims4_adapters.IntegrationUnavailable, match="transfer failed"):
+        adapter.transfer_to_holding_household("target")
+
+    assert target in source.sim_infos
+    assert target.household_id == "home"
+    assert len(manager.switch_calls) == 1
 
 
 def test_funds_adapter_uses_marketplace_sale_telemetry_reason(monkeypatch):

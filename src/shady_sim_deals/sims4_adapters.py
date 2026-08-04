@@ -152,24 +152,22 @@ class Sims4HouseholdAdapter:
             raise ValueError("Source household no longer exists")
         holdings = self._holding_household(manager, source)
         try:
-            source.remove_sim_info(
-                sim_info,
-                destroy_if_empty_household=False,
-                assign_to_none=False,
-            )
-            holdings.add_sim_info_to_household(sim_info)
+            if not self._switch_household(manager, sim_info, source, holdings):
+                raise RuntimeError("native household switch was rejected")
             if sim_info in source.sim_infos or sim_info not in holdings.sim_infos:
                 raise RuntimeError("household membership did not change")
         except Exception as exc:
             if sim_info not in source.sim_infos:
                 try:
                     if sim_info in holdings.sim_infos:
-                        holdings.remove_sim_info(
-                            sim_info,
-                            destroy_if_empty_household=False,
-                            assign_to_none=False,
-                        )
-                    source.add_sim_info_to_household(sim_info)
+                        if not self._switch_household(
+                            manager, sim_info, holdings, source
+                        ):
+                            raise RuntimeError(
+                                "native household rollback was rejected"
+                            )
+                    else:
+                        source.add_sim_info_to_household(sim_info)
                 except Exception as rollback_exc:
                     raise IntegrationUnavailable(
                         "Holding-household transfer failed: {}; rollback failed: {}".format(
@@ -190,12 +188,8 @@ class Sims4HouseholdAdapter:
         sim_info = self._sim_info_lookup(sim_id)
         if source is None or holdings is None or sim_info is None:
             raise IntegrationUnavailable("Transfer rollback state is unavailable")
-        holdings.remove_sim_info(
-            sim_info,
-            destroy_if_empty_household=False,
-            assign_to_none=False,
-        )
-        source.add_sim_info_to_household(sim_info)
+        if not self._switch_household(manager, sim_info, holdings, source):
+            raise IntegrationUnavailable("Transfer rollback was rejected")
         if sim_info not in source.sim_infos or sim_info in holdings.sim_infos:
             raise IntegrationUnavailable("Transfer rollback verification failed")
         self._transfers.pop(sim_id, None)
@@ -223,6 +217,18 @@ class Sims4HouseholdAdapter:
 
             self._household_manager = services.household_manager()
         return self._household_manager
+
+    @staticmethod
+    def _switch_household(manager, sim_info, source, destination):
+        from sims.household_enums import HouseholdChangeOrigin
+
+        return manager.switch_sim_from_household_to_target_household(
+            sim_info,
+            source,
+            destination,
+            destroy_if_empty_household=False,
+            reason=HouseholdChangeOrigin.UNKNOWN,
+        )
 
     @staticmethod
     def _get_household(manager, household_id):
