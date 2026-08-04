@@ -85,16 +85,26 @@ class FakePregnancyTracker:
             self.is_pregnant = False
 
 
-def test_age_key_maps_supported_game_ages():
-    assert sims4_adapters.age_key(FakeSimInfo("TEEN")) == "teen"
-    assert sims4_adapters.age_key(FakeSimInfo("YOUNGADULT")) == "young_adult"
-    assert sims4_adapters.age_key(FakeSimInfo("ADULT")) == "adult"
-    assert sims4_adapters.age_key(FakeSimInfo("ELDER")) == "elder"
+@pytest.mark.parametrize(
+    ("game_age", "expected"),
+    (
+        ("BABY", "baby"),
+        ("INFANT", "infant"),
+        ("TODDLER", "toddler"),
+        ("CHILD", "child"),
+        ("TEEN", "teen"),
+        ("YOUNGADULT", "young_adult"),
+        ("ADULT", "adult"),
+        ("ELDER", "elder"),
+    ),
+)
+def test_age_key_maps_supported_game_ages(game_age, expected):
+    assert sims4_adapters.age_key(FakeSimInfo(game_age)) == expected
 
 
 def test_age_key_rejects_unsupported_game_age():
     with pytest.raises(ValueError, match="Unsupported age"):
-        sims4_adapters.age_key(FakeSimInfo("CHILD"))
+        sims4_adapters.age_key(FakeSimInfo("UNKNOWN"))
 
 
 def test_transaction_validator_accepts_only_safe_current_household_targets():
@@ -121,8 +131,8 @@ def test_transaction_validator_accepts_only_safe_current_household_targets():
     same_sim = SaleTransaction("household_member", "actor", "actor", "home")
     assert validator().validate(same_sim) == "The actor cannot be the target"
 
-    sims["target"].age = FakeAge("CHILD")
-    assert validator().validate(deal) == "Unsupported age: CHILD"
+    sims["target"].age = FakeAge("UNKNOWN")
+    assert validator().validate(deal) == "Unsupported age: UNKNOWN"
     sims["target"].age = FakeAge("TEEN")
 
     sims["target"].is_pet = True

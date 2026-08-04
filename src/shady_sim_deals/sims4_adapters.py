@@ -9,6 +9,10 @@ def age_key(sim_info):
     name = str(getattr(getattr(sim_info, "age", None), "name", sim_info.age))
     normalized = name.replace("_", "").lower()
     ages = {
+        "baby": "baby",
+        "infant": "infant",
+        "toddler": "toddler",
+        "child": "child",
         "teen": "teen",
         "youngadult": "young_adult",
         "adult": "adult",

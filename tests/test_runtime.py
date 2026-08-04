@@ -89,8 +89,14 @@ def test_build_sale_candidate_uses_verified_age_only():
 def test_eligible_household_member_ids_apply_shared_picker_rules():
     sim_infos = (
         FakeSimInfo("actor", age="ADULT"),
-        FakeSimInfo("valid", age="TEEN"),
+        FakeSimInfo("baby", age="BABY"),
+        FakeSimInfo("infant", age="INFANT"),
+        FakeSimInfo("toddler", age="TODDLER"),
         FakeSimInfo("child", age="CHILD"),
+        FakeSimInfo("teen", age="TEEN"),
+        FakeSimInfo("young-adult", age="YOUNGADULT"),
+        FakeSimInfo("adult", age="ADULT"),
+        FakeSimInfo("elder", age="ELDER"),
         FakeSimInfo("pet", age="ADULT", is_pet=True),
         FakeSimInfo("sold", age="ELDER"),
         FakeSimInfo("reserved", age="ADULT"),
@@ -103,7 +109,16 @@ def test_eligible_household_member_ids_apply_shared_picker_rules():
         household_id="home",
         sold_check=lambda sim_id: sim_id == "sold",
         reserved_check=lambda sim_id: sim_id == "reserved",
-    ) == ("valid",)
+    ) == (
+        "baby",
+        "infant",
+        "toddler",
+        "child",
+        "teen",
+        "young-adult",
+        "adult",
+        "elder",
+    )
 
 
 class RuntimeRecorder:

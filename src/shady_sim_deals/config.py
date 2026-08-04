@@ -67,7 +67,9 @@ OUTCOME_WEIGHTS = MappingProxyType(
     }
 )
 CHILD_AGES = frozenset(("baby", "infant", "toddler", "child"))
-HOUSEHOLD_SALE_AGES = frozenset(("teen", "young_adult", "adult", "elder"))
+HOUSEHOLD_SALE_AGES = CHILD_AGES | frozenset(
+    ("teen", "young_adult", "adult", "elder")
+)
 HOUSEHOLD_RABBIT_HOLE_MINUTES = MappingProxyType(
     {
         "baby": 90,

@@ -21,7 +21,7 @@ def test_picker_filters_actor_sold_invalid_reserved_and_pets():
     assert [item.sim_id for item in unborn_candidates(records, "home")] == ["actor"]
 
 
-def test_playable_household_picker_is_teen_through_elder():
+def test_playable_household_picker_supports_all_configured_ages():
     ages = (
         "baby",
         "infant",
@@ -36,7 +36,7 @@ def test_playable_household_picker_is_teen_through_elder():
     assert [
         record.age
         for record in household_member_candidates(records, "actor", "home")
-    ] == ["teen", "young_adult", "adult", "elder"]
+    ] == list(ages)
 
 
 def test_invalid_state_transition_is_rejected():
