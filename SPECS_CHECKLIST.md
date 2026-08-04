@@ -20,7 +20,7 @@ verification remain unchecked.
 - [x] Computer household-sale visibility verified in game
 - [x] Shared native household picker and confirmation dialog
 - [x] Phone and computer unborn-Nooboo entry points packaged and unit-tested
-- [ ] Phone and computer unborn-Nooboo visibility verified in game
+- [x] Phone and computer unborn-Nooboo visibility verified in game
 - [ ] Computer-use and phone-use animations
 
 ### Phase 3: Household-member transaction
@@ -63,22 +63,23 @@ verification remain unchecked.
 
 - [x] 1. ShadySimDeals appears on supported phones.
 - [x] 2. ShadySimDeals appears on supported computers.
-- [ ] 3. Both entry points expose household-member and unborn-Nooboo sales.
+- [x] 3. Both entry points expose household-member and unborn-Nooboo sales.
 - [ ] 4. Household picker supports every required age and excludes the actor.
   - [x] Actor exclusion and Teen-through-Elder filtering
   - [ ] Baby, infant, toddler, and child support
-- [ ] 5. Unborn picker includes only pregnant household members, including the actor.
+- [x] 5. Unborn picker includes only pregnant household members, including the actor.
   - [x] Repository filtering and picker-row tests
-  - [ ] Live: pregnant active Sim appears
-  - [ ] Live: another pregnant household member appears
+  - [x] Live: pregnant active Sim appears
+  - [x] Live: another pregnant household member appears
 - [x] 6. A calculated offer appears before confirmation.
 - [x] 7. Cancellation makes no changes.
 - [ ] 8. Confirmation starts the appropriate rabbit hole.
 - [ ] 9. Household-member transactions return only the seller from a rabbit hole.
 - [x] 10. Targets move out of the active household without hard deletion.
 - [x] 11. Payment is deposited exactly once and only after target processing.
-- [ ] 12. Unborn transactions safely conclude the selected pregnancy.
+- [x] 12. Unborn transactions safely conclude the selected pregnancy.
   - [x] Public API adapter and compensated transaction tests
+  - [x] Live: selected pregnancy concludes after a successful transaction
   - [ ] Live: active Sim pregnancy concludes with one payment
   - [ ] Live: other household member pregnancy concludes with one payment
 - [ ] 13. Twins and triplets affect the live pregnancy offer.
