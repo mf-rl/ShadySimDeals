@@ -51,6 +51,11 @@ verification remain unchecked.
 - [x] Pregnant-Sim picker implemented and unit-tested
 - [x] Pregnancy adapter and safe pregnancy conclusion verified for patch `1.125.59.1030`
 - [ ] Unborn rabbit hole
+  - [x] Automated: self-target uses a solo rabbit hole; another target uses a shared rabbit hole
+  - [x] Automated: payment and pregnancy conclusion wait for natural expiration
+  - [x] Package: private 90-, 120-, and 150-minute resources are indexed and non-saveable
+  - [ ] Live: pregnant seller enters alone and returns before pregnancy conclusion and payment
+  - [ ] Live: seller and another pregnant target both enter and return before pregnancy conclusion and payment
 - [x] Multiple-offspring pricing connected to the public pregnancy tracker count
 - [ ] Forced early twin/triplet detection
 - [ ] Pregnant-Sim reaction
@@ -94,9 +99,12 @@ verification remain unchecked.
   - [ ] Live: twin and triplet household-member pregnancy bonuses
 - [x] 7. Cancellation makes no changes.
 - [ ] 8. Confirmation starts the appropriate rabbit hole.
-  - [x] Automated: target age selects the 75-, 90-, or 120-minute shared tuning
-  - [x] Package: `TwoSimRabbitHole` resources map Actor then PickedSim
+  - [x] Automated: target age selects the 75-, 90-, or 120-minute shared household tuning
+  - [x] Automated: expected offspring selects the 90-, 120-, or 150-minute unborn tuning
+  - [x] Package: shared `TwoSimRabbitHole` resources map Actor then PickedSim
+  - [x] Package: self-target unborn resources use a solo `RabbitHole`
   - [ ] Live: child, adult, and elder confirmations start shared rabbit holes
+  - [ ] Live: both unborn target paths start the expected rabbit hole
 - [ ] 9. Household-member transactions return only the seller from a rabbit hole.
   - [x] Automated: target processing waits for the seller expiration callback
   - [x] Automated: cancellation makes no transfer or payment
