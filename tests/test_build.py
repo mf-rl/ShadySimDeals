@@ -114,7 +114,7 @@ def test_household_rabbit_holes_pair_participants_with_timed_affordances():
         assert arrival.text == "Spawn_Arrival"
         condition = interaction.find(
             "./V[@n='basic_content']/U/L[@n='conditional_actions']"
-            "/V/U/L[@n='conditions']/V[@t='time_based']/U"
+            "/V/U/L[@n='conditions']/V[@t='rabbit_hole_based']/U"
         )
         assert interaction.attrib["c"] == "ShadySimDealsRabbitHoleInteraction"
         assert interaction.attrib["m"] == "shady_sim_deals.rabbit_hole_interaction"
@@ -172,7 +172,7 @@ def test_unborn_rabbit_holes_package_solo_shared_and_timed_resources():
         assert interaction.find("./T[@n='display_name']").text == "0xA110000B"
         condition = interaction.find(
             "./V[@n='basic_content']/U/L[@n='conditional_actions']"
-            "/V/U/L[@n='conditions']/V[@t='time_based']/U"
+            "/V/U/L[@n='conditions']/V[@t='rabbit_hole_based']/U"
         )
         assert int(condition.find("./T[@n='min_time']").text) == minutes
         assert int(condition.find("./T[@n='max_time']").text) == minutes
