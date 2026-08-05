@@ -142,6 +142,7 @@ def complete_unborn_sale(
     pregnancy_adapter,
     workflow,
     pricing,
+    on_finished=None,
 ):
     target = sim_info_lookup(str(target_id))
     if target is None:
@@ -151,7 +152,9 @@ def complete_unborn_sale(
     )
     transaction = SaleTransaction("unborn", actor_id, target_id, household_id)
     if workflow.prepare(transaction, offer):
-        workflow.confirm_and_complete(transaction)
+        workflow.confirm_and_complete(transaction, on_finished)
+    elif on_finished is not None:
+        on_finished(transaction)
     return transaction
 
 
@@ -212,7 +215,9 @@ def _runtime_services():
     unborn_workflow = TransactionOrchestrator(
         unborn_validator,
         reservations,
-        SimpleNamespace(run=lambda transaction, on_finished: None),
+        Sims4RabbitHoleAdapter(
+            expected_offspring_lookup=pregnancies.expected_offspring_count
+        ),
         UnbornTargetProcessor(pregnancies),
         funds,
         SimpleNamespace(apply=lambda transaction: None),
@@ -486,7 +491,7 @@ class _UnbornSaleInteraction(_ShadySimDealsInteraction):
     def _complete_sale(self, target_id):
         try:
             runtime = _runtime_services()
-            transaction = complete_unborn_sale(
+            complete_unborn_sale(
                 self.sim.sim_id,
                 target_id,
                 self.sim.household.id,
@@ -494,7 +499,25 @@ class _UnbornSaleInteraction(_ShadySimDealsInteraction):
                 runtime["pregnancies"],
                 runtime["unborn_workflow"],
                 runtime["pricing"],
+                on_finished=lambda completed: self._on_sale_finished(
+                    completed, str(target_id)
+                ),
             )
+        except Exception:
+            LOGGER.exception(
+                "transaction_failed",
+                transaction_type="unborn",
+                target_id=str(target_id),
+            )
+            _show_notification(
+                self.sim,
+                self.get_resolver(),
+                "failure_title",
+                "failure_body",
+            )
+
+    def _on_sale_finished(self, transaction, target_id):
+        try:
             if transaction.state != "completed":
                 raise RuntimeError(
                     transaction.failure_reason or "Transaction failed"
@@ -519,7 +542,7 @@ class _UnbornSaleInteraction(_ShadySimDealsInteraction):
             LOGGER.exception(
                 "transaction_failed",
                 transaction_type="unborn",
-                target_id=str(target_id),
+                target_id=target_id,
             )
             _show_notification(
                 self.sim,
