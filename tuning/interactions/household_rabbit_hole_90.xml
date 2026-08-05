@@ -4,7 +4,7 @@
   <V n="_saveable" t="disabled" />
   <T n="allow_autonomous">False</T>
   <T n="allow_user_directed">False</T>
-  <L n="basic_liabilities"><V t="hide_sim_liability" /></L>
+  <L n="basic_liabilities"><V t="hide_sim_liability" x="115844" /></L>
   <V n="basic_content" t="flexible_length">
     <U n="flexible_length">
       <L n="conditional_actions">
