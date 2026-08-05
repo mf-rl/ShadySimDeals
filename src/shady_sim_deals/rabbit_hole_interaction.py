@@ -1,5 +1,4 @@
 from interactions.base.super_interaction import SuperInteraction
-from interactions.interaction_finisher import FinishingType
 from interactions.rabbit_hole import HideSimLiability
 
 from .logging import ModLogger
@@ -58,18 +57,19 @@ class ShadySimDealsRabbitHoleInteraction(SuperInteraction):
         self._prime_native_rabbit_hole_duration()
         return super().on_added_to_queue(*args, **kwargs)
 
-    def cancel(self, finishing_type, cancel_reason_msg=None, **kwargs):
-        if finishing_type is FinishingType.NATURAL:
-            import services
+    def _conditional_action_satisfied_callback(self, condition_group):
+        import services
 
-            rabbit_hole_id = self.interaction_parameters.get("rabbit_hole_id")
-            if services.get_rabbit_hole_service().is_in_rabbit_hole(
+        rabbit_hole_id = self.interaction_parameters.get("rabbit_hole_id")
+        if (
+            rabbit_hole_id is not None
+            and services.get_rabbit_hole_service().is_in_rabbit_hole(
                 self.sim.sim_id, rabbit_hole_id
-            ):
-                return False
-        return super().cancel(
-            finishing_type, cancel_reason_msg=cancel_reason_msg, **kwargs
-        )
+            )
+        ):
+            LOGGER.log("premature_rabbit_hole_exit_suppressed")
+            return
+        return super()._conditional_action_satisfied_callback(condition_group)
 
     def _prime_native_rabbit_hole_duration(self):
         import services

@@ -20,11 +20,9 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
             events.append(("super", args, kwargs))
             return "queued"
 
-        def cancel(self, finishing_type, cancel_reason_msg=None, **kwargs):
-            events.append(
-                ("super_cancel", finishing_type, cancel_reason_msg, kwargs)
-            )
-            return "canceled"
+        def _conditional_action_satisfied_callback(self, condition_group):
+            events.append(("super_conditional_action", condition_group))
+            return "satisfied"
 
         @classmethod
         def _tuning_loaded_callback(cls):
@@ -81,21 +79,12 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     fake_service.is_in_rabbit_hole = lambda sim_id, rabbit_hole_id: True
     services.get_rabbit_hole_service = lambda: fake_service
 
-    interaction_finisher = ModuleType("interactions.interaction_finisher")
-
-    class FakeFinishingType:
-        NATURAL = object()
-
-    interaction_finisher.FinishingType = FakeFinishingType
     monkeypatch.setitem(sys.modules, "interactions", interactions)
     monkeypatch.setitem(sys.modules, "interactions.base", base)
     monkeypatch.setitem(
         sys.modules, "interactions.base.super_interaction", super_interaction
     )
     monkeypatch.setitem(sys.modules, "interactions.rabbit_hole", rabbit_hole)
-    monkeypatch.setitem(
-        sys.modules, "interactions.interaction_finisher", interaction_finisher
-    )
     monkeypatch.setitem(sys.modules, "services", services)
     sys.modules.pop("shady_sim_deals.rabbit_hole_interaction", None)
 
@@ -137,17 +126,11 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     assert interaction_type.basic_liabilities == ()
     assert events[8] == ("super_tuning_loaded", ())
 
-    assert (
-        interaction.cancel(FakeFinishingType.NATURAL, "premature") is False
-    )
+    assert interaction._conditional_action_satisfied_callback("early") is None
     fake_service.is_in_rabbit_hole = lambda sim_id, rabbit_hole_id: False
     assert (
-        interaction.cancel(FakeFinishingType.NATURAL, "service expired")
-        == "canceled"
+        interaction._conditional_action_satisfied_callback("expired")
+        == "satisfied"
     )
-    assert events[9] == (
-        "super_cancel",
-        FakeFinishingType.NATURAL,
-        "service expired",
-        {},
-    )
+    assert events[9] == ("premature_rabbit_hole_exit_suppressed", {})
+    assert events[10] == ("super_conditional_action", "expired")
