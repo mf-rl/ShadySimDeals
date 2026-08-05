@@ -27,7 +27,7 @@ verification remain unchecked.
   - [x] Live: both phone actions animate before the picker
   - [x] Live: both computer actions route and animate before the picker
   - [x] Live: computer screen is active during the animation
-  - [ ] Live: inaccessible computer fails without opening a picker
+  - [x] Live: inaccessible computer fails without opening a picker
 
 ### Phase 3: Household-member transaction
 
