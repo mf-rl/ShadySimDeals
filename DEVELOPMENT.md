@@ -17,7 +17,7 @@
 - Shared household sales use `RabbitHoleService.put_sims_in_shared_rabbithole` and `set_rabbit_hole_expiration_callback` with `rabbit_hole.multi_sim_rabbit_hole.TwoSimRabbitHole`.
 - Unborn sales use the same shared service for two Sims and `put_sim_in_managed_rabbithole` with `rabbit_hole.rabbit_hole.RabbitHole` when the pregnant seller targets themself.
 - Rabbit-hole tuning uses resource type `0xB16AD2FA`, generic rabbit-hole animation factory `23834`, household rabbit-hole IDs `0xEAA21FFB1081E005`-`007`, unborn rabbit-hole IDs `0xEAA21FFB1081E00B`-`010`, and private affordance IDs `0xEAA21FFB1081E008`-`00A` and `011`-`013`.
-- Managed rabbit-hole affordances use `fade_sim_out` and must not tune a `rabbit_hole` entry in `basic_liabilities`; that is not a registered liability variant on patch `1.125.59.1030`.
+- Managed rabbit-hole affordances use `fade_sim_out` and a `hide_sim_liability` entry in `basic_liabilities`. The similarly named `rabbit_hole` variant is not registered on patch `1.125.59.1030`.
 
 Run tests with `py -3.12 -m pytest -q -p no:cacheprovider tests`. Build with `py -3.12 build_mod.py`; the build invokes Python 3.7 for game bytecode.
 
