@@ -287,7 +287,7 @@ Create corresponding 120-minute IDs `E00D/E00E -> E012` and 150-minute IDs `E00F
 
 - [ ] **Step 4: Create the three private affordances**
 
-Copy the existing private household affordance shape, changing name, instance, min/max duration, and display name to `0xA110000B`. Use IDs `E011=90`, `E012=120`, and `E013=150`. Keep `_saveable` disabled, autonomy and user direction false, rabbit-hole liability, generic animation factory `23834`, `fade_sim_out=True`, and target type Actor.
+Copy the existing private household affordance shape, changing name, instance, min/max duration, and display name to `0xA110000B`. Use IDs `E011=90`, `E012=120`, and `E013=150`. Keep `_saveable` disabled, autonomy and user direction false, generic animation factory `23834`, `fade_sim_out=True`, and target type Actor. Do not tune a `rabbit_hole` basic liability; the managed rabbit-hole service owns the lifecycle, and that unregistered variant loads as a string.
 
 - [ ] **Step 5: Add all nine resources to `package_resources()`**
 

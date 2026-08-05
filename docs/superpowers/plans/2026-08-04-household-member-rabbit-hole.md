@@ -442,7 +442,6 @@ values to 75, 90, or 120:
       <V n="content" t="looping_content"><U n="looping_content"><U n="animation_ref"><T n="factory">23834</T></U></U></V>
     </U>
   </V>
-  <L n="basic_liabilities"><V t="rabbit_hole" /></L>
   <T n="display_name">0xA110000A</T>
   <T n="fade_sim_out">True</T>
   <E n="target_type">ACTOR</E>
