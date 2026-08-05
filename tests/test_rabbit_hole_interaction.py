@@ -8,7 +8,7 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
 
     class FakeSuperInteraction:
         def __init__(self):
-            self.interaction_parameters = {"rabbit_hole_id": 91}
+            self.interaction_parameters = {"rabbit_hole_id": 999}
             self.sim = type("Sim", (), {"sim_id": 1})()
 
         def add_liability(self, token, liability):
@@ -45,6 +45,9 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
             return ()
 
     class FakeRabbitHoleService:
+        def get_head_rabbit_hole_id(self, sim_id):
+            return 91
+
         def _get_rabbit_hole(self, sim_id, rabbit_hole_id):
             return FakeRabbitHole()
 

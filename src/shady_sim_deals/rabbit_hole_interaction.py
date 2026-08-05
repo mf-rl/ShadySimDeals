@@ -16,13 +16,11 @@ class _LoggedHideSimLiability(HideSimLiability):
     def _enter_native_rabbit_hole(self):
         import services
 
-        rabbit_hole_id = self._interaction.interaction_parameters.get(
-            "rabbit_hole_id"
-        )
-        if rabbit_hole_id is None:
-            return
         sim_id = self._interaction.sim.sim_id
         service = services.get_rabbit_hole_service()
+        rabbit_hole_id = service.get_head_rabbit_hole_id(sim_id)
+        if rabbit_hole_id is None:
+            return
         rabbit_hole = service._get_rabbit_hole(sim_id, rabbit_hole_id)
         if (
             rabbit_hole is not None
