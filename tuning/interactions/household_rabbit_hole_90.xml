@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <I c="SuperInteraction" i="interaction" m="interactions.base.super_interaction" n="ShadySimDeals:HouseholdRabbitHole90" s="16907111114276462601">
+  <L n="_constraints"><U><L n="constraints"><U><V n="value" t="spawn_points"><U n="spawn_points"><V n="tags" t="Spawn_Point_Tags"><L n="Spawn_Point_Tags"><E>Spawn_Arrival</E></L></V></U></V></U></L></U></L>
   <V n="_saveable" t="disabled" />
   <T n="allow_autonomous">False</T>
   <T n="allow_user_directed">False</T>
@@ -8,7 +9,7 @@
     <U n="flexible_length">
       <L n="conditional_actions">
         <V t="literal"><U n="literal"><L n="conditions">
-          <V t="time_based"><U n="time_based"><T n="max_time">90</T><T n="min_time">90</T></U></V>
+          <V t="rabbit_hole_based"><U n="rabbit_hole_based"><T n="max_time">90</T><T n="min_time">90</T></U></V>
         </L><E n="interaction_action">EXIT_NATURALLY</E></U></V>
       </L>
       <V n="content" t="looping_content"><U n="looping_content"><U n="animation_ref"><T n="factory">23834</T></U></U></V>

@@ -106,9 +106,15 @@ def test_household_rabbit_holes_pair_participants_with_timed_affordances():
 
         interaction = interactions[affordance_id]
         assert interaction.find("./V[@n='_saveable']").attrib["t"] == "disabled"
+        arrival = interaction.find(
+            "./L[@n='_constraints']/U/L[@n='constraints']/U"
+            "/V[@t='spawn_points']/U/V[@n='tags']/L/E"
+        )
+        assert arrival is not None
+        assert arrival.text == "Spawn_Arrival"
         condition = interaction.find(
             "./V[@n='basic_content']/U/L[@n='conditional_actions']"
-            "/V/U/L[@n='conditions']/V[@t='time_based']/U"
+            "/V/U/L[@n='conditions']/V[@t='rabbit_hole_based']/U"
         )
         liabilities = interaction.findall(
             "./L[@n='basic_liabilities']/V"
@@ -157,6 +163,12 @@ def test_unborn_rabbit_holes_package_solo_shared_and_timed_resources():
 
         interaction = interactions[affordance_id]
         assert interaction.find("./V[@n='_saveable']").attrib["t"] == "disabled"
+        arrival = interaction.find(
+            "./L[@n='_constraints']/U/L[@n='constraints']/U"
+            "/V[@t='spawn_points']/U/V[@n='tags']/L/E"
+        )
+        assert arrival is not None
+        assert arrival.text == "Spawn_Arrival"
         liabilities = interaction.findall(
             "./L[@n='basic_liabilities']/V"
         )
@@ -166,7 +178,7 @@ def test_unborn_rabbit_holes_package_solo_shared_and_timed_resources():
         assert interaction.find("./T[@n='display_name']").text == "0xA110000B"
         condition = interaction.find(
             "./V[@n='basic_content']/U/L[@n='conditional_actions']"
-            "/V/U/L[@n='conditions']/V[@t='time_based']/U"
+            "/V/U/L[@n='conditions']/V[@t='rabbit_hole_based']/U"
         )
         assert int(condition.find("./T[@n='min_time']").text) == minutes
         assert int(condition.find("./T[@n='max_time']").text) == minutes
