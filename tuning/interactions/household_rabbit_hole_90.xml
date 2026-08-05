@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<I c="SuperInteraction" i="interaction" m="interactions.base.super_interaction" n="ShadySimDeals:HouseholdRabbitHole90" s="16907111114276462601">
+  <V n="_saveable" t="enabled" />
+  <T n="allow_autonomous">False</T>
+  <T n="allow_user_directed">False</T>
+  <V n="basic_content" t="flexible_length">
+    <U n="flexible_length">
+      <L n="conditional_actions">
+        <V t="literal"><U n="literal"><L n="conditions">
+          <V t="time_based"><U n="time_based"><T n="max_time">90</T><T n="min_time">90</T></U></V>
+        </L><E n="interaction_action">EXIT_NATURALLY</E></U></V>
+      </L>
+      <V n="content" t="looping_content"><U n="looping_content"><U n="animation_ref"><T n="factory">23834</T></U></U></V>
+    </U>
+  </V>
+  <L n="basic_liabilities"><V t="rabbit_hole" /></L>
+  <T n="display_name">0xA110000A</T>
+  <T n="fade_sim_out">True</T>
+  <E n="target_type">ACTOR</E>
+</I>

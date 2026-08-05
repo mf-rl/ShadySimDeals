@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<I c="TwoSimRabbitHole" i="rabbit_hole" m="rabbit_hole.multi_sim_rabbit_hole" n="ShadySimDeals:HouseholdSaleChild" s="16907111114276462598">
+  <T n="affordance">16907111114276462601</T>
+  <L n="first_participant_types"><E>Actor</E></L>
+  <L n="second_participant_types"><E>PickedSim</E></L>
+</I>
