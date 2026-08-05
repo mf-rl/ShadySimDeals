@@ -45,4 +45,21 @@ class ShadySimDealsRabbitHoleInteraction(SuperInteraction):
     def on_added_to_queue(self, *args, **kwargs):
         liability = _LoggedHideSimLiability(self)
         self.add_liability(liability.LIABILITY_TOKEN, liability)
+        self._prime_native_rabbit_hole_duration()
         return super().on_added_to_queue(*args, **kwargs)
+
+    def _prime_native_rabbit_hole_duration(self):
+        import services
+
+        sim_id = self.sim.sim_id
+        service = services.get_rabbit_hole_service()
+        rabbit_hole_id = service.get_head_rabbit_hole_id(sim_id)
+        if rabbit_hole_id is None:
+            return
+        rabbit_hole = service._get_rabbit_hole(sim_id, rabbit_hole_id)
+        if (
+            rabbit_hole is not None
+            and rabbit_hole.alarm_handle is None
+            and rabbit_hole.time_remaining_on_load is None
+        ):
+            rabbit_hole.time_remaining_on_load = rabbit_hole._get_duration()

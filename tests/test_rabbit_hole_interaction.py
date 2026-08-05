@@ -41,15 +41,24 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     rabbit_hole.HideSimLiability = FakeHideSimLiability
 
     class FakeRabbitHole:
+        alarm_handle = None
+        time_remaining_on_load = None
+
+        def _get_duration(self):
+            events.append(("duration",))
+            return "75 sim minutes"
+
         def get_all_sim_ids_in_rabbit_hole(self):
             return ()
+
+    fake_rabbit_hole = FakeRabbitHole()
 
     class FakeRabbitHoleService:
         def get_head_rabbit_hole_id(self, sim_id):
             return 91
 
         def _get_rabbit_hole(self, sim_id, rabbit_hole_id):
-            return FakeRabbitHole()
+            return fake_rabbit_hole
 
         def _on_sim_enter_rabbit_hole(self, sim_id, rabbit_hole_id):
             events.append(("service_enter", sim_id, rabbit_hole_id))
@@ -71,7 +80,9 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     assert interaction.on_added_to_queue(7, notify_client=False) == "queued"
     assert events[0][:2] == ("liability", "rabbit_hole")
     assert events[0][2].interaction is interaction
-    assert events[1] == ("super", (7,), {"notify_client": False})
+    assert events[1] == ("duration",)
+    assert events[2] == ("super", (7,), {"notify_client": False})
+    assert fake_rabbit_hole.time_remaining_on_load == "75 sim minutes"
 
     class FakeLogger:
         def log(self, event, **fields):
@@ -84,14 +95,14 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     liability.on_run()
     liability.release()
 
-    assert events[2] == ("rabbit_hole_interaction_running", {})
-    assert events[3] == ("service_enter", 1, 91)
-    assert events[4] == ("native_on_run",)
-    assert events[5] == (
+    assert events[3] == ("rabbit_hole_interaction_running", {})
+    assert events[4] == ("service_enter", 1, 91)
+    assert events[5] == ("native_on_run",)
+    assert events[6] == (
         "rabbit_hole_interaction_releasing",
         {
             "finishing_naturally": False,
             "finishing_type": "TRANSITION_FAILURE",
         },
     )
-    assert events[6] == ("native_release",)
+    assert events[7] == ("native_release",)
