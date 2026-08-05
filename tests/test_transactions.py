@@ -17,7 +17,7 @@ class Recorder:
     def release(self, transaction):
         self.events.append("release")
 
-    def run(self, transaction):
+    def run(self, transaction, on_finished):
         self.events.append("rabbit_hole")
 
     def process(self, transaction):
@@ -51,6 +51,69 @@ def build(events, validator_failure=None, target_failure=None):
 
 def transaction():
     return SaleTransaction("household_member", "actor", "target", "home")
+
+
+class DelayedRabbitHole:
+    def __init__(self, events):
+        self.events = events
+        self.callback = None
+
+    def run(self, transaction, on_finished):
+        self.events.append("rabbit_hole")
+        self.callback = on_finished
+        return True
+
+
+def test_household_completion_waits_for_rabbit_hole_expiration():
+    events = []
+    rabbit_hole = DelayedRabbitHole(events)
+    workflow = TransactionOrchestrator(
+        Recorder(events),
+        Recorder(events),
+        rabbit_hole,
+        Recorder(events),
+        Recorder(events),
+        Recorder(events),
+    )
+    deal = transaction()
+    workflow.prepare(deal, SaleOffer(5000, {}, "buyer"))
+
+    assert workflow.confirm_and_complete(deal)
+    assert deal.state == "rabbit_hole_started"
+    assert "target" not in events
+    assert ("payment", "home", 5000) not in events
+
+    rabbit_hole.callback(canceled=False)
+
+    assert deal.state == "completed"
+    assert events.index("target") < events.index(("payment", "home", 5000))
+    assert events[-1] == "release"
+
+
+def test_cancelled_rabbit_hole_does_not_process_or_pay():
+    events = []
+    rabbit_hole = DelayedRabbitHole(events)
+    workflow = TransactionOrchestrator(
+        Recorder(events),
+        Recorder(events),
+        rabbit_hole,
+        Recorder(events),
+        Recorder(events),
+        Recorder(events),
+    )
+    deal = transaction()
+    workflow.prepare(deal, SaleOffer(5000, {}, "buyer"))
+    workflow.confirm_and_complete(deal)
+
+    rabbit_hole.callback(canceled=True)
+
+    assert deal.state == "failed"
+    assert deal.failure_reason == "Rabbit hole was canceled"
+    assert "target" not in events
+    assert not any(
+        isinstance(event, tuple) and event[0] == "payment" for event in events
+    )
+    assert events[-1] == "release"
 
 
 def test_payment_occurs_after_target_and_only_once():

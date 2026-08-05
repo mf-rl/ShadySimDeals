@@ -148,7 +148,7 @@ class RuntimeRecorder:
     def release(self, transaction):
         self.events.append("release")
 
-    def run(self, transaction):
+    def run(self, transaction, on_finished):
         self.events.append("rabbit_hole")
 
     def process(self, transaction):
