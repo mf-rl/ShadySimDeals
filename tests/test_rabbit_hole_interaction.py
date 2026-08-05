@@ -50,6 +50,10 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     super_interaction.SuperInteraction = FakeSuperInteraction
     rabbit_hole = ModuleType("interactions.rabbit_hole")
     rabbit_hole.HideSimLiability = FakeHideSimLiability
+    element_utils = ModuleType("element_utils")
+    sleeper = object()
+    element_utils.soft_sleep_forever = lambda: sleeper
+    element_utils.build_element = tuple
 
     class FakeRabbitHole:
         alarm_handle = None
@@ -85,11 +89,17 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
         sys.modules, "interactions.base.super_interaction", super_interaction
     )
     monkeypatch.setitem(sys.modules, "interactions.rabbit_hole", rabbit_hole)
+    monkeypatch.setitem(sys.modules, "element_utils", element_utils)
     monkeypatch.setitem(sys.modules, "services", services)
     sys.modules.pop("shady_sim_deals.rabbit_hole_interaction", None)
 
     module = importlib.import_module("shady_sim_deals.rabbit_hole_interaction")
     interaction = module.ShadySimDealsRabbitHoleInteraction()
+
+    assert interaction.build_basic_content(sequence="route") == (
+        "route",
+        sleeper,
+    )
 
     assert interaction.on_added_to_queue(7, notify_client=False) == "queued"
     assert events[0][:2] == ("liability", "rabbit_hole")

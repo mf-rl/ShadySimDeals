@@ -1,5 +1,6 @@
 from interactions.base.super_interaction import SuperInteraction
 from interactions.rabbit_hole import HideSimLiability
+from element_utils import build_element, soft_sleep_forever
 
 from .logging import ModLogger
 
@@ -56,6 +57,9 @@ class ShadySimDealsRabbitHoleInteraction(SuperInteraction):
         self.add_liability(liability.LIABILITY_TOKEN, liability)
         self._prime_native_rabbit_hole_duration()
         return super().on_added_to_queue(*args, **kwargs)
+
+    def build_basic_content(self, sequence=(), **kwargs):
+        return build_element((sequence, soft_sleep_forever()))
 
     def _conditional_action_satisfied_callback(self, condition_group):
         import services
