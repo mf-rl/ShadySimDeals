@@ -16,6 +16,15 @@ EXPECTED_RESOURCE_KEYS = {
     (0xE882D22F, 0, 0xEAA21FFB1081E008),
     (0xE882D22F, 0, 0xEAA21FFB1081E009),
     (0xE882D22F, 0, 0xEAA21FFB1081E00A),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E00B),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E00C),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E00D),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E00E),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E00F),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E010),
+    (0xE882D22F, 0, 0xEAA21FFB1081E011),
+    (0xE882D22F, 0, 0xEAA21FFB1081E012),
+    (0xE882D22F, 0, 0xEAA21FFB1081E013),
     (0x03E9D964, 0x80000000, 0xEAA1200000000010),
     (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
     (0x7DF2169C, 0, 0xEAA1200000000020),
@@ -77,6 +86,7 @@ def test_household_rabbit_holes_pair_participants_with_timed_affordances():
         instance: ET.fromstring(data)
         for data, resource_type, _, instance in resources
         if resource_type == build_mod.RABBIT_HOLE_TYPE
+        and 0xEAA21FFB1081E005 <= instance <= 0xEAA21FFB1081E007
     }
     interactions = packaged_interactions()
     expected = {
@@ -108,6 +118,47 @@ def test_household_rabbit_holes_pair_participants_with_timed_affordances():
             "./V[@n='basic_content']/U/L[@n='conditional_actions']/V/U/E[@n='interaction_action']"
         )
         assert action.text == "EXIT_NATURALLY"
+
+
+def test_unborn_rabbit_holes_package_solo_shared_and_timed_resources():
+    resources = build_mod.package_resources()
+    rabbit_holes = {
+        instance: ET.fromstring(data)
+        for data, resource_type, _, instance in resources
+        if resource_type == build_mod.RABBIT_HOLE_TYPE
+        and 0xEAA21FFB1081E00B <= instance <= 0xEAA21FFB1081E010
+    }
+    interactions = packaged_interactions()
+    expected = {
+        0xEAA21FFB1081E00B: ("RabbitHole", 0xEAA21FFB1081E011, 90),
+        0xEAA21FFB1081E00C: ("TwoSimRabbitHole", 0xEAA21FFB1081E011, 90),
+        0xEAA21FFB1081E00D: ("RabbitHole", 0xEAA21FFB1081E012, 120),
+        0xEAA21FFB1081E00E: ("TwoSimRabbitHole", 0xEAA21FFB1081E012, 120),
+        0xEAA21FFB1081E00F: ("RabbitHole", 0xEAA21FFB1081E013, 150),
+        0xEAA21FFB1081E010: ("TwoSimRabbitHole", 0xEAA21FFB1081E013, 150),
+    }
+
+    assert set(rabbit_holes) == set(expected)
+    for rabbit_hole_id, (class_name, affordance_id, minutes) in expected.items():
+        rabbit_hole = rabbit_holes[rabbit_hole_id]
+        assert rabbit_hole.attrib["c"] == class_name
+        assert int(rabbit_hole.find("./T[@n='affordance']").text) == affordance_id
+        if class_name == "RabbitHole":
+            assert rabbit_hole.attrib["m"] == "rabbit_hole.rabbit_hole"
+        else:
+            assert rabbit_hole.attrib["m"] == "rabbit_hole.multi_sim_rabbit_hole"
+            assert rabbit_hole.find("./L[@n='first_participant_types']/E").text == "Actor"
+            assert rabbit_hole.find("./L[@n='second_participant_types']/E").text == "PickedSim"
+
+        interaction = interactions[affordance_id]
+        assert interaction.find("./V[@n='_saveable']").attrib["t"] == "disabled"
+        assert interaction.find("./T[@n='display_name']").text == "0xA110000B"
+        condition = interaction.find(
+            "./V[@n='basic_content']/U/L[@n='conditional_actions']"
+            "/V/U/L[@n='conditions']/V[@t='time_based']/U"
+        )
+        assert int(condition.find("./T[@n='min_time']").text) == minutes
+        assert int(condition.find("./T[@n='max_time']").text) == minutes
 
 
 def test_phone_sales_use_verified_phone_browse_content():
