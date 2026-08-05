@@ -8,7 +8,7 @@
     <U n="flexible_length">
       <L n="conditional_actions">
         <V t="literal"><U n="literal"><L n="conditions">
-          <V t="rabbit_hole_based"><U n="rabbit_hole_based"><T n="max_time">75</T><T n="min_time">75</T></U></V>
+          <V t="time_based"><U n="time_based"><T n="max_time">75</T><T n="min_time">75</T></U></V>
         </L><E n="interaction_action">EXIT_NATURALLY</E></U></V>
       </L>
       <V n="content" t="looping_content"><U n="looping_content"><U n="animation_ref"><T n="factory">23834</T></U></U></V>
