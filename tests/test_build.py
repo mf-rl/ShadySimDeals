@@ -116,13 +116,9 @@ def test_household_rabbit_holes_pair_participants_with_timed_affordances():
             "./V[@n='basic_content']/U/L[@n='conditional_actions']"
             "/V/U/L[@n='conditions']/V[@t='rabbit_hole_based']/U"
         )
-        liabilities = interaction.findall(
-            "./L[@n='basic_liabilities']/V"
-        )
-        assert [liability.attrib["t"] for liability in liabilities] == [
-            "hide_sim_liability"
-        ]
-        assert liabilities[0].attrib["x"] == "115844"
+        assert interaction.attrib["c"] == "ShadySimDealsRabbitHoleInteraction"
+        assert interaction.attrib["m"] == "shady_sim_deals.rabbit_hole_interaction"
+        assert interaction.find("./L[@n='basic_liabilities']") is None
         assert interaction.find("./E[@n='target_type']").text == "ACTOR"
         assert int(condition.find("./T[@n='min_time']").text) == minutes
         assert int(condition.find("./T[@n='max_time']").text) == minutes
@@ -170,13 +166,9 @@ def test_unborn_rabbit_holes_package_solo_shared_and_timed_resources():
         )
         assert arrival is not None
         assert arrival.text == "Spawn_Arrival"
-        liabilities = interaction.findall(
-            "./L[@n='basic_liabilities']/V"
-        )
-        assert [liability.attrib["t"] for liability in liabilities] == [
-            "hide_sim_liability"
-        ]
-        assert liabilities[0].attrib["x"] == "115844"
+        assert interaction.attrib["c"] == "ShadySimDealsRabbitHoleInteraction"
+        assert interaction.attrib["m"] == "shady_sim_deals.rabbit_hole_interaction"
+        assert interaction.find("./L[@n='basic_liabilities']") is None
         assert interaction.find("./T[@n='display_name']").text == "0xA110000B"
         condition = interaction.find(
             "./V[@n='basic_content']/U/L[@n='conditional_actions']"

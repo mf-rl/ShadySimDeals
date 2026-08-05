@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<I c="SuperInteraction" i="interaction" m="interactions.base.super_interaction" n="ShadySimDeals:HouseholdRabbitHole90" s="16907111114276462601">
+<I c="ShadySimDealsRabbitHoleInteraction" i="interaction" m="shady_sim_deals.rabbit_hole_interaction" n="ShadySimDeals:HouseholdRabbitHole90" s="16907111114276462601">
   <L n="_constraints"><U><L n="constraints"><U><V n="value" t="spawn_points"><U n="spawn_points"><V n="tags" t="Spawn_Point_Tags"><L n="Spawn_Point_Tags"><E>Spawn_Arrival</E></L></V></U></V></U></L></U></L>
   <V n="_saveable" t="disabled" />
   <T n="allow_autonomous">False</T>
   <T n="allow_user_directed">False</T>
-  <L n="basic_liabilities"><V t="hide_sim_liability" x="115844" /></L>
   <V n="basic_content" t="flexible_length">
     <U n="flexible_length">
       <L n="conditional_actions">
