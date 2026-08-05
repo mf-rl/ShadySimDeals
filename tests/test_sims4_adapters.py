@@ -116,6 +116,33 @@ class FakePregnancyTracker:
             self.is_pregnant = False
 
 
+class FakeRabbitHoleService:
+    def __init__(self, rabbit_hole_id=91, callback_error=None):
+        self.rabbit_hole_id = rabbit_hole_id
+        self.callback_error = callback_error
+        self.started = []
+        self.callback_key = None
+        self.callback = None
+        self.removed = []
+
+    def put_sims_in_shared_rabbithole(self, sim_infos, rabbit_hole_type):
+        self.started.append((sim_infos, rabbit_hole_type))
+        return self.rabbit_hole_id
+
+    def set_rabbit_hole_expiration_callback(
+        self, sim_id, rabbit_hole_id, callback
+    ):
+        if self.callback_error is not None:
+            raise self.callback_error
+        self.callback_key = (sim_id, rabbit_hole_id)
+        self.callback = callback
+
+    def remove_sim_from_rabbit_hole(
+        self, sim_id, rabbit_hole_id, canceled=False
+    ):
+        self.removed.append((sim_id, rabbit_hole_id, canceled))
+
+
 @pytest.fixture
 def household_change_origin(monkeypatch):
     origin = SimpleNamespace(UNKNOWN="unknown")
@@ -147,6 +174,86 @@ def test_age_key_maps_supported_game_ages(game_age, expected):
 def test_age_key_rejects_unsupported_game_age():
     with pytest.raises(ValueError, match="Unsupported age"):
         sims4_adapters.age_key(FakeSimInfo("UNKNOWN"))
+
+
+@pytest.mark.parametrize(
+    ("age", "expected_type"),
+    (
+        ("ELDER", 0xEAA21FFB1081E005),
+        ("BABY", 0xEAA21FFB1081E006),
+        ("CHILD", 0xEAA21FFB1081E006),
+        ("TEEN", 0xEAA21FFB1081E007),
+        ("ADULT", 0xEAA21FFB1081E007),
+    ),
+)
+def test_rabbit_hole_adapter_starts_shared_hole_in_participant_order(
+    age, expected_type
+):
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    target = FakeSimInfo(age, sim_id="2")
+    callbacks = []
+    service = FakeRabbitHoleService()
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=service,
+        sim_info_lookup={"1": actor, "2": target}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+    )
+    deal = SaleTransaction("household_member", "1", "2", "home")
+
+    assert adapter.run(deal, callbacks.append) is True
+    assert service.started == [([actor, target], expected_type)]
+    assert service.callback_key == (actor.sim_id, service.rabbit_hole_id)
+
+    service.callback(canceled=False)
+    assert callbacks == [False]
+
+
+def test_rabbit_hole_adapter_rejects_missing_participant():
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=FakeRabbitHoleService(),
+        sim_info_lookup={"1": actor}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+    )
+    deal = SaleTransaction("household_member", "1", "2", "home")
+
+    with pytest.raises(
+        sims4_adapters.IntegrationUnavailable, match="participant"
+    ):
+        adapter.run(deal, lambda canceled: None)
+
+
+def test_rabbit_hole_adapter_rejects_failed_startup():
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    target = FakeSimInfo("CHILD", sim_id="2")
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=FakeRabbitHoleService(rabbit_hole_id=None),
+        sim_info_lookup={"1": actor, "2": target}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+    )
+    deal = SaleTransaction("household_member", "1", "2", "home")
+
+    with pytest.raises(
+        sims4_adapters.IntegrationUnavailable, match="could not start"
+    ):
+        adapter.run(deal, lambda canceled: None)
+
+
+def test_rabbit_hole_adapter_cancels_started_hole_if_callback_setup_fails():
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    target = FakeSimInfo("CHILD", sim_id="2")
+    service = FakeRabbitHoleService(callback_error=RuntimeError("callback failed"))
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=service,
+        sim_info_lookup={"1": actor, "2": target}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+    )
+    deal = SaleTransaction("household_member", "1", "2", "home")
+
+    with pytest.raises(RuntimeError, match="callback failed"):
+        adapter.run(deal, lambda canceled: None)
+
+    assert service.removed == [(actor.sim_id, service.rabbit_hole_id, True)]
 
 
 def test_transaction_validator_accepts_only_safe_current_household_targets():
@@ -187,6 +294,12 @@ def test_transaction_validator_accepts_only_safe_current_household_targets():
 
     assert validator(reserved=lambda sim_id: sim_id == "target").validate(deal) == (
         "A transaction participant is already reserved"
+    )
+    assert (
+        validator(reserved=lambda sim_id: sim_id == "target").validate(
+            deal, check_reservations=False
+        )
+        is None
     )
     assert validator(shutting_down=lambda: True).validate(deal) == (
         "The game is shutting down"

@@ -5,6 +5,24 @@ import xml.etree.ElementTree as ET
 import build_mod
 
 
+EXPECTED_RESOURCE_KEYS = {
+    (0xE882D22F, 0, 0xEAA1200000000001),
+    (0xE882D22F, 0, 0xEAA21FFB1081E002),
+    (0xE882D22F, 0, 0xEAA21FFB1081E003),
+    (0xE882D22F, 0, 0xEAA21FFB1081E004),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E005),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E006),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E007),
+    (0xE882D22F, 0, 0xEAA21FFB1081E008),
+    (0xE882D22F, 0, 0xEAA21FFB1081E009),
+    (0xE882D22F, 0, 0xEAA21FFB1081E00A),
+    (0x03E9D964, 0x80000000, 0xEAA1200000000010),
+    (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
+    (0x7DF2169C, 0, 0xEAA1200000000020),
+    (0x220557DA, 0x80000000, 0x00A1100000000001),
+}
+
+
 def packaged_interactions():
     return {
         instance: ET.fromstring(data)
@@ -46,20 +64,50 @@ def test_build_stbl_encodes_version_five_table():
     assert data[28:] == b"ShadySimDeals"
 
 
-def test_package_resources_include_phone_and_computer_sales():
+def test_package_resources_include_every_planned_resource():
     resources = build_mod.package_resources()
     keys = {(resource_type, group, instance) for _, resource_type, group, instance in resources}
 
-    assert keys == {
-        (0xE882D22F, 0, 0xEAA1200000000001),
-        (0xE882D22F, 0, 0xEAA21FFB1081E002),
-        (0xE882D22F, 0, 0xEAA21FFB1081E003),
-        (0xE882D22F, 0, 0xEAA21FFB1081E004),
-        (0x03E9D964, 0x80000000, 0xEAA1200000000010),
-        (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
-        (0x7DF2169C, 0, 0xEAA1200000000020),
-        (0x220557DA, 0x80000000, 0x00A1100000000001),
+    assert keys == EXPECTED_RESOURCE_KEYS
+
+
+def test_household_rabbit_holes_pair_participants_with_timed_affordances():
+    resources = build_mod.package_resources()
+    rabbit_holes = {
+        instance: ET.fromstring(data)
+        for data, resource_type, _, instance in resources
+        if resource_type == build_mod.RABBIT_HOLE_TYPE
     }
+    interactions = packaged_interactions()
+    expected = {
+        0xEAA21FFB1081E005: (0xEAA21FFB1081E008, 75),
+        0xEAA21FFB1081E006: (0xEAA21FFB1081E009, 90),
+        0xEAA21FFB1081E007: (0xEAA21FFB1081E00A, 120),
+    }
+
+    assert set(rabbit_holes) == set(expected)
+    for rabbit_hole_id, (affordance_id, minutes) in expected.items():
+        rabbit_hole = rabbit_holes[rabbit_hole_id]
+        assert rabbit_hole.attrib["c"] == "TwoSimRabbitHole"
+        assert rabbit_hole.attrib["m"] == "rabbit_hole.multi_sim_rabbit_hole"
+        assert int(rabbit_hole.find("./T[@n='affordance']").text) == affordance_id
+        assert rabbit_hole.find("./L[@n='first_participant_types']/E").text == "Actor"
+        assert rabbit_hole.find("./L[@n='second_participant_types']/E").text == "PickedSim"
+
+        interaction = interactions[affordance_id]
+        assert interaction.find("./V[@n='_saveable']").attrib["t"] == "disabled"
+        condition = interaction.find(
+            "./V[@n='basic_content']/U/L[@n='conditional_actions']"
+            "/V/U/L[@n='conditions']/V[@t='time_based']/U"
+        )
+        assert interaction.find("./L[@n='basic_liabilities']/V").attrib["t"] == "rabbit_hole"
+        assert interaction.find("./E[@n='target_type']").text == "ACTOR"
+        assert int(condition.find("./T[@n='min_time']").text) == minutes
+        assert int(condition.find("./T[@n='max_time']").text) == minutes
+        action = interaction.find(
+            "./V[@n='basic_content']/U/L[@n='conditional_actions']/V/U/E[@n='interaction_action']"
+        )
+        assert action.text == "EXIT_NATURALLY"
 
 
 def test_phone_sales_use_verified_phone_browse_content():
@@ -257,13 +305,4 @@ def test_built_package_index_contains_every_planned_resource(tmp_path):
         keys.add((resource_type, group, (high << 32) | low))
         offset += 32
 
-    assert keys == {
-        (0xE882D22F, 0, 0xEAA1200000000001),
-        (0xE882D22F, 0, 0xEAA21FFB1081E002),
-        (0xE882D22F, 0, 0xEAA21FFB1081E003),
-        (0xE882D22F, 0, 0xEAA21FFB1081E004),
-        (0x03E9D964, 0x80000000, 0xEAA1200000000010),
-        (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
-        (0x7DF2169C, 0, 0xEAA1200000000020),
-        (0x220557DA, 0x80000000, 0x00A1100000000001),
-    }
+    assert keys == EXPECTED_RESOURCE_KEYS

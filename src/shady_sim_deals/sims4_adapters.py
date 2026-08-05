@@ -38,7 +38,7 @@ class Sims4TransactionValidator:
         self._shutdown_check = shutdown_check or self._is_shutting_down
         self._pregnancy_check = pregnancy_check or (lambda sim_id: False)
 
-    def validate(self, transaction):
+    def validate(self, transaction, check_reservations=True):
         if self._shutdown_check():
             return "The game is shutting down"
         actor = self._sim_info_lookup(str(transaction.actor_id))
@@ -66,8 +66,9 @@ class Sims4TransactionValidator:
             return "Actor left the active household"
         if str(getattr(target, "household_id", "")) != transaction.household_id:
             return "Target left the active household"
-        if self._reservation_check(transaction.actor_id) or self._reservation_check(
-            transaction.target_id
+        if check_reservations and (
+            self._reservation_check(transaction.actor_id)
+            or self._reservation_check(transaction.target_id)
         ):
             return "A transaction participant is already reserved"
         return None
@@ -128,9 +129,74 @@ class Sims4PregnancyAdapter:
 
 
 class Sims4RabbitHoleAdapter:
-    def run(self, transaction):
-        # Verification item: confirm the affordance and participant API in game tuning.
-        raise IntegrationUnavailable("Rabbit-hole API requires Sims 4 Studio verification")
+    RABBIT_HOLE_BY_AGE = {
+        "elder": 0xEAA21FFB1081E005,
+        "baby": 0xEAA21FFB1081E006,
+        "infant": 0xEAA21FFB1081E006,
+        "toddler": 0xEAA21FFB1081E006,
+        "child": 0xEAA21FFB1081E006,
+        "teen": 0xEAA21FFB1081E007,
+        "young_adult": 0xEAA21FFB1081E007,
+        "adult": 0xEAA21FFB1081E007,
+    }
+
+    def __init__(
+        self,
+        rabbit_hole_service=None,
+        sim_info_lookup=None,
+        rabbit_hole_lookup=None,
+    ):
+        self._service = rabbit_hole_service
+        self._sim_info_lookup = (
+            sim_info_lookup or Sims4PregnancyAdapter._find_sim_info
+        )
+        self._rabbit_hole_lookup = rabbit_hole_lookup or self._find_rabbit_hole
+
+    def run(self, transaction, on_finished):
+        actor = self._sim_info_lookup(str(transaction.actor_id))
+        target = self._sim_info_lookup(str(transaction.target_id))
+        if actor is None or target is None:
+            raise IntegrationUnavailable(
+                "Rabbit-hole participant no longer exists"
+            )
+        rabbit_hole_type = self._rabbit_hole_lookup(
+            self.RABBIT_HOLE_BY_AGE[age_key(target)]
+        )
+        if rabbit_hole_type is None:
+            raise IntegrationUnavailable("Rabbit-hole tuning is unavailable")
+        service = self._service or self._find_service()
+        rabbit_hole_id = service.put_sims_in_shared_rabbithole(
+            [actor, target], rabbit_hole_type
+        )
+        if rabbit_hole_id is None:
+            raise IntegrationUnavailable("Rabbit hole could not start")
+        try:
+            service.set_rabbit_hole_expiration_callback(
+                actor.sim_id,
+                rabbit_hole_id,
+                lambda canceled=False, **kwargs: on_finished(canceled),
+            )
+        except Exception:
+            service.remove_sim_from_rabbit_hole(
+                actor.sim_id, rabbit_hole_id, canceled=True
+            )
+            raise
+        return True
+
+    @staticmethod
+    def _find_service():
+        import services
+
+        return services.get_rabbit_hole_service()
+
+    @staticmethod
+    def _find_rabbit_hole(instance_id):
+        import services
+        import sims4.resources
+
+        return services.get_instance_manager(
+            sims4.resources.Types.RABBIT_HOLE
+        ).get(instance_id)
 
 
 class Sims4HouseholdAdapter:

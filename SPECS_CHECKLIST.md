@@ -27,11 +27,19 @@ verification remain unchecked.
   - [x] Live: both phone actions animate before the picker
   - [x] Live: both computer actions route and animate before the picker
   - [x] Live: computer screen is active during the animation
-  - [ ] Live: inaccessible computer fails without opening a picker
+  - [x] Live: inaccessible computer fails without opening a picker
 
 ### Phase 3: Household-member transaction
 
-- [ ] Real rabbit-hole workflow and timed return
+- [x] Real rabbit-hole workflow and timed return
+  - [x] Shared seller/target service adapter and expiration callback unit-tested
+  - [x] Private 75-, 90-, and 120-minute rabbit-hole resources packaged and indexed
+  - [x] Transfer and payment delayed until natural expiration; cancellation safety unit-tested
+  - [x] Active private rabbit-hole interactions are non-saveable and package-tested
+  - [ ] Live: child sale runs for 90 Sim minutes
+  - [ ] Live: adult sale runs for 120 Sim minutes
+  - [ ] Live: elder sale runs for 75 Sim minutes
+  - [ ] Live: reloading an active sale makes no transfer or payment
 - [x] Safe household transfer with rollback
   - [x] Live: sold child leaves the selectable household before payment
 - [x] Exactly-once payment ordering
@@ -86,7 +94,13 @@ verification remain unchecked.
   - [ ] Live: twin and triplet household-member pregnancy bonuses
 - [x] 7. Cancellation makes no changes.
 - [ ] 8. Confirmation starts the appropriate rabbit hole.
+  - [x] Automated: target age selects the 75-, 90-, or 120-minute shared tuning
+  - [x] Package: `TwoSimRabbitHole` resources map Actor then PickedSim
+  - [ ] Live: child, adult, and elder confirmations start shared rabbit holes
 - [ ] 9. Household-member transactions return only the seller from a rabbit hole.
+  - [x] Automated: target processing waits for the seller expiration callback
+  - [x] Automated: cancellation makes no transfer or payment
+  - [ ] Live: only the seller returns after child, adult, and elder sales
 - [x] 10. Targets move out of the active household without hard deletion.
 - [x] 11. Payment is deposited exactly once and only after target processing.
 - [x] 12. Unborn transactions safely conclude the selected pregnancy.

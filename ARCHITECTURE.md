@@ -16,7 +16,11 @@
 
 `CREATED -> VALIDATED -> OFFER_CALCULATED -> PLAYER_CONFIRMED -> RABBIT_HOLE_STARTED -> TARGET_DISPOSITION_PENDING -> TARGET_PROCESSED -> PAYMENT_COMPLETED -> CONSEQUENCES_APPLIED -> COMPLETED`
 
-Cancellation is allowed before confirmation. Failures are terminal and release reservations. Repeated completion is idempotent. Household sales pay after the reversible transfer and roll it back if payment fails. Unborn sales prepay because clearing a pregnancy is irreversible; if pregnancy processing fails before completion, the orchestrator refunds that exact payment.
+Cancellation is allowed before confirmation. Failures are terminal and release reservations. Repeated completion is idempotent. For household sales, the orchestrator pauses in `RABBIT_HOLE_STARTED` until the game service invokes its expiration callback; natural completion continues to transfer and payment, while cancellation fails without either. Household sales pay after the reversible transfer and roll it back if payment fails. Unborn sales use an immediate collaborator and prepay because clearing a pregnancy is irreversible; if pregnancy processing fails before completion, the orchestrator refunds that exact payment.
+
+## Rabbit-hole integration
+
+`Sims4RabbitHoleAdapter` maps the target age to one of three private `TwoSimRabbitHole` tunings and starts the seller and target, in that order, through EA's shared rabbit-hole service. The paired private affordances provide fixed 75-, 90-, or 120-minute durations. Only the seller's expiration callback resumes the transaction, so the target is moved to holdings before the game can return it to the active household. Startup failure or cancellation releases both transaction reservations without processing the target.
 
 ## Pricing pipeline
 
@@ -32,4 +36,4 @@ The four interaction tunings reuse minimal native phone or computer content veri
 
 ## Persistence
 
-The current registries are session-local. Sold Sims themselves remain in the hidden **ShadySimDeals Holdings** household, preserving their `SimInfo`; transaction markers and reservations reset when the game process restarts. Add save-slot-aware persistence only after its hook is verified.
+The current registries and active rabbit-hole callbacks are session-local. Private household-sale rabbit-hole interactions are deliberately non-saveable so a reload cannot resume without its transaction callback; finish or cancel an active sale before saving. Sold Sims themselves remain in the hidden **ShadySimDeals Holdings** household, preserving their `SimInfo`; completed transaction markers and reservations reset when the game process restarts. Add save-slot-aware persistence only after its hook is verified.

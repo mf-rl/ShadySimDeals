@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/ShadySimDeals-Logo.png" alt="Empneon — Persistent AI cognition for game characters" width="100%">
+  <img src="assets/ShadySimDeals-Logo.svg" alt="ShadySimDeals" width=50%>
 </p>
 
 ShadySimDeals is a darkly satirical The Sims 4 script mod. Household-member and unborn-Nooboo sales are available from phones and compatible computers.
@@ -24,15 +24,17 @@ ShadySimDeals is a darkly satirical The Sims 4 script mod. Household-member and 
 
 Eligible targets are household members from newborn/baby through elder. The active Sim, pets, already-sold Sims, and Sims involved in another transaction are excluded.
 
-The household-member offer starts with the target's age value. If the target is pregnant, the configured unborn value and multiple-offspring multiplier are added to the offer; the pregnancy remains with the transferred Sim. A completed sale transfers the target to a hidden **ShadySimDeals Holdings** household and then pays the active household. If payment fails, the transfer is rolled back.
+The household-member offer starts with the target's age value. If the target is pregnant, the configured unborn value and multiple-offspring multiplier are added to the offer; the pregnancy remains with the transferred Sim. After confirmation, the seller and target enter one shared rabbit hole for 75 Sim minutes when selling an elder, 90 for baby through child, or 120 for teen through adult. Natural expiration returns only the seller, transfers the target to the hidden **ShadySimDeals Holdings** household, and then pays the active household. Cancellation or startup failure transfers nobody and pays nothing; if payment fails after transfer, the transfer is rolled back.
 
 The unborn picker includes every currently pregnant household member, including the active Sim. Its offer uses the pregnancy tracker's expected offspring count. Confirming immediately clears the selected pregnancy and deposits one payment; this version does not yet animate or delay the transaction through a rabbit hole. Because the count API only reports the current expected count, the mod does not force early twin or triplet detection.
 
 Do not remove the mod while sold Sims remain in the holding household; recover them first or keep a backup of the save.
 
+Finish or cancel an active household sale before saving and reloading. Active sale callbacks are intentionally session-local, and the private rabbit-hole interactions are not persisted across reloads.
+
 ## Current scope
 
-This release intentionally omits buffs, ghosts, delayed outcomes, and a real rabbit-hole animation. Those features remain isolated behind the existing domain services until their game APIs are verified. See [`SPECS_CHECKLIST.md`](SPECS_CHECKLIST.md) for detailed implementation status.
+This release intentionally omits buffs, ghosts, delayed outcomes, and the unborn-sale rabbit hole. Those features remain isolated behind the existing domain services until their game APIs are verified. See [`SPECS_CHECKLIST.md`](SPECS_CHECKLIST.md) for detailed implementation status.
 
 ## Build and test
 

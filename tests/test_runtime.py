@@ -139,7 +139,7 @@ class RuntimeRecorder:
     def __init__(self, events):
         self.events = events
 
-    def validate(self, transaction):
+    def validate(self, transaction, check_reservations=True):
         return None
 
     def reserve(self, transaction):
@@ -148,7 +148,7 @@ class RuntimeRecorder:
     def release(self, transaction):
         self.events.append("release")
 
-    def run(self, transaction):
+    def run(self, transaction, on_finished):
         self.events.append("rabbit_hole")
 
     def process(self, transaction):
@@ -159,6 +159,24 @@ class RuntimeRecorder:
 
     def apply(self, transaction):
         self.events.append("consequences")
+
+
+class DelayedWorkflow:
+    def prepare(self, transaction, offer):
+        transaction.offer = offer
+        transaction.state = "offer_calculated"
+        return True
+
+    def confirm_and_complete(self, transaction, on_finished=None):
+        self.transaction = transaction
+        self.callback = on_finished
+        transaction.state = "rabbit_hole_started"
+        return True
+
+    def finish(self, state, failure_reason=None):
+        self.transaction.state = state
+        self.transaction.failure_reason = failure_reason
+        self.callback(self.transaction)
 
 
 def test_complete_household_sale_uses_shared_transaction_workflow():
@@ -183,6 +201,32 @@ def test_complete_household_sale_uses_shared_transaction_workflow():
     assert events.index("target") < events.index(("payment", "home", 4000))
 
 
+def test_complete_household_sale_reports_prepare_failure():
+    completed = []
+
+    class RejectedWorkflow:
+        def prepare(self, transaction, offer):
+            transaction.offer = offer
+            transaction.failure_reason = "Target left the household"
+            transaction.state = "failed"
+            return False
+
+        def confirm_and_complete(self, transaction, on_finished=None):
+            raise AssertionError("rejected transaction cannot be confirmed")
+
+    transaction = sims4_runtime.complete_household_sale(
+        actor_id="actor",
+        target_id="target",
+        household_id="home",
+        sim_info_lookup=lambda sim_id: FakeSimInfo("target", age="ADULT"),
+        workflow=RejectedWorkflow(),
+        pricing=SimSalePricingService(),
+        on_finished=completed.append,
+    )
+
+    assert completed == [transaction]
+
+
 def test_complete_pregnant_household_sale_pays_bundle_and_keeps_pregnancy():
     events = []
     recorder = RuntimeRecorder(events)
@@ -205,6 +249,113 @@ def test_complete_pregnant_household_sale_pays_bundle_and_keeps_pregnancy():
     assert transaction.offer.amount == 19000
     assert ("payment", "home", 19000) in events
     assert pregnancies.is_pregnant("pregnant")
+
+
+def test_household_interaction_notifies_only_after_delayed_completion(monkeypatch):
+    notifications = []
+    workflow = DelayedWorkflow()
+    target = FakeSimInfo("target", age="ADULT")
+    actor = type(
+        "Actor",
+        (),
+        {
+            "sim_id": "actor",
+            "household": type("Household", (), {"id": "home"})(),
+        },
+    )()
+    monkeypatch.setattr(
+        sims4_runtime,
+        "_runtime_services",
+        lambda: {
+            "workflow": workflow,
+            "pricing": SimSalePricingService(),
+            "pregnancies": FakePregnancies(),
+        },
+    )
+    monkeypatch.setattr(
+        sims4_runtime.Sims4TransactionValidator,
+        "_find_sim_info",
+        staticmethod(lambda sim_id: target),
+    )
+    monkeypatch.setattr(
+        sims4_runtime,
+        "_show_notification",
+        lambda *args: notifications.append(args),
+    )
+    interaction = object.__new__(
+        sims4_runtime.PhoneSellHouseholdMemberInteraction
+    )
+    interaction.sim = actor
+    interaction.get_resolver = lambda: "resolver"
+
+    interaction._complete_sale("target")
+
+    assert notifications == []
+    workflow.finish("completed")
+    assert notifications[0][2:4] == (
+        "completion_household_title",
+        "completion_household_body",
+    )
+
+
+def test_household_interaction_reports_delayed_failure(monkeypatch):
+    notifications = []
+    workflow = DelayedWorkflow()
+    target = FakeSimInfo("target", age="ADULT")
+    actor = type(
+        "Actor",
+        (),
+        {
+            "sim_id": "actor",
+            "household": type("Household", (), {"id": "home"})(),
+        },
+    )()
+    monkeypatch.setattr(
+        sims4_runtime,
+        "_runtime_services",
+        lambda: {
+            "workflow": workflow,
+            "pricing": SimSalePricingService(),
+            "pregnancies": FakePregnancies(),
+        },
+    )
+    monkeypatch.setattr(
+        sims4_runtime.Sims4TransactionValidator,
+        "_find_sim_info",
+        staticmethod(lambda sim_id: target),
+    )
+    monkeypatch.setattr(
+        sims4_runtime,
+        "_show_notification",
+        lambda *args: notifications.append(args),
+    )
+    monkeypatch.setattr(
+        sims4_runtime.LOGGER, "exception", lambda *args, **kwargs: None
+    )
+    interaction = object.__new__(
+        sims4_runtime.PhoneSellHouseholdMemberInteraction
+    )
+    interaction.sim = actor
+    interaction.get_resolver = lambda: "resolver"
+
+    interaction._complete_sale("target")
+    workflow.finish("failed", "Rabbit hole was canceled")
+
+    assert notifications[0][2:4] == ("failure_title", "failure_body")
+
+
+def test_runtime_uses_real_household_rabbit_hole_and_immediate_unborn(monkeypatch):
+    monkeypatch.setattr(sims4_runtime, "RUNTIME", {})
+
+    runtime = sims4_runtime._runtime_services()
+
+    assert isinstance(
+        runtime["workflow"]._rabbit_holes,
+        sims4_runtime.Sims4RabbitHoleAdapter,
+    )
+    assert runtime["unborn_workflow"]._rabbit_holes.run(
+        None, lambda transaction: None
+    ) is None
 
 
 def test_unborn_candidates_include_pregnant_actor_and_household_member():

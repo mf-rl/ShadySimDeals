@@ -12,6 +12,7 @@ DIST = ROOT / "dist"
 SCRIPT_TARGET = DIST / "ShadySimDeals.ts4script"
 PACKAGE_TARGET = DIST / "ShadySimDeals.package"
 INTERACTION_TUNING_TYPE = 0xE882D22F
+RABBIT_HOLE_TYPE = 0xB16AD2FA
 PIE_MENU_CATEGORY_TYPE = 0x03E9D964
 SIMDATA_TYPE = 0x545AC67A
 SNIPPET_TYPE = 0x7DF2169C
@@ -185,6 +186,42 @@ def package_resources():
             INTERACTION_TUNING_TYPE,
             0,
             0xEAA21FFB1081E004,
+        ),
+        (
+            (ROOT / "tuning" / "rabbit_holes" / "household_sale_elder.xml").read_bytes(),
+            RABBIT_HOLE_TYPE,
+            0,
+            0xEAA21FFB1081E005,
+        ),
+        (
+            (ROOT / "tuning" / "rabbit_holes" / "household_sale_child.xml").read_bytes(),
+            RABBIT_HOLE_TYPE,
+            0,
+            0xEAA21FFB1081E006,
+        ),
+        (
+            (ROOT / "tuning" / "rabbit_holes" / "household_sale_adult.xml").read_bytes(),
+            RABBIT_HOLE_TYPE,
+            0,
+            0xEAA21FFB1081E007,
+        ),
+        (
+            (ROOT / "tuning" / "interactions" / "household_rabbit_hole_75.xml").read_bytes(),
+            INTERACTION_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E008,
+        ),
+        (
+            (ROOT / "tuning" / "interactions" / "household_rabbit_hole_90.xml").read_bytes(),
+            INTERACTION_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E009,
+        ),
+        (
+            (ROOT / "tuning" / "interactions" / "household_rabbit_hole_120.xml").read_bytes(),
+            INTERACTION_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E00A,
         ),
         (
             (ROOT / "tuning" / "categories" / "shady_sim_deals_phone.xml").read_bytes(),

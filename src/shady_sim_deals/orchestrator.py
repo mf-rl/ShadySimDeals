@@ -41,21 +41,49 @@ class TransactionOrchestrator:
         self._states.transition(transaction, "cancelled")
         self._reservations.release(transaction)
 
-    def confirm_and_complete(self, transaction):
+    def confirm_and_complete(self, transaction, on_finished=None):
         if transaction.state == "completed":
             return True
         if transaction.state != "offer_calculated":
             raise TransactionError("Transaction is not ready for confirmation")
-        target_processed = False
-        prepaid = False
         try:
             error = self._validator.validate(transaction)
             if error:
                 raise TransactionError(str(error))
             self._reservations.reserve(transaction)
             self._states.transition(transaction, "player_confirmed")
-            self._rabbit_holes.run(transaction)
+            callback = lambda canceled=False: self._finish_after_rabbit_hole(
+                transaction, canceled, on_finished
+            )
+            started = self._rabbit_holes.run(transaction, callback)
+            if started is False:
+                raise TransactionError("Rabbit hole could not start")
             self._states.transition(transaction, "rabbit_hole_started")
+        except Exception as exc:
+            self._fail_before_target(transaction, exc, on_finished)
+            return False
+        if started is None:
+            callback()
+        return transaction.state in ("rabbit_hole_started", "completed")
+
+    def _finish_after_rabbit_hole(self, transaction, canceled, on_finished):
+        if transaction.state != "rabbit_hole_started":
+            return
+        if canceled:
+            transaction.failure_reason = "Rabbit hole was canceled"
+            self._states.transition(transaction, "failed")
+            self._reservations.release(transaction)
+            if on_finished is not None:
+                on_finished(transaction)
+            return
+        target_processed = False
+        prepaid = False
+        try:
+            error = self._validator.validate(
+                transaction, check_reservations=False
+            )
+            if error:
+                raise TransactionError(str(error))
             self._states.transition(transaction, "target_disposition_pending")
             if (
                 getattr(self._target_processor, "requires_prepayment", False)
@@ -76,7 +104,6 @@ class TransactionOrchestrator:
             self._consequences.apply(transaction)
             self._states.transition(transaction, "consequences_applied")
             self._states.transition(transaction, "completed")
-            return True
         except Exception as exc:
             transaction.failure_reason = str(exc)
             if prepaid and not target_processed and transaction.payment_completed:
@@ -100,6 +127,15 @@ class TransactionOrchestrator:
                         )
             if transaction.state not in ("completed", "failed"):
                 self._states.transition(transaction, "failed")
-            return False
         finally:
             self._reservations.release(transaction)
+            if on_finished is not None:
+                on_finished(transaction)
+
+    def _fail_before_target(self, transaction, exc, on_finished):
+        transaction.failure_reason = str(exc)
+        if transaction.state not in ("completed", "failed"):
+            self._states.transition(transaction, "failed")
+        self._reservations.release(transaction)
+        if on_finished is not None:
+            on_finished(transaction)

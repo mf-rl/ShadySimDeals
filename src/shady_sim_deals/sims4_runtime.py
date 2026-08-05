@@ -14,6 +14,7 @@ from .sims4_adapters import (
     Sims4FundsAdapter,
     Sims4HouseholdAdapter,
     Sims4PregnancyAdapter,
+    Sims4RabbitHoleAdapter,
     Sims4TransactionValidator,
     age_key,
 )
@@ -115,6 +116,7 @@ def complete_household_sale(
     workflow,
     pricing,
     pregnancy_adapter=None,
+    on_finished=None,
 ):
     target = sim_info_lookup(str(target_id))
     if target is None:
@@ -126,7 +128,9 @@ def complete_household_sale(
         "household_member", actor_id, target_id, household_id
     )
     if workflow.prepare(transaction, offer):
-        workflow.confirm_and_complete(transaction)
+        workflow.confirm_and_complete(transaction, on_finished)
+    elif on_finished is not None:
+        on_finished(transaction)
     return transaction
 
 
@@ -200,7 +204,7 @@ def _runtime_services():
     workflow = TransactionOrchestrator(
         validator,
         reservations,
-        SimpleNamespace(run=lambda transaction: None),
+        Sims4RabbitHoleAdapter(),
         target_processor,
         funds,
         SimpleNamespace(apply=lambda transaction: None),
@@ -208,7 +212,7 @@ def _runtime_services():
     unborn_workflow = TransactionOrchestrator(
         unborn_validator,
         reservations,
-        SimpleNamespace(run=lambda transaction: None),
+        SimpleNamespace(run=lambda transaction, on_finished: None),
         UnbornTargetProcessor(pregnancies),
         funds,
         SimpleNamespace(apply=lambda transaction: None),
@@ -345,7 +349,7 @@ class _HouseholdMemberSaleInteraction(_ShadySimDealsInteraction):
         try:
             household = self.sim.household
             runtime = _runtime_services()
-            transaction = complete_household_sale(
+            complete_household_sale(
                 self.sim.sim_id,
                 target_id,
                 household.id,
@@ -353,7 +357,21 @@ class _HouseholdMemberSaleInteraction(_ShadySimDealsInteraction):
                 runtime["workflow"],
                 runtime["pricing"],
                 runtime["pregnancies"],
+                on_finished=lambda completed: self._on_sale_finished(
+                    completed, str(target_id)
+                ),
             )
+        except Exception:
+            LOGGER.exception("transaction_failed", target_id=str(target_id))
+            _show_notification(
+                self.sim,
+                self.get_resolver(),
+                "failure_title",
+                "failure_body",
+            )
+
+    def _on_sale_finished(self, transaction, target_id):
+        try:
             if transaction.state != "completed":
                 raise RuntimeError(transaction.failure_reason or "Transaction failed")
             target = Sims4TransactionValidator._find_sim_info(target_id)
@@ -372,7 +390,7 @@ class _HouseholdMemberSaleInteraction(_ShadySimDealsInteraction):
                 amount=transaction.offer.amount,
             )
         except Exception:
-            LOGGER.exception("transaction_failed", target_id=str(target_id))
+            LOGGER.exception("transaction_failed", target_id=target_id)
             _show_notification(
                 self.sim,
                 self.get_resolver(),
