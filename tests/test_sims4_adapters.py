@@ -121,12 +121,17 @@ class FakeRabbitHoleService:
         self.rabbit_hole_id = rabbit_hole_id
         self.callback_error = callback_error
         self.started = []
+        self.managed = []
         self.callback_key = None
         self.callback = None
         self.removed = []
 
     def put_sims_in_shared_rabbithole(self, sim_infos, rabbit_hole_type):
         self.started.append((sim_infos, rabbit_hole_type))
+        return self.rabbit_hole_id
+
+    def put_sim_in_managed_rabbithole(self, sim_info, rabbit_hole_type):
+        self.managed.append((sim_info, rabbit_hole_type))
         return self.rabbit_hole_id
 
     def set_rabbit_hole_expiration_callback(
@@ -254,6 +259,74 @@ def test_rabbit_hole_adapter_cancels_started_hole_if_callback_setup_fails():
         adapter.run(deal, lambda canceled: None)
 
     assert service.removed == [(actor.sim_id, service.rabbit_hole_id, True)]
+
+
+def test_unborn_rabbit_hole_uses_one_participant_for_pregnant_actor():
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    service = FakeRabbitHoleService()
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=service,
+        sim_info_lookup={"1": actor}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+        expected_offspring_lookup=lambda sim_id: 1,
+    )
+    deal = SaleTransaction("unborn", "1", "1", "home")
+
+    assert adapter.run(deal, lambda canceled: None) is True
+    assert service.managed == [(actor, 0xEAA21FFB1081E00B)]
+    assert service.started == []
+
+
+def test_unborn_rabbit_hole_uses_actor_then_pregnant_target():
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    target = FakeSimInfo("ADULT", sim_id="2")
+    service = FakeRabbitHoleService()
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=service,
+        sim_info_lookup={"1": actor, "2": target}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+        expected_offspring_lookup=lambda sim_id: 1,
+    )
+    deal = SaleTransaction("unborn", "1", "2", "home")
+
+    assert adapter.run(deal, lambda canceled: None) is True
+    assert service.started == [([actor, target], 0xEAA21FFB1081E00C)]
+    assert service.managed == []
+
+
+@pytest.mark.parametrize(
+    ("count", "solo_id", "shared_id"),
+    (
+        (1, 0xEAA21FFB1081E00B, 0xEAA21FFB1081E00C),
+        (2, 0xEAA21FFB1081E00D, 0xEAA21FFB1081E00E),
+        (3, 0xEAA21FFB1081E00F, 0xEAA21FFB1081E010),
+        (4, 0xEAA21FFB1081E00F, 0xEAA21FFB1081E010),
+    ),
+)
+def test_unborn_rabbit_hole_selects_offspring_duration(count, solo_id, shared_id):
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    target = FakeSimInfo("ADULT", sim_id="2")
+    lookup = {"1": actor, "2": target}.get
+    solo_service = FakeRabbitHoleService()
+    solo = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=solo_service,
+        sim_info_lookup=lookup,
+        rabbit_hole_lookup=lambda instance: instance,
+        expected_offspring_lookup=lambda sim_id: count,
+    )
+    solo.run(SaleTransaction("unborn", "1", "1", "home"), lambda canceled: None)
+
+    shared_service = FakeRabbitHoleService()
+    shared = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=shared_service,
+        sim_info_lookup=lookup,
+        rabbit_hole_lookup=lambda instance: instance,
+        expected_offspring_lookup=lambda sim_id: count,
+    )
+    shared.run(SaleTransaction("unborn", "1", "2", "home"), lambda canceled: None)
+
+    assert solo_service.managed == [(actor, solo_id)]
+    assert shared_service.started == [([actor, target], shared_id)]
 
 
 def test_transaction_validator_accepts_only_safe_current_household_targets():

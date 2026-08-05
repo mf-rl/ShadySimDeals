@@ -139,18 +139,32 @@ class Sims4RabbitHoleAdapter:
         "young_adult": 0xEAA21FFB1081E007,
         "adult": 0xEAA21FFB1081E007,
     }
+    UNBORN_SOLO_BY_COUNT = {
+        1: 0xEAA21FFB1081E00B,
+        2: 0xEAA21FFB1081E00D,
+        3: 0xEAA21FFB1081E00F,
+    }
+    UNBORN_SHARED_BY_COUNT = {
+        1: 0xEAA21FFB1081E00C,
+        2: 0xEAA21FFB1081E00E,
+        3: 0xEAA21FFB1081E010,
+    }
 
     def __init__(
         self,
         rabbit_hole_service=None,
         sim_info_lookup=None,
         rabbit_hole_lookup=None,
+        expected_offspring_lookup=None,
     ):
         self._service = rabbit_hole_service
         self._sim_info_lookup = (
             sim_info_lookup or Sims4PregnancyAdapter._find_sim_info
         )
         self._rabbit_hole_lookup = rabbit_hole_lookup or self._find_rabbit_hole
+        self._expected_offspring_lookup = (
+            expected_offspring_lookup or (lambda sim_id: 1)
+        )
 
     def run(self, transaction, on_finished):
         actor = self._sim_info_lookup(str(transaction.actor_id))
@@ -159,15 +173,29 @@ class Sims4RabbitHoleAdapter:
             raise IntegrationUnavailable(
                 "Rabbit-hole participant no longer exists"
             )
-        rabbit_hole_type = self._rabbit_hole_lookup(
-            self.RABBIT_HOLE_BY_AGE[age_key(target)]
-        )
+        solo = False
+        if transaction.transaction_type == "unborn":
+            count = min(
+                3,
+                max(1, int(self._expected_offspring_lookup(transaction.target_id))),
+            )
+            solo = transaction.actor_id == transaction.target_id
+            mapping = self.UNBORN_SOLO_BY_COUNT if solo else self.UNBORN_SHARED_BY_COUNT
+            tuning_id = mapping[count]
+        else:
+            tuning_id = self.RABBIT_HOLE_BY_AGE[age_key(target)]
+        rabbit_hole_type = self._rabbit_hole_lookup(tuning_id)
         if rabbit_hole_type is None:
             raise IntegrationUnavailable("Rabbit-hole tuning is unavailable")
         service = self._service or self._find_service()
-        rabbit_hole_id = service.put_sims_in_shared_rabbithole(
-            [actor, target], rabbit_hole_type
-        )
+        if solo:
+            rabbit_hole_id = service.put_sim_in_managed_rabbithole(
+                actor, rabbit_hole_type
+            )
+        else:
+            rabbit_hole_id = service.put_sims_in_shared_rabbithole(
+                [actor, target], rabbit_hole_type
+            )
         if rabbit_hole_id is None:
             raise IntegrationUnavailable("Rabbit hole could not start")
         try:
