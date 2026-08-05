@@ -35,9 +35,11 @@ verification remain unchecked.
   - [x] Shared seller/target service adapter and expiration callback unit-tested
   - [x] Private 75-, 90-, and 120-minute rabbit-hole resources packaged and indexed
   - [x] Transfer and payment delayed until natural expiration; cancellation safety unit-tested
+  - [x] Active private rabbit-hole interactions are non-saveable and package-tested
   - [ ] Live: child sale runs for 90 Sim minutes
   - [ ] Live: adult sale runs for 120 Sim minutes
   - [ ] Live: elder sale runs for 75 Sim minutes
+  - [ ] Live: reloading an active sale makes no transfer or payment
 - [x] Safe household transfer with rollback
   - [x] Live: sold child leaves the selectable household before payment
 - [x] Exactly-once payment ordering

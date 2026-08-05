@@ -28,6 +28,8 @@ The unborn picker includes every currently pregnant household member, including 
 
 Do not remove the mod while sold Sims remain in the holding household; recover them first or keep a backup of the save.
 
+Finish or cancel an active household sale before saving and reloading. Active sale callbacks are intentionally session-local, and the private rabbit-hole interactions are not persisted across reloads.
+
 ## Current scope
 
 This release intentionally omits buffs, ghosts, delayed outcomes, and the unborn-sale rabbit hole. Those features remain isolated behind the existing domain services until their game APIs are verified. See [`SPECS_CHECKLIST.md`](SPECS_CHECKLIST.md) for detailed implementation status.

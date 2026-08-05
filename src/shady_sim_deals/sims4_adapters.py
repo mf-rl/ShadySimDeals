@@ -38,7 +38,7 @@ class Sims4TransactionValidator:
         self._shutdown_check = shutdown_check or self._is_shutting_down
         self._pregnancy_check = pregnancy_check or (lambda sim_id: False)
 
-    def validate(self, transaction):
+    def validate(self, transaction, check_reservations=True):
         if self._shutdown_check():
             return "The game is shutting down"
         actor = self._sim_info_lookup(str(transaction.actor_id))
@@ -66,8 +66,9 @@ class Sims4TransactionValidator:
             return "Actor left the active household"
         if str(getattr(target, "household_id", "")) != transaction.household_id:
             return "Target left the active household"
-        if self._reservation_check(transaction.actor_id) or self._reservation_check(
-            transaction.target_id
+        if check_reservations and (
+            self._reservation_check(transaction.actor_id)
+            or self._reservation_check(transaction.target_id)
         ):
             return "A transaction participant is already reserved"
         return None

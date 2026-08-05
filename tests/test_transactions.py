@@ -1,3 +1,5 @@
+import pytest
+
 from shady_sim_deals.models import SaleOffer, SaleTransaction
 from shady_sim_deals.orchestrator import TransactionOrchestrator
 
@@ -7,7 +9,7 @@ class Recorder:
         self.events = events
         self.failure = failure
 
-    def validate(self, transaction):
+    def validate(self, transaction, check_reservations=True):
         self.events.append("validate")
         return self.failure
 
@@ -114,6 +116,50 @@ def test_cancelled_rabbit_hole_does_not_process_or_pay():
         isinstance(event, tuple) and event[0] == "payment" for event in events
     )
     assert events[-1] == "release"
+
+
+def test_target_is_revalidated_after_rabbit_hole_wait():
+    events = []
+    validator = Recorder(events)
+    rabbit_hole = DelayedRabbitHole(events)
+    workflow = TransactionOrchestrator(
+        validator,
+        Recorder(events),
+        rabbit_hole,
+        Recorder(events),
+        Recorder(events),
+        Recorder(events),
+    )
+    deal = transaction()
+    workflow.prepare(deal, SaleOffer(5000, {}, "buyer"))
+    workflow.confirm_and_complete(deal)
+    validator.failure = "Target left the active household"
+
+    rabbit_hole.callback(canceled=False)
+
+    assert deal.state == "failed"
+    assert deal.failure_reason == "Target left the active household"
+    assert "target" not in events
+    assert not any(
+        isinstance(event, tuple) and event[0] == "payment" for event in events
+    )
+
+
+def test_immediate_completion_observer_failure_does_not_reopen_transaction():
+    events = []
+    workflow = build(events)
+    deal = transaction()
+    workflow.prepare(deal, SaleOffer(5000, {}, "buyer"))
+
+    def fail_observer(transaction):
+        raise RuntimeError("notification failed")
+
+    with pytest.raises(RuntimeError, match="notification failed"):
+        workflow.confirm_and_complete(deal, fail_observer)
+
+    assert deal.state == "completed"
+    assert deal.failure_reason is None
+    assert events.count("release") == 1
 
 
 def test_payment_occurs_after_target_and_only_once():

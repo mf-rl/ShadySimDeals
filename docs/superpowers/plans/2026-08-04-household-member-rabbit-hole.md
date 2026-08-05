@@ -16,6 +16,8 @@
 - Household durations remain 75 minutes for elders, 90 for baby through child, and 120 for teen through adult.
 - Transfer and payment occur only after natural rabbit-hole expiration.
 - Cancellation or startup failure releases reservations without transfer or payment.
+- Current game state is revalidated after the timed wait, excluding the transaction's own reservations.
+- Active callbacks are session-local; private rabbit-hole affordances are non-saveable.
 - Unborn-Nooboo behavior remains immediate.
 - Use private instance IDs 0xEAA21FFB1081E005 through 0xEAA21FFB1081E00A only.
 
@@ -145,6 +147,10 @@ _finish_after_rabbit_hole. On canceled=True set failure_reason to
 against duplicate callbacks unless state is rabbit_hole_started. Add
 _fail_before_target to transition nonterminal transactions to failed, release,
 and invoke on_finished after terminal state is set.
+
+Before target_disposition_pending, call validate with
+check_reservations=False so a Sim who died, moved, or otherwise became invalid
+during the wait fails safely without rejecting this transaction's held locks.
 
 - [ ] **Step 4: Run focused and full tests**
 
@@ -423,7 +429,7 @@ values to 75, 90, or 120:
 
 ```xml
 <I c="SuperInteraction" i="interaction" m="interactions.base.super_interaction" n="ShadySimDeals:HouseholdRabbitHole75" s="16907111114276462600">
-  <V n="_saveable" t="enabled" />
+  <V n="_saveable" t="disabled" />
   <T n="allow_autonomous">False</T>
   <T n="allow_user_directed">False</T>
   <V n="basic_content" t="flexible_length">
@@ -518,6 +524,8 @@ disposable save, complete child, adult, and elder sales. Confirm both Sims leave
 the duration is respectively 90, 120, and 75 Sim minutes, only the seller
 returns, the target moves to holdings, payment occurs once after expiration,
 cancellation makes no changes, and no lastException is generated.
+Also save and reload during an active sale and confirm no transfer or payment
+occurs without the original session callback.
 
 Only after those checks pass, check acceptance criteria 8 and 9 and commit the
 live evidence separately.

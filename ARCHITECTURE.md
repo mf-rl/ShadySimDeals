@@ -36,4 +36,4 @@ The four interaction tunings reuse minimal native phone or computer content veri
 
 ## Persistence
 
-The current registries are session-local. Sold Sims themselves remain in the hidden **ShadySimDeals Holdings** household, preserving their `SimInfo`; transaction markers and reservations reset when the game process restarts. Add save-slot-aware persistence only after its hook is verified.
+The current registries and active rabbit-hole callbacks are session-local. Private household-sale rabbit-hole interactions are deliberately non-saveable so a reload cannot resume without its transaction callback; finish or cancel an active sale before saving. Sold Sims themselves remain in the hidden **ShadySimDeals Holdings** household, preserving their `SimInfo`; completed transaction markers and reservations reset when the game process restarts. Add save-slot-aware persistence only after its hook is verified.

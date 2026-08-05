@@ -139,7 +139,7 @@ class RuntimeRecorder:
     def __init__(self, events):
         self.events = events
 
-    def validate(self, transaction):
+    def validate(self, transaction, check_reservations=True):
         return None
 
     def reserve(self, transaction):

@@ -59,12 +59,12 @@ class TransactionOrchestrator:
             if started is False:
                 raise TransactionError("Rabbit hole could not start")
             self._states.transition(transaction, "rabbit_hole_started")
-            if started is None:
-                callback()
-            return transaction.state in ("rabbit_hole_started", "completed")
         except Exception as exc:
             self._fail_before_target(transaction, exc, on_finished)
             return False
+        if started is None:
+            callback()
+        return transaction.state in ("rabbit_hole_started", "completed")
 
     def _finish_after_rabbit_hole(self, transaction, canceled, on_finished):
         if transaction.state != "rabbit_hole_started":
@@ -79,6 +79,11 @@ class TransactionOrchestrator:
         target_processed = False
         prepaid = False
         try:
+            error = self._validator.validate(
+                transaction, check_reservations=False
+            )
+            if error:
+                raise TransactionError(str(error))
             self._states.transition(transaction, "target_disposition_pending")
             if (
                 getattr(self._target_processor, "requires_prepayment", False)

@@ -33,16 +33,17 @@ After every supported game patch:
 8. Confirm the seller and target enter the same rabbit hole, then only the seller returns.
 9. Confirm natural expiration moves the target to **ShadySimDeals Holdings** and pays exactly once afterward.
 10. Cancel an active household-sale rabbit hole and confirm no transfer or payment occurs.
-11. Confirm saving, reloading, and travelling preserve the sold Sim.
-12. Confirm **Sell Unborn Nooboo** appears from both the phone and a compatible computer.
-13. With the active Sim pregnant, confirm the unborn picker includes the actor and excludes non-pregnant household members.
-14. With another household member pregnant, confirm the same picker includes that Sim.
-15. Confirm cancellation leaves pregnancy and funds unchanged.
-16. Confirm each pregnant-Sim path clears the selected pregnancy and deposits exactly one offspring-count-adjusted payment.
-17. Confirm both phone actions visibly use the phone before their pickers.
-18. Confirm both computer actions route to and visibly use a reachable computer before their pickers.
-19. Confirm an inaccessible computer ends the interaction without opening a picker or changing game state.
-20. Check `Documents\Electronic Arts\The Sims 4` for `lastException.txt` and review `ShadySimDeals.log`.
+11. Save and reload during an active sale and confirm it does not transfer the target or pay without a callback.
+12. Confirm saving, reloading, and travelling preserve a completed sold Sim.
+13. Confirm **Sell Unborn Nooboo** appears from both the phone and a compatible computer.
+14. With the active Sim pregnant, confirm the unborn picker includes the actor and excludes non-pregnant household members.
+15. With another household member pregnant, confirm the same picker includes that Sim.
+16. Confirm cancellation leaves pregnancy and funds unchanged.
+17. Confirm each pregnant-Sim path clears the selected pregnancy and deposits exactly one offspring-count-adjusted payment.
+18. Confirm both phone actions visibly use the phone before their pickers.
+19. Confirm both computer actions route to and visibly use a reachable computer before their pickers.
+20. Confirm an inaccessible computer ends the interaction without opening a picker or changing game state.
+21. Check `Documents\Electronic Arts\The Sims 4` for `lastException.txt` and review `ShadySimDeals.log`.
 
 Do not install or replace `.package` or `.ts4script` files while the game is running.
 

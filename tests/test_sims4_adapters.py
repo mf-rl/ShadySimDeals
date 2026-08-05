@@ -295,6 +295,12 @@ def test_transaction_validator_accepts_only_safe_current_household_targets():
     assert validator(reserved=lambda sim_id: sim_id == "target").validate(deal) == (
         "A transaction participant is already reserved"
     )
+    assert (
+        validator(reserved=lambda sim_id: sim_id == "target").validate(
+            deal, check_reservations=False
+        )
+        is None
+    )
     assert validator(shutting_down=lambda: True).validate(deal) == (
         "The game is shutting down"
     )

@@ -38,8 +38,9 @@ rabbit-hole collaborator completes asynchronously:
 3. Transition to rabbit_hole_started only after startup and callback
    registration succeed.
 4. Return control while both Sims remain in the managed rabbit hole.
-5. On natural expiration, process the target, pay once, apply consequences,
-   complete, release reservations, and notify the runtime callback.
+5. On natural expiration, revalidate current game state without rejecting this
+   transaction's own reservations, then process the target, pay once, apply
+   consequences, complete, release reservations, and notify the runtime callback.
 
 The immediate no-op collaborator invokes the same callback synchronously, so
 unborn behavior stays unchanged. No transfer or payment occurs at rabbit-hole
@@ -49,7 +50,8 @@ startup.
 
 Missing participants, rejected startup, or failed callback registration cancel
 the shared request, fail the transaction, release reservations, and make no
-target or funds changes. Early cancellation does the same. Failures after
+target or funds changes. Early cancellation or invalid state discovered after
+the timed wait does the same. Failures after
 target processing retain the existing transfer rollback and exactly-once
 payment behavior.
 
@@ -61,9 +63,13 @@ is transferred only from that callback, leaving only the seller selectable.
 Sims4RabbitHoleAdapter owns all patch-sensitive service, instance-manager,
 callback, and SimInfo calls. Only the household workflow receives it. Household
 completion and failure notifications move to the transaction-finished callback.
+Active callbacks remain session-local, so the private rabbit-hole affordances
+are deliberately non-saveable. Saving and reloading an active sale must not
+resume it without its transaction callback or process its target.
 
 Automated tests cover age selection, shared participant order, delayed payment,
 cancellation, startup failure, package resources, and injection isolation.
 Live verification covers child, adult, and elder durations; both Sims leaving;
-only the seller returning; target transfer; and exactly one payment. Checklist
-live criteria remain unchecked until those in-game checks pass.
+only the seller returning; target transfer; exactly one payment; and safe reload
+during an active sale. Checklist live criteria remain unchecked until those
+in-game checks pass.

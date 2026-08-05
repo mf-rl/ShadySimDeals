@@ -95,6 +95,7 @@ def test_household_rabbit_holes_pair_participants_with_timed_affordances():
         assert rabbit_hole.find("./L[@n='second_participant_types']/E").text == "PickedSim"
 
         interaction = interactions[affordance_id]
+        assert interaction.find("./V[@n='_saveable']").attrib["t"] == "disabled"
         condition = interaction.find(
             "./V[@n='basic_content']/U/L[@n='conditional_actions']"
             "/V/U/L[@n='conditions']/V[@t='time_based']/U"
