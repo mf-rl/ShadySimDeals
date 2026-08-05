@@ -7,6 +7,8 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     events = []
 
     class FakeSuperInteraction:
+        basic_liabilities = ["implicit rabbit-hole liability"]
+
         def __init__(self):
             self.interaction_parameters = {"rabbit_hole_id": 999}
             self.sim = type("Sim", (), {"sim_id": 1})()
@@ -17,6 +19,11 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
         def on_added_to_queue(self, *args, **kwargs):
             events.append(("super", args, kwargs))
             return "queued"
+
+        @classmethod
+        def _tuning_loaded_callback(cls):
+            events.append(("super_tuning_loaded", tuple(cls.basic_liabilities)))
+            return "loaded"
 
     class FakeHideSimLiability:
         LIABILITY_TOKEN = "rabbit_hole"
@@ -106,3 +113,8 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
         },
     )
     assert events[7] == ("native_release",)
+
+    interaction_type = module.ShadySimDealsRabbitHoleInteraction
+    assert interaction_type._tuning_loaded_callback() == "loaded"
+    assert interaction_type.basic_liabilities == ()
+    assert events[8] == ("super_tuning_loaded", ())

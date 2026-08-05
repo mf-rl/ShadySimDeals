@@ -42,6 +42,15 @@ class _LoggedHideSimLiability(HideSimLiability):
 
 
 class ShadySimDealsRabbitHoleInteraction(SuperInteraction):
+    @classmethod
+    def _tuning_loaded_callback(cls):
+        cls.basic_liabilities = tuple(
+            liability
+            for liability in cls.basic_liabilities
+            if not isinstance(liability, str)
+        )
+        return super()._tuning_loaded_callback()
+
     def on_added_to_queue(self, *args, **kwargs):
         liability = _LoggedHideSimLiability(self)
         self.add_liability(liability.LIABILITY_TOKEN, liability)
