@@ -7,6 +7,10 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     events = []
 
     class FakeSuperInteraction:
+        def __init__(self):
+            self.interaction_parameters = {"rabbit_hole_id": 91}
+            self.sim = type("Sim", (), {"sim_id": 1})()
+
         def add_liability(self, token, liability):
             events.append(("liability", token, liability))
 
@@ -35,12 +39,27 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     super_interaction.SuperInteraction = FakeSuperInteraction
     rabbit_hole = ModuleType("interactions.rabbit_hole")
     rabbit_hole.HideSimLiability = FakeHideSimLiability
+
+    class FakeRabbitHole:
+        def get_all_sim_ids_in_rabbit_hole(self):
+            return ()
+
+    class FakeRabbitHoleService:
+        def _get_rabbit_hole(self, sim_id, rabbit_hole_id):
+            return FakeRabbitHole()
+
+        def _on_sim_enter_rabbit_hole(self, sim_id, rabbit_hole_id):
+            events.append(("service_enter", sim_id, rabbit_hole_id))
+
+    services = ModuleType("services")
+    services.get_rabbit_hole_service = lambda: FakeRabbitHoleService()
     monkeypatch.setitem(sys.modules, "interactions", interactions)
     monkeypatch.setitem(sys.modules, "interactions.base", base)
     monkeypatch.setitem(
         sys.modules, "interactions.base.super_interaction", super_interaction
     )
     monkeypatch.setitem(sys.modules, "interactions.rabbit_hole", rabbit_hole)
+    monkeypatch.setitem(sys.modules, "services", services)
     sys.modules.pop("shady_sim_deals.rabbit_hole_interaction", None)
 
     module = importlib.import_module("shady_sim_deals.rabbit_hole_interaction")
@@ -63,12 +82,13 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     liability.release()
 
     assert events[2] == ("rabbit_hole_interaction_running", {})
-    assert events[3] == ("native_on_run",)
-    assert events[4] == (
+    assert events[3] == ("service_enter", 1, 91)
+    assert events[4] == ("native_on_run",)
+    assert events[5] == (
         "rabbit_hole_interaction_releasing",
         {
             "finishing_naturally": False,
             "finishing_type": "TRANSITION_FAILURE",
         },
     )
-    assert events[5] == ("native_release",)
+    assert events[6] == ("native_release",)

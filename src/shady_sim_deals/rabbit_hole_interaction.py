@@ -10,7 +10,25 @@ LOGGER = ModLogger()
 class _LoggedHideSimLiability(HideSimLiability):
     def on_run(self):
         LOGGER.log("rabbit_hole_interaction_running")
+        self._enter_native_rabbit_hole()
         return super().on_run()
+
+    def _enter_native_rabbit_hole(self):
+        import services
+
+        rabbit_hole_id = self._interaction.interaction_parameters.get(
+            "rabbit_hole_id"
+        )
+        if rabbit_hole_id is None:
+            return
+        sim_id = self._interaction.sim.sim_id
+        service = services.get_rabbit_hole_service()
+        rabbit_hole = service._get_rabbit_hole(sim_id, rabbit_hole_id)
+        if (
+            rabbit_hole is not None
+            and sim_id not in rabbit_hole.get_all_sim_ids_in_rabbit_hole()
+        ):
+            service._on_sim_enter_rabbit_hole(sim_id, rabbit_hole_id)
 
     def release(self):
         LOGGER.log(
