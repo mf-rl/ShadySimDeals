@@ -425,18 +425,16 @@ def test_rabbit_hole_adapter_cancels_started_hole_if_callback_setup_fails():
     assert service.removed == [(actor.sim_id, service.rabbit_hole_id, True)]
 
 
-def test_rabbit_hole_completion_waits_only_for_the_seller():
+def test_rabbit_hole_completion_does_not_wait_for_sims_to_reinstance():
     actor = FakeSimInfo("ADULT", sim_id="1", instanced=False)
     target = FakeSimInfo("CHILD", sim_id="2", instanced=False)
     callbacks = []
-    scheduled = []
     service = FakeRabbitHoleService()
     adapter = sims4_adapters.Sims4RabbitHoleAdapter(
         rabbit_hole_service=service,
         sim_info_lookup={"1": actor, "2": target}.get,
         rabbit_hole_lookup=lambda instance: instance,
     )
-    adapter._schedule_alarm = lambda owner, callback: scheduled.append(callback)
     adapter.run(
         SaleTransaction("household_member", "1", "2", "home"),
         callbacks.append,
@@ -444,10 +442,6 @@ def test_rabbit_hole_completion_waits_only_for_the_seller():
 
     service.callback(canceled=False)
 
-    assert callbacks == []
-    assert len(scheduled) == 1
-    actor.instanced = True
-    scheduled.pop()()
     assert callbacks == [False]
 
 
