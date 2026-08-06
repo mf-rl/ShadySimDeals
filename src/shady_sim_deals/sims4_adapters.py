@@ -109,20 +109,20 @@ class Sims4SoldSimRegistry:
         trait = self._trait_lookup(self.SOLD_TRAIT_ID)
         if sim_info is None or trait is None:
             raise IntegrationUnavailable("Sold trait state is unavailable")
-        return sim_info.trait_tracker, trait
+        return sim_info, trait
 
     def mark_sold(self, sim_id):
-        tracker, trait = self._state(sim_id)
-        if not tracker.has_trait(trait) and tracker.add_trait(trait) is False:
+        sim_info, trait = self._state(sim_id)
+        if not sim_info.has_trait(trait) and sim_info.add_trait(trait) is False:
             raise IntegrationUnavailable("Sold trait could not be added")
 
     def is_sold(self, sim_id):
-        tracker, trait = self._state(sim_id)
-        return tracker.has_trait(trait)
+        sim_info, trait = self._state(sim_id)
+        return sim_info.has_trait(trait)
 
     def unmark_sold(self, sim_id):
-        tracker, trait = self._state(sim_id)
-        if tracker.has_trait(trait) and tracker.remove_trait(trait) is False:
+        sim_info, trait = self._state(sim_id)
+        if sim_info.has_trait(trait) and sim_info.remove_trait(trait) is False:
             raise IntegrationUnavailable("Sold trait could not be removed")
 
     @staticmethod
@@ -191,11 +191,14 @@ class Sims4SaleConsequences:
         if sim_info is None or trait is None or buff is None:
             raise IntegrationUnavailable("Sale consequence tuning is unavailable")
         if (
-            not sim_info.trait_tracker.has_trait(trait)
-            and sim_info.trait_tracker.add_trait(trait) is False
+            not sim_info.has_trait(trait)
+            and sim_info.add_trait(trait) is False
         ):
             raise IntegrationUnavailable("Sale consequence trait could not be added")
-        sim_info.add_buff(buff)
+        sim = sim_info.get_sim_instance()
+        if sim is None:
+            raise IntegrationUnavailable("Sale consequence Sim is unavailable")
+        sim.add_buff(buff)
 
     _find_trait = staticmethod(Sims4SoldSimRegistry._find_trait)
 

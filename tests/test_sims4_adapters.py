@@ -26,9 +26,10 @@ class FakeSimInfo:
 def test_sold_registry_uses_sim_info_trait_tracker():
     sold_trait = object()
 
-    class Tracker:
+    class SimInfo:
         def __init__(self):
             self.traits = set()
+            self.trait_tracker = object()
 
         def add_trait(self, trait):
             self.traits.add(trait)
@@ -41,7 +42,7 @@ def test_sold_registry_uses_sim_info_trait_tracker():
             self.traits.discard(trait)
             return True
 
-    sim_info = type("SimInfo", (), {"trait_tracker": Tracker()})()
+    sim_info = SimInfo()
     registry = sims4_adapters.Sims4SoldSimRegistry(
         sim_info_lookup=lambda sim_id: sim_info,
         trait_lookup=lambda instance: sold_trait,
@@ -58,7 +59,8 @@ class FakeConsequenceSimInfo:
     def __init__(self):
         self.events = []
         self.pending_trait = None
-        self.trait_tracker = self
+        self.trait_tracker = object()
+        self.sim_instance = SimpleNamespace(add_buff=self._record_buff)
 
     def has_trait(self, trait):
         return any(event[0] == trait for event in self.events)
@@ -67,8 +69,11 @@ class FakeConsequenceSimInfo:
         self.pending_trait = trait
         return True
 
-    def add_buff(self, buff):
+    def _record_buff(self, buff):
         self.events.append((self.pending_trait, buff))
+
+    def get_sim_instance(self):
+        return self.sim_instance
 
 
 @pytest.mark.parametrize(
@@ -124,8 +129,13 @@ def test_solo_unborn_sale_applies_only_seller_consequences_once():
 
 def test_sale_consequence_failure_is_logged_without_raising():
     class BrokenSim(FakeConsequenceSimInfo):
-        def add_buff(self, buff):
-            raise RuntimeError("buff unavailable")
+        def __init__(self):
+            super().__init__()
+            self.sim_instance = SimpleNamespace(
+                add_buff=lambda buff: (_ for _ in ()).throw(
+                    RuntimeError("buff unavailable")
+                )
+            )
 
     class FakeLogger:
         def __init__(self):
