@@ -27,8 +27,8 @@ Run tests with `py -3.12 -m pytest -q -p no:cacheprovider tests`. Build with `py
 After every supported game patch:
 
 1. Confirm Lot 51 Core loads before ShadySimDeals and reports version 1.43 or newer.
-2. Confirm **Sell Household Member** appears directly on the phone.
-3. Click a compatible computer and confirm **ShadySimDeals > Sell Household Member** appears.
+2. Confirm **Liquidate a Family Asset** appears directly on the phone.
+3. Click a compatible computer and confirm **ShadySimDeals > Liquidate a Family Asset** appears.
 4. Confirm both entry points open the same picker and offer flow.
 5. Confirm the picker includes baby-through-elder household members and excludes the active Sim.
 6. Confirm cancelling the picker and confirmation dialog changes nothing.
@@ -38,7 +38,7 @@ After every supported game patch:
 10. Cancel an active household-sale rabbit hole and confirm no transfer or payment occurs.
 11. Save and reload during an active sale and confirm it does not transfer the target or pay without a callback.
 12. Confirm saving, reloading, and travelling preserve a completed sold Sim.
-13. Confirm **Sell Unborn Nooboo** appears from both the phone and a compatible computer.
+13. Confirm **Monetize Future Family Growth** appears from both the phone and a compatible computer.
 14. With the active Sim pregnant, confirm the unborn picker includes the actor and excludes non-pregnant household members.
 15. With another household member pregnant, confirm the same picker includes that Sim.
 16. Confirm cancellation leaves pregnancy and funds unchanged.

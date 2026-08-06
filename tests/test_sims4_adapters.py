@@ -283,11 +283,13 @@ class FakePregnancyTracker:
 class FakeRabbitHoleService:
     def __init__(self, rabbit_hole_id=91, callback_error=None):
         self.rabbit_hole_id = rabbit_hole_id
+        self.rabbit_hole = object()
         self.callback_error = callback_error
         self.started = []
         self.managed = []
         self.callback_key = None
         self.callback = None
+        self.callback_registrations = []
         self.removed = []
 
     def put_sims_in_shared_rabbithole(self, sim_infos, rabbit_hole_type):
@@ -305,6 +307,12 @@ class FakeRabbitHoleService:
             raise self.callback_error
         self.callback_key = (sim_id, rabbit_hole_id)
         self.callback = callback
+        self.callback_registrations.append(
+            (sim_id, rabbit_hole_id, callback)
+        )
+
+    def _get_rabbit_hole(self, sim_id, rabbit_hole_id):
+        return self.rabbit_hole
 
     def remove_sim_from_rabbit_hole(
         self, sim_id, rabbit_hole_id, canceled=False
@@ -373,6 +381,40 @@ def test_rabbit_hole_adapter_starts_shared_hole_in_participant_order(
     assert service.started == [([actor, target], expected_type)]
     assert service.callback_key == (actor.sim_id, service.rabbit_hole_id)
 
+    service.callback(canceled=False)
+    assert callbacks == [False]
+
+
+def test_rabbit_hole_callback_reattaches_after_cas_resets_hole():
+    actor = FakeSimInfo("ADULT", sim_id="cas-actor")
+    target = FakeSimInfo("CHILD", sim_id="cas-target")
+    callbacks = []
+    service = FakeRabbitHoleService()
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=service,
+        sim_info_lookup={
+            "cas-actor": actor,
+            "cas-target": target,
+        }.get,
+        rabbit_hole_lookup=lambda instance: instance,
+    )
+    adapter.run(
+        SaleTransaction(
+            "household_member", "cas-actor", "cas-target", "home"
+        ),
+        callbacks.append,
+    )
+    original_callback = service.callback
+
+    sims4_adapters.mark_rabbit_hole_callback_for_reattach(actor.sim_id)
+    sims4_adapters.reattach_rabbit_hole_callback(
+        actor.sim_id, service.rabbit_hole_id, service
+    )
+
+    assert service.callback_registrations == [
+        (actor.sim_id, service.rabbit_hole_id, original_callback),
+        (actor.sim_id, service.rabbit_hole_id, original_callback),
+    ]
     service.callback(canceled=False)
     assert callbacks == [False]
 

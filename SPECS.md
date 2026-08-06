@@ -49,8 +49,8 @@ The mod must expose a ShadySimDeals application through:
 
 Both entry points must provide these actions:
 
-- Sell Household Member
-- Sell Unborn Nooboo
+- Liquidate a Family Asset
+- Monetize Future Family Growth
 
 The phone and computer interactions must invoke the same application service and transaction workflow.
 
@@ -73,8 +73,8 @@ ShadySimDeals
 
 It must expose:
 
-1. Sell Household Member
-2. Sell Unborn Nooboo
+1. Liquidate a Family Asset
+2. Monetize Future Family Growth
 
 When either action is selected:
 
@@ -107,8 +107,8 @@ Inject a ShadySimDeals interaction into compatible computers.
 
 It must expose the same two actions:
 
-1. Sell Household Member
-2. Sell Unborn Nooboo
+1. Liquidate a Family Asset
+2. Monetize Future Family Growth
 
 The computer workflow must behave exactly like the phone workflow after the initial interaction is selected.
 
@@ -126,7 +126,7 @@ Do not duplicate filtering, pricing, transaction, or consequence logic in the co
 5. SELL HOUSEHOLD MEMBER PICKER
 ==================================================
 
-When Sell Household Member is selected, open a Sim picker containing:
+When Liquidate a Family Asset is selected, open a Sim picker containing:
 
 - All members of the active household.
 - Exclude the active Sim.
@@ -153,7 +153,7 @@ After selection, refer to the selected Sim internally as the target Sim.
 6. SELL UNBORN NOOBOO PICKER
 ==================================================
 
-When Sell Unborn Nooboo is selected, open a Sim picker containing only pregnant Sims from the active household.
+When Monetize Future Family Growth is selected, open a Sim picker containing only pregnant Sims from the active household.
 
 Requirements:
 
@@ -1192,8 +1192,8 @@ The feature is complete when:
 1. ShadySimDeals appears on supported phones.
 2. ShadySimDeals appears on supported computers.
 3. Both expose:
-   - Sell Household Member.
-   - Sell Unborn Nooboo.
+   - Liquidate a Family Asset.
+   - Monetize Future Family Growth.
 4. The household-member picker:
    - Includes all valid household members.
    - Excludes the actor.

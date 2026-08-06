@@ -3,6 +3,29 @@
 from .logging import ModLogger
 
 
+_RABBIT_HOLE_CALLBACKS = {}
+
+
+def mark_rabbit_hole_callback_for_reattach(sim_id):
+    pending = _RABBIT_HOLE_CALLBACKS.get(sim_id)
+    if pending is not None:
+        _RABBIT_HOLE_CALLBACKS[sim_id] = (pending[0], None)
+
+
+def reattach_rabbit_hole_callback(sim_id, rabbit_hole_id, service):
+    pending = _RABBIT_HOLE_CALLBACKS.get(sim_id)
+    if pending is None:
+        return
+    callback, previous_rabbit_hole = pending
+    rabbit_hole = service._get_rabbit_hole(sim_id, rabbit_hole_id)
+    if rabbit_hole is None or rabbit_hole is previous_rabbit_hole:
+        return
+    service.set_rabbit_hole_expiration_callback(
+        sim_id, rabbit_hole_id, callback
+    )
+    _RABBIT_HOLE_CALLBACKS[sim_id] = (callback, rabbit_hole)
+
+
 class IntegrationUnavailable(RuntimeError):
     pass
 
@@ -321,13 +344,24 @@ class Sims4RabbitHoleAdapter:
             )
         if rabbit_hole_id is None:
             raise IntegrationUnavailable("Rabbit hole could not start")
+        def callback(canceled=False, **kwargs):
+            pending = _RABBIT_HOLE_CALLBACKS.get(actor.sim_id)
+            if pending is not None and pending[0] is callback:
+                _RABBIT_HOLE_CALLBACKS.pop(actor.sim_id, None)
+            on_finished(canceled)
+
+        _RABBIT_HOLE_CALLBACKS[actor.sim_id] = (
+            callback,
+            service._get_rabbit_hole(actor.sim_id, rabbit_hole_id),
+        )
         try:
             service.set_rabbit_hole_expiration_callback(
                 actor.sim_id,
                 rabbit_hole_id,
-                lambda canceled=False, **kwargs: on_finished(canceled),
+                callback,
             )
         except Exception:
+            _RABBIT_HOLE_CALLBACKS.pop(actor.sim_id, None)
             service.remove_sim_from_rabbit_hole(
                 actor.sim_id, rabbit_hole_id, canceled=True
             )
