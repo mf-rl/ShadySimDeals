@@ -223,7 +223,13 @@ class FakeConsequenceLogger:
         self.events.append((event, fields))
 
 
-def relationship_adapter(sims, selector=None, logger=None):
+def relationship_adapter(
+    sims,
+    selector=None,
+    logger=None,
+    household_member_lookup=None,
+    close_relative_lookup=None,
+):
     tunings = {
         0xEAA21FFB1081E014: "seller",
         0xEAA21FFB1081E015: "sold",
@@ -238,6 +244,8 @@ def relationship_adapter(sims, selector=None, logger=None):
         buff_lookup=lambda instance: tunings[instance],
         logger=logger,
         pregnant_reactions=selector,
+        household_member_lookup=household_member_lookup or (lambda actor_id: ()),
+        close_relative_lookup=close_relative_lookup or (lambda target_id: ()),
     )
 
 
@@ -316,6 +324,160 @@ def test_relationship_consequence_failure_is_logged_without_raising(
     assert sims["1"].events == [("seller", "happy")]
     assert sims["2"].events == [("sold", "sad")]
     assert logger.events[-1][0] == "relationship_consequence_failed"
+
+
+def test_wider_relationship_consequences_use_stronger_delta_once(
+    all_hidden_reasons,
+):
+    sims = {
+        "1": FakeConsequenceSimInfo(),
+        "2": FakeConsequenceSimInfo(
+            hidden=True, relationship_tracker=FakeRelationshipTracker()
+        ),
+        "3": FakeConsequenceSimInfo(
+            relationship_tracker=FakeRelationshipTracker()
+        ),
+        "4": FakeConsequenceSimInfo(
+            relationship_tracker=FakeRelationshipTracker()
+        ),
+    }
+    adapter = relationship_adapter(
+        sims,
+        household_member_lookup=lambda actor_id: ("1", "2", "3", "4"),
+        close_relative_lookup=lambda target_id: ("3",),
+    )
+
+    adapter.apply(SaleTransaction("household_member", "1", "2", "home"))
+
+    assert sims["2"].relationship_tracker.changes == [(1, -100)]
+    assert sims["3"].relationship_tracker.changes == [(1, -50)]
+    assert sims["4"].relationship_tracker.changes == [(1, -25)]
+
+
+def test_unborn_sale_does_not_apply_wider_relationship_consequences(
+    all_hidden_reasons,
+):
+    witness = FakeConsequenceSimInfo(
+        relationship_tracker=FakeRelationshipTracker()
+    )
+    sims = {
+        "1": FakeConsequenceSimInfo(),
+        "2": FakeConsequenceSimInfo(
+            relationship_tracker=FakeRelationshipTracker()
+        ),
+        "3": witness,
+    }
+    adapter = relationship_adapter(
+        sims,
+        selector=FakeReactionSelector("regretful"),
+        household_member_lookup=lambda actor_id: ("3",),
+        close_relative_lookup=lambda target_id: ("3",),
+    )
+
+    adapter.apply(SaleTransaction("unborn", "1", "2", "home"))
+
+    assert witness.relationship_tracker.changes == []
+
+
+def test_wider_relationship_failure_does_not_block_remaining_sims(
+    all_hidden_reasons,
+):
+    logger = FakeConsequenceLogger()
+    sims = {
+        "1": FakeConsequenceSimInfo(),
+        "2": FakeConsequenceSimInfo(
+            hidden=True, relationship_tracker=FakeRelationshipTracker()
+        ),
+        "3": FakeConsequenceSimInfo(
+            relationship_tracker=FakeRelationshipTracker(fail=True)
+        ),
+        "4": FakeConsequenceSimInfo(
+            relationship_tracker=FakeRelationshipTracker()
+        ),
+    }
+    adapter = relationship_adapter(
+        sims,
+        logger=logger,
+        household_member_lookup=lambda actor_id: ("3", "4"),
+    )
+
+    adapter.apply(SaleTransaction("household_member", "1", "2", "home"))
+
+    assert sims["4"].relationship_tracker.changes == [(1, -25)]
+    assert logger.events[-1] == (
+        "wider_relationship_consequence_failed",
+        {
+            "transaction_type": "household_member",
+            "actor_id": "1",
+            "target_id": "2",
+            "affected_sim_id": "3",
+            "source": "relationship",
+        },
+    )
+
+
+def test_genealogy_lookup_failure_does_not_block_household_witnesses(
+    all_hidden_reasons,
+):
+    logger = FakeConsequenceLogger()
+    sims = {
+        "1": FakeConsequenceSimInfo(),
+        "2": FakeConsequenceSimInfo(
+            hidden=True, relationship_tracker=FakeRelationshipTracker()
+        ),
+        "3": FakeConsequenceSimInfo(
+            relationship_tracker=FakeRelationshipTracker()
+        ),
+    }
+    adapter = relationship_adapter(
+        sims,
+        logger=logger,
+        household_member_lookup=lambda actor_id: ("3",),
+        close_relative_lookup=lambda target_id: (_ for _ in ()).throw(
+            RuntimeError("genealogy unavailable")
+        ),
+    )
+
+    adapter.apply(SaleTransaction("household_member", "1", "2", "home"))
+
+    assert sims["3"].relationship_tracker.changes == [(1, -25)]
+    assert logger.events[-1][0] == "wider_relationship_consequence_failed"
+    assert logger.events[-1][1]["source"] == "genealogy"
+
+
+def test_wider_relationship_default_lookups_use_household_and_genealogy(
+    monkeypatch,
+):
+    household = type(
+        "Household",
+        (),
+        {"sim_infos": (type("Member", (), {"sim_id": 3})(),)},
+    )()
+    genealogy = type(
+        "Genealogy",
+        (),
+        {"get_immediate_family_sim_ids_gen": lambda self: iter((4, 5, 6))},
+    )()
+    sims = {
+        "1": type("Actor", (), {"household": household})(),
+        "2": type(
+            "Target",
+            (),
+            {"genealogy": genealogy, "spouse_sim_id": 7},
+        )(),
+    }
+    monkeypatch.setattr(
+        sims4_adapters.Sims4TransactionValidator,
+        "_find_sim_info",
+        staticmethod(lambda sim_id: sims[sim_id]),
+    )
+
+    assert sims4_adapters.Sims4SaleConsequences._find_household_member_ids(
+        "1"
+    ) == ("3",)
+    assert set(
+        sims4_adapters.Sims4SaleConsequences._find_close_relative_ids("2")
+    ) == {"4", "5", "6", "7"}
 
 
 class FakeHousehold:

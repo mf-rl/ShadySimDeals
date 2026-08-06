@@ -32,7 +32,7 @@ Phone and computer interactions share one unborn workflow. `Sims4PregnancyAdapte
 
 ## Relationship consequences
 
-`Sims4SaleConsequences` applies direct-participant friendship changes after target processing and payment. Household targets lose 100 friendship with the seller. Other pregnant targets use the injected `PregnantSimReactionService` to apply +10, -25, or -75 from their current friendship score; self-target unborn sales make no relationship change. Relationship failures are logged without reversing the completed sale.
+`Sims4SaleConsequences` applies friendship changes after target processing and payment. Household targets lose 100 friendship with the seller. Their immediate genealogy and spouse lose 50, while other Sims remaining in the seller's current household lose 25; the deduplicated pass applies only the stronger loss to overlapping Sims and never scans the full save. Other pregnant targets use the injected `PregnantSimReactionService` to apply +10, -25, or -75 from their current friendship score; self-target unborn sales make no relationship change. Discovery and score-update failures are isolated per source or affected Sim and never reverse the completed sale.
 
 ## Device integration
 

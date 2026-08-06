@@ -19,6 +19,7 @@
 - Rabbit-hole tuning uses resource type `0xB16AD2FA`, generic rabbit-hole animation factory `23834`, household rabbit-hole IDs `0xEAA21FFB1081E005`-`007`, unborn rabbit-hole IDs `0xEAA21FFB1081E00B`-`010`, and private affordance IDs `0xEAA21FFB1081E008`-`00A` and `011`-`013`.
 - Managed rabbit-hole affordances route to `Spawn_Arrival`, use `rabbit_hole_based` duration conditions, and combine `fade_sim_out` with a `hide_sim_liability`. The similarly named `rabbit_hole` liability variant is not registered on patch `1.125.59.1030`.
 - Permanent sale markers use save-managed gameplay trait tuning (`0xCB5FDDC7`); timed Happy and Sad consequences use buff tuning (`0x6017E896`).
+- Wider household-sale friendship effects use `SimInfo.household.sim_infos`, `GenealogyTracker.get_immediate_family_sim_ids_gen()`, and `SimInfo.spouse_sim_id` on patch `1.125.59.1030`.
 
 Run tests with `py -3.12 -m pytest -q -p no:cacheprovider tests`. Build with `py -3.12 build_mod.py`; the build invokes Python 3.7 for game bytecode.
 
@@ -57,9 +58,10 @@ After every supported game patch:
 29. Complete a sale, exit to the main menu without saving, reload the pre-sale save, and confirm none of the sale traits or moodlets remain.
 30. Complete a household sale and confirm the target's friendship with the seller decreases by 100.
 31. Sell another Sim's unborn Nooboo and confirm their friendship with the seller changes by +10, -25, or -75; confirm a self-target unborn sale changes no relationship.
+32. Sell a household member with a household-only witness and a close relative who also remains in the household; confirm friendship changes of -25 and one -50 respectively.
 
 Do not install or replace `.package` or `.ts4script` files while the game is running.
 
 ## Deferred work
 
-Relationship effects for relatives and witnesses, sentiments, grudges, an explicit sold-Sim recovery command, forced early multiple-birth detection, and ghost/delayed outcomes remain deferred. The solo unborn rabbit-hole path, direct relationship consequences, and the remaining age- and offspring-specific duration cases still require live verification on the supported patch. Recheck the recorded native device, rabbit-hole, trait, buff, and relationship APIs after every supported patch. Keep discovered identifiers in `sims4_adapters.py` or tuning, rather than spreading game calls through the domain code.
+Observer reaction buffs, sentiments, persistent grudges, an explicit sold-Sim recovery command, forced early multiple-birth detection, and ghost/delayed outcomes remain deferred. The solo unborn rabbit-hole path, wider friendship consequences, and the remaining age- and offspring-specific duration cases still require live verification on the supported patch. Recheck the recorded native device, rabbit-hole, trait, buff, genealogy, and relationship APIs after every supported patch. Keep discovered identifiers in `sims4_adapters.py` or tuning, rather than spreading game calls through the domain code.

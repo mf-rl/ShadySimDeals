@@ -181,6 +181,8 @@ class Sims4SaleConsequences:
         buff_lookup=None,
         logger=None,
         pregnant_reactions=None,
+        household_member_lookup=None,
+        close_relative_lookup=None,
     ):
         self._sim_info_lookup = (
             sim_info_lookup or Sims4TransactionValidator._find_sim_info
@@ -190,6 +192,12 @@ class Sims4SaleConsequences:
         self._logger = logger or ModLogger()
         self._pregnant_reactions = (
             pregnant_reactions or PregnantSimReactionService(random)
+        )
+        self._household_member_lookup = (
+            household_member_lookup or self._find_household_member_ids
+        )
+        self._close_relative_lookup = (
+            close_relative_lookup or self._find_close_relative_ids
         )
 
     def apply(self, transaction):
@@ -211,6 +219,7 @@ class Sims4SaleConsequences:
                 actor_id=str(transaction.actor_id),
                 target_id=str(transaction.target_id),
             )
+        self._apply_wider_relationships(transaction)
 
     def _apply_traits_and_moodlets(self, transaction):
         self._apply_pair(
@@ -249,6 +258,75 @@ class Sims4SaleConsequences:
         else:
             return
         tracker.add_relationship_score(actor_id, delta)
+
+    def _apply_wider_relationships(self, transaction):
+        if transaction.transaction_type != "household_member":
+            return
+        actor_id = str(transaction.actor_id)
+        target_id = str(transaction.target_id)
+        deltas = {}
+        try:
+            for sim_id in self._household_member_lookup(actor_id):
+                sim_id = str(sim_id)
+                if sim_id not in (actor_id, target_id):
+                    deltas[sim_id] = -25
+        except Exception:
+            self._log_wider_failure(transaction, None, "household")
+        try:
+            for sim_id in self._close_relative_lookup(target_id):
+                sim_id = str(sim_id)
+                if sim_id not in (actor_id, target_id):
+                    deltas[sim_id] = -50
+        except Exception:
+            self._log_wider_failure(transaction, None, "genealogy")
+        for sim_id, delta in deltas.items():
+            try:
+                sim_info = self._sim_info_lookup(sim_id)
+                tracker = getattr(sim_info, "relationship_tracker", None)
+                if tracker is None:
+                    raise IntegrationUnavailable(
+                        "Relationship tracker is unavailable"
+                    )
+                tracker.add_relationship_score(int(actor_id), delta)
+            except Exception:
+                self._log_wider_failure(
+                    transaction, sim_id, "relationship"
+                )
+
+    def _log_wider_failure(self, transaction, affected_sim_id, source):
+        self._logger.exception(
+            "wider_relationship_consequence_failed",
+            transaction_type=transaction.transaction_type,
+            actor_id=str(transaction.actor_id),
+            target_id=str(transaction.target_id),
+            affected_sim_id=(
+                None if affected_sim_id is None else str(affected_sim_id)
+            ),
+            source=source,
+        )
+
+    @staticmethod
+    def _find_household_member_ids(actor_id):
+        actor = Sims4TransactionValidator._find_sim_info(str(actor_id))
+        household = getattr(actor, "household", None)
+        if household is None:
+            raise IntegrationUnavailable("Actor household is unavailable")
+        return tuple(str(sim_info.sim_id) for sim_info in household.sim_infos)
+
+    @staticmethod
+    def _find_close_relative_ids(target_id):
+        target = Sims4TransactionValidator._find_sim_info(str(target_id))
+        genealogy = getattr(target, "genealogy", None)
+        if genealogy is None:
+            raise IntegrationUnavailable("Target genealogy is unavailable")
+        relative_ids = {
+            str(sim_id)
+            for sim_id in genealogy.get_immediate_family_sim_ids_gen()
+        }
+        spouse_id = int(getattr(target, "spouse_sim_id", 0) or 0)
+        if spouse_id:
+            relative_ids.add(str(spouse_id))
+        return tuple(sorted(relative_ids))
 
     def _apply_pair(self, sim_id, trait_id, buff_id):
         sim_info = self._sim_info_lookup(str(sim_id))

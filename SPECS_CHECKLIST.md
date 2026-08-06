@@ -46,7 +46,9 @@ verification remain unchecked.
 - [x] Exactly-once payment ordering
 - [x] Seller trait and Happy moodlet
 - [x] Direct seller/target friendship consequences implemented and unit-tested
-- [ ] Wider relative, witness, sentiment, and grudge consequences
+- [x] Wider close-relative and household-witness friendship consequences implemented and unit-tested
+  - [ ] Live: close relative loses 50, household-only witness loses 25, and overlap receives one 50-point loss
+- [ ] Observer reaction buffs, sentiments, and persistent grudges
 
 ### Phase 4: Unborn-Nooboo transaction
 
