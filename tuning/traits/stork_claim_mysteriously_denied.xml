@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<I c="Trait" i="trait" m="traits.traits" n="ShadySimDeals_trait_StorkClaimMysteriouslyDenied" s="16907111114276462614">
+  <L n="ages"><E>TEEN</E><E>ADULT</E><E>BABY</E><E>CHILD</E><E>TODDLER</E><E>ELDER</E><E>YOUNGADULT</E><E>INFANT</E></L>
+  <T n="display_name">0xA110001C</T>
+  <T n="display_name_gender_neutral">0xA110001C</T>
+  <T n="icon">2f7d0004:00000000:8b841c91497034a5</T>
+  <L n="species"><E /></L>
+  <T n="trait_description">0xA110001D</T>
+  <E n="trait_type">GAMEPLAY</E>
+</I>

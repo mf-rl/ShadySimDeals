@@ -25,6 +25,12 @@ EXPECTED_RESOURCE_KEYS = {
     (0xE882D22F, 0, 0xEAA21FFB1081E011),
     (0xE882D22F, 0, 0xEAA21FFB1081E012),
     (0xE882D22F, 0, 0xEAA21FFB1081E013),
+    (0xCB5FDDC7, 0, 0xEAA21FFB1081E014),
+    (0xCB5FDDC7, 0, 0xEAA21FFB1081E015),
+    (0xCB5FDDC7, 0, 0xEAA21FFB1081E016),
+    (0x6017E896, 0, 0xEAA21FFB1081E017),
+    (0x6017E896, 0, 0xEAA21FFB1081E018),
+    (0x6017E896, 0, 0xEAA21FFB1081E019),
     (0x03E9D964, 0x80000000, 0xEAA1200000000010),
     (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
     (0x7DF2169C, 0, 0xEAA1200000000020),
@@ -78,6 +84,67 @@ def test_package_resources_include_every_planned_resource():
     keys = {(resource_type, group, instance) for _, resource_type, group, instance in resources}
 
     assert keys == EXPECTED_RESOURCE_KEYS
+
+
+def test_sale_traits_and_moodlets_are_visible_localized_and_timed():
+    resources = build_mod.package_resources()
+    traits = {
+        instance: ET.fromstring(data)
+        for data, resource_type, _, instance in resources
+        if resource_type == build_mod.TRAIT_TUNING_TYPE
+    }
+    buffs = {
+        instance: ET.fromstring(data)
+        for data, resource_type, _, instance in resources
+        if resource_type == build_mod.BUFF_TUNING_TYPE
+    }
+
+    assert set(traits) == {
+        0xEAA21FFB1081E014,
+        0xEAA21FFB1081E015,
+        0xEAA21FFB1081E016,
+    }
+    for instance, xml in traits.items():
+        assert int(xml.attrib["s"]) == instance
+        assert xml.find("./E[@n='trait_type']").text == "GAMEPLAY"
+        assert xml.find("./T[@n='display_name']") is not None
+        assert xml.find("./T[@n='trait_description']") is not None
+
+    expected_buffs = {
+        0xEAA21FFB1081E017: (14640, 4, 720),
+        0xEAA21FFB1081E018: (14643, 6, 1440),
+        0xEAA21FFB1081E019: (14643, 10, 2880),
+    }
+    assert set(buffs) == set(expected_buffs)
+    for instance, (mood_type, weight, duration) in expected_buffs.items():
+        xml = buffs[instance]
+        assert int(xml.attrib["s"]) == instance
+        assert int(xml.find("./T[@n='mood_type']").text) == mood_type
+        assert int(xml.find("./T[@n='mood_weight']").text) == weight
+        assert int(
+            xml.find(
+                "./V[@n='_temporary_commodity_info']/U/T[@n='max_duration']"
+            ).text
+        ) == duration
+        assert xml.find("./T[@n='visible']").text == "True"
+
+    strings = json.loads(
+        (build_mod.ROOT / "localization" / "en_us.json").read_text("utf-8")
+    )
+    assert [strings["0xA110{:04X}".format(value)] for value in range(0x18, 0x24)] == [
+        "Family Asset Liquidator",
+        "Some Sims build family trees. This Sim trims them for quarterly growth and calls it logistics.",
+        "Outsourced by My Own Family",
+        "This Sim learned the family plan had an unsubscribe button, and somebody else clicked it.",
+        "Stork Claim Mysteriously Denied",
+        "The nursery plans vanished into a filing cabinet marked 'Definitely Not Our Department.'",
+        "Quarterly Profits, Fewer Mouths",
+        "The household budget is healthier, the headcount is lower, and ethics remain an optional expansion pack.",
+        "Apparently, Love Had a Return Policy",
+        "Nothing says unconditional love like being reassigned to an undisclosed buyer.",
+        "The Nursery Has Been Downsized",
+        "The crib is empty, the paperwork is sealed, and nobody can explain where tomorrow went.",
+    ]
 
 
 def test_household_rabbit_holes_pair_participants_with_timed_affordances():

@@ -13,6 +13,8 @@ SCRIPT_TARGET = DIST / "ShadySimDeals.ts4script"
 PACKAGE_TARGET = DIST / "ShadySimDeals.package"
 INTERACTION_TUNING_TYPE = 0xE882D22F
 RABBIT_HOLE_TYPE = 0xB16AD2FA
+TRAIT_TUNING_TYPE = 0xCB5FDDC7
+BUFF_TUNING_TYPE = 0x6017E896
 PIE_MENU_CATEGORY_TYPE = 0x03E9D964
 SIMDATA_TYPE = 0x545AC67A
 SNIPPET_TYPE = 0x7DF2169C
@@ -276,6 +278,42 @@ def package_resources():
             INTERACTION_TUNING_TYPE,
             0,
             0xEAA21FFB1081E013,
+        ),
+        (
+            (ROOT / "tuning" / "traits" / "family_asset_liquidator.xml").read_bytes(),
+            TRAIT_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E014,
+        ),
+        (
+            (ROOT / "tuning" / "traits" / "outsourced_by_my_own_family.xml").read_bytes(),
+            TRAIT_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E015,
+        ),
+        (
+            (ROOT / "tuning" / "traits" / "stork_claim_mysteriously_denied.xml").read_bytes(),
+            TRAIT_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E016,
+        ),
+        (
+            (ROOT / "tuning" / "buffs" / "quarterly_profits_fewer_mouths.xml").read_bytes(),
+            BUFF_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E017,
+        ),
+        (
+            (ROOT / "tuning" / "buffs" / "love_had_a_return_policy.xml").read_bytes(),
+            BUFF_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E018,
+        ),
+        (
+            (ROOT / "tuning" / "buffs" / "nursery_has_been_downsized.xml").read_bytes(),
+            BUFF_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E019,
         ),
         (
             (ROOT / "tuning" / "categories" / "shady_sim_deals_phone.xml").read_bytes(),
