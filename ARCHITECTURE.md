@@ -24,7 +24,7 @@ Cancellation is allowed before confirmation. Failures are terminal and release r
 
 ## Pricing pipeline
 
-The service supports age, pregnancy count, traits, skills, fame, occults, and buyer demand. Household sales currently supply verified age data; unborn sales supply the pregnancy tracker's public expected offspring count. Results are rounded to the nearest 50 Simoleons and clamped.
+The service supports age, pregnancy count, traits, skills, fame, occults, and buyer demand. Household sales currently supply verified age and pregnancy-count data; unborn sales supply the pregnancy tracker's public expected offspring count. Results are rounded to the nearest 50 Simoleons and clamped.
 
 ## Pregnancy integration
 
