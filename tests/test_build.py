@@ -93,22 +93,52 @@ def test_package_resources_include_every_planned_resource():
 
 
 def test_sale_trait_and_buff_simdata_has_client_schema_and_values():
+    def trait_simdata_fields(data):
+        _, version, table_relative, table_count, schema_relative, schema_count, _ = (
+            struct.unpack_from("<4sIiIiII", data)
+        )
+        table_offset = 8 + table_relative
+        schema_offset = 16 + schema_relative
+        table = struct.unpack_from("<iIiIIiI", data, table_offset)
+        row_offset = table_offset + 20 + table[5]
+        schema = struct.unpack_from("<iIIIiI", data, schema_offset)
+        fields = {}
+        if schema[2] == 0xC8782638:
+            column_offset = schema_offset + 16 + schema[4]
+            for index in range(schema[5]):
+                offset = column_offset + index * 20
+                pointer, _, data_type, _, field_offset, _ = struct.unpack_from(
+                    "<iIHHIi", data, offset
+                )
+                name = data[offset + pointer :].split(b"\0", 1)[0].decode()
+                fields[name] = (data_type, row_offset + field_offset)
+        return version, table_count, schema_count, table[4], schema[2], fields
+
     resources = {
         (group, instance): data
         for data, resource_type, group, instance in build_mod.package_resources()
         if resource_type == build_mod.SIMDATA_TYPE
     }
-    trait = resources[(build_mod.TRAIT_SIMDATA_GROUP, 0xEAA21FFB1081E014)]
     buff = resources[(build_mod.BUFF_SIMDATA_GROUP, 0xEAA21FFB1081E017)]
 
-    assert struct.unpack_from("<4sI", trait) == (b"DATA", 0x101)
-    assert struct.unpack_from("<II", trait, 12) == (3, 320)
-    assert b"Trait\0" in trait
-    assert b"ShadySimDeals_trait_FamilyAssetLiquidator\0" in trait
-    assert struct.unpack_from("<I", trait, 128 + 60)[0] == 0xA1100018
-    assert struct.unpack_from("<I", trait, 128 + 104)[0] == 0xA1100019
-    assert struct.unpack_from("<Q", trait, 128 + 72)[0] == 0x47FFEEDF30C4B115
-    assert struct.unpack_from("<I", trait, 128 + 112)[0] == 1
+    expected = {
+        0xEAA21FFB1081E014: (0xA1100018, 0xA1100019, 0x47FFEEDF30C4B115),
+        0xEAA21FFB1081E015: (0xA110001A, 0xA110001B, 0x8B841C91497034A5),
+        0xEAA21FFB1081E016: (0xA110001C, 0xA110001D, 0x8B841C91497034A5),
+    }
+    for instance, (name_key, description_key, icon_instance) in expected.items():
+        data = resources[(build_mod.TRAIT_SIMDATA_GROUP, instance)]
+        version, tables, schemas, row_size, schema_hash, fields = (
+            trait_simdata_fields(data)
+        )
+        assert (version, tables, schemas, row_size, schema_hash) == (
+            0x101, 4, 1, 184, 0xC8782638
+        )
+        assert struct.unpack_from("<I", data, fields["display_name"][1])[0] == name_key
+        assert struct.unpack_from("<I", data, fields["trait_description"][1])[0] == description_key
+        assert struct.unpack_from("<I", data, fields["trait_origin_description"][1])[0] == 0xA1100024
+        assert struct.unpack_from("<I", data, fields["trait_type"][1])[0] == 1
+        assert struct.unpack_from("<Q", data, fields["icon"][1])[0] == icon_instance
 
     assert struct.unpack_from("<4sI", buff) == (b"DATA", 0x101)
     assert struct.unpack_from("<II", buff, 12) == (1, 192)
@@ -144,7 +174,9 @@ def test_sale_traits_and_moodlets_are_visible_localized_and_timed():
         assert int(xml.attrib["s"]) == instance
         assert xml.find("./E[@n='trait_type']").text == "GAMEPLAY"
         assert xml.find("./T[@n='display_name']") is not None
+        assert xml.find("./T[@n='display_name_gender_neutral']") is not None
         assert xml.find("./T[@n='trait_description']") is not None
+        assert xml.find("./T[@n='trait_origin_description']").text == "0xA1100024"
 
     expected_buffs = {
         0xEAA21FFB1081E017: (14640, 4, 720),
@@ -167,6 +199,7 @@ def test_sale_traits_and_moodlets_are_visible_localized_and_timed():
     strings = json.loads(
         (build_mod.ROOT / "localization" / "en_us.json").read_text("utf-8")
     )
+    assert strings["0xA1100024"] == "Shady Attribute"
     assert [strings["0xA110{:04X}".format(value)] for value in range(0x18, 0x24)] == [
         "Family Asset Liquidator",
         "Some Sims build family trees. This Sim trims them for quarterly growth and calls it logistics.",

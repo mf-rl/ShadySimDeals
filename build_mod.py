@@ -156,62 +156,79 @@ def _append_simdata_strings(data, pointers):
     return bytes(data)
 
 
-def build_trait_simdata(table_name, display_name, description, icon_instance):
+def build_trait_simdata(
+    table_name, display_name, description, origin_description, icon_instance
+):
     columns = (
-        ("cas_idle_asm_key", 19, 8),
-        ("ui_category", 21, 120),
-        ("display_name", 20, 60),
-        ("trait_origin_description", 20, 108),
-        ("conflicting_traits", 14, 52),
-        ("genders", 14, 64),
-        ("icon", 19, 72),
-        ("cas_trait_asm_param", 11, 48),
-        ("trait_description", 20, 104),
-        ("trait_type", 8, 112),
-        ("cas_idle_asm_state", 11, 24),
+        ("cas_idle_asm_key", 19, 32),
+        ("occults", 14, 128),
+        ("ui_category", 21, 176),
+        ("display_name", 20, 92),
+        ("trait_origin_description", 20, 164),
+        ("refresh_sim_thumbnail", 0, 136),
+        ("cas_trait_vfx", 11, 80),
+        ("cas_trait_hidden", 0, 76),
+        ("conflicting_traits", 14, 84),
+        ("thumbnail_type_asm_param", 11, 156),
+        ("genders", 14, 104),
+        ("icon", 19, 112),
+        ("cas_allowed_pack", 8, 24),
+        ("cas_trait_asm_param", 11, 72),
+        ("display_overrides", 14, 96),
+        ("bb_filter_tags", 14, 16),
+        ("trait_description", 20, 160),
+        ("trait_type", 8, 168),
+        ("cas_idle_asm_state", 11, 48),
         ("ages", 14, 0),
-        ("tags", 14, 96),
-        ("cas_selected_icon", 19, 32),
-        ("species", 14, 88),
+        ("tags", 14, 148),
+        ("cas_selected_icon", 19, 56),
+        ("species", 14, 140),
+        ("bb_filter_styles", 14, 8),
     )
-    table_offset, row_offset, lists_offset = 32, 128, 256
-    string_table_offset, schema_offset, column_offset = 328, 336, 368
-    data = bytearray(672)
+    table_offset, row_offset, lists_offset = 32, 192, 384
+    string_table_offset, schema_offset, column_offset = 456, 464, 488
+    data = bytearray(968)
     struct.pack_into(
-        "<4sIiIiII", data, 0, b"DATA", 0x101, 24, 3, 320, 1, 0
+        "<4sIiIiII", data, 0, b"DATA", 0x101, 24, 4, 448, 1, 0
     )
     struct.pack_into(
-        "<iIiIIiI", data, table_offset, 0, _fnv32(table_name), 296,
-        13, 128, 76, 1,
+        "<iIiIIiI", data, table_offset, 0, _fnv32(table_name), 424,
+        13, 184, 140, 1,
     )
     struct.pack_into(
         "<iIiIIiI", data, 60, -0x80000000, _fnv32(""), -0x80000000,
-        8, 8, 176, 9,
+        18, 8, 304, 0,
     )
     struct.pack_into(
         "<iIiIIiI", data, 88, -0x80000000, _fnv32(""), -0x80000000,
-        1, 1, 220, 6,
+        8, 8, 276, 9,
     )
-    struct.pack_into("<iI", data, row_offset, 128, 8)
-    struct.pack_into("<i", data, row_offset + 24, 176)
-    struct.pack_into("<i", data, row_offset + 48, 153)
-    for offset in (52, 64, 96):
-        struct.pack_into("<iI", data, row_offset + offset, -0x80000000, 0)
-    struct.pack_into("<I", data, row_offset + 60, display_name)
     struct.pack_into(
-        "<QII", data, row_offset + 72, icon_instance, 0x00B2D882, 0
+        "<iIiIIiI", data, 116, -0x80000000, _fnv32(""), -0x80000000,
+        1, 1, 320, 6,
     )
-    struct.pack_into("<iI", data, row_offset + 88, 104, 1)
-    struct.pack_into("<I", data, row_offset + 104, description)
-    struct.pack_into("<I", data, row_offset + 108, 0x80000000)
-    struct.pack_into("<I", data, row_offset + 112, 1)
-    struct.pack_into("<II", data, row_offset + 120, 0x80000000, 0xC1A03855)
+    struct.pack_into("<iI", data, row_offset, lists_offset - row_offset, 8)
+    none_offset = string_table_offset + 1
+    for offset in (48, 72, 80, 156):
+        struct.pack_into("<i", data, row_offset + offset, none_offset - (row_offset + offset))
+    for offset in (8, 16, 84, 96, 104, 128, 148):
+        struct.pack_into("<iI", data, row_offset + offset, -0x80000000, 0)
+    struct.pack_into("<I", data, row_offset + 92, display_name)
+    struct.pack_into(
+        "<QII", data, row_offset + 112, icon_instance, 0x00B2D882, 0
+    )
+    species_offset = lists_offset + 64
+    struct.pack_into(
+        "<iI", data, row_offset + 140, species_offset - (row_offset + 140), 1
+    )
+    struct.pack_into("<III", data, row_offset + 160, description, origin_description, 1)
+    struct.pack_into("<II", data, row_offset + 176, 0x80000000, 0xC1A03855)
     for index, value in enumerate((8, 32, 1, 4, 2, 64, 16, 128, 1)):
         struct.pack_into("<Q", data, lists_offset + index * 8, value)
     data[string_table_offset:string_table_offset + 6] = b"\0None\0"
     struct.pack_into(
-        "<iIIIiI", data, schema_offset, 0, _fnv32("Trait"), 0x6CBEA9DB,
-        128, 8, len(columns),
+        "<iIIIiI", data, schema_offset, 0, _fnv32("Trait"), 0xC8782638,
+        184, 8, len(columns),
     )
     for index, (name, data_type, field_offset) in enumerate(columns):
         offset = column_offset + index * 20
@@ -451,21 +468,21 @@ def package_resources():
         (
             build_trait_simdata(
                 "ShadySimDeals_trait_FamilyAssetLiquidator",
-                0xA1100018, 0xA1100019, 0x47FFEEDF30C4B115,
+                0xA1100018, 0xA1100019, 0xA1100024, 0x47FFEEDF30C4B115,
             ),
             SIMDATA_TYPE, TRAIT_SIMDATA_GROUP, 0xEAA21FFB1081E014,
         ),
         (
             build_trait_simdata(
                 "ShadySimDeals_trait_OutsourcedByMyOwnFamily",
-                0xA110001A, 0xA110001B, 0x8B841C91497034A5,
+                0xA110001A, 0xA110001B, 0xA1100024, 0x8B841C91497034A5,
             ),
             SIMDATA_TYPE, TRAIT_SIMDATA_GROUP, 0xEAA21FFB1081E015,
         ),
         (
             build_trait_simdata(
                 "ShadySimDeals_trait_StorkClaimMysteriouslyDenied",
-                0xA110001C, 0xA110001D, 0x8B841C91497034A5,
+                0xA110001C, 0xA110001D, 0xA1100024, 0x8B841C91497034A5,
             ),
             SIMDATA_TYPE, TRAIT_SIMDATA_GROUP, 0xEAA21FFB1081E016,
         ),
