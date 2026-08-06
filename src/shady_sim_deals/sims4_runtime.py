@@ -25,6 +25,13 @@ LOGGER = ModLogger()
 RUNTIME = {}
 
 
+def _is_on_active_lot(sim_info):
+    try:
+        return bool(sim_info.is_instanced())
+    except Exception:
+        return False
+
+
 def build_sale_candidate(sim_info, pregnancy_adapter=None):
     pregnant = bool(
         pregnancy_adapter is not None
@@ -58,7 +65,8 @@ def eligible_household_member_ids(
                 sim_id,
                 sim_info.household_id,
                 age=age,
-                valid=not getattr(sim_info, "is_dying", False)
+                valid=_is_on_active_lot(sim_info)
+                and not getattr(sim_info, "is_dying", False)
                 and not getattr(sim_info, "is_destroyed", False),
                 sold=sold_check(sim_id),
                 reserved=reserved_check(sim_id),
@@ -86,7 +94,8 @@ def eligible_unborn_ids(
                 sim_id,
                 sim_info.household_id,
                 pregnant=pregnant,
-                valid=not getattr(sim_info, "is_dying", False)
+                valid=_is_on_active_lot(sim_info)
+                and not getattr(sim_info, "is_dying", False)
                 and not getattr(sim_info, "is_destroyed", False),
                 sold=sold_check(sim_id),
                 reserved=reserved_check(sim_id),

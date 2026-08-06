@@ -17,6 +17,7 @@ class FakeSimInfo:
         age="YOUNGADULT",
         household_id="home",
         is_pet=False,
+        instanced=True,
     ):
         self.sim_id = sim_id
         self.first_name = first_name
@@ -24,6 +25,10 @@ class FakeSimInfo:
         self.age = FakeAge(age)
         self.household_id = household_id
         self.is_pet = is_pet
+        self.instanced = instanced
+
+    def is_instanced(self):
+        return self.instanced
 
 
 class FakePicker:
@@ -114,6 +119,7 @@ def test_eligible_household_member_ids_apply_shared_picker_rules():
         FakeSimInfo("pet", age="ADULT", is_pet=True),
         FakeSimInfo("sold", age="ELDER"),
         FakeSimInfo("reserved", age="ADULT"),
+        FakeSimInfo("at-school", age="CHILD", instanced=False),
         FakeSimInfo("elsewhere", age="ADULT", household_id="other"),
     )
 
@@ -377,9 +383,12 @@ def test_unborn_candidates_include_pregnant_actor_and_household_member():
         FakeSimInfo("actor"),
         FakeSimInfo("pregnant"),
         FakeSimInfo("not-pregnant"),
+        FakeSimInfo("at-work", instanced=False),
         FakeSimInfo("elsewhere", household_id="other"),
     )
-    pregnancies = FakePregnancies(("actor", "pregnant", "elsewhere"))
+    pregnancies = FakePregnancies(
+        ("actor", "pregnant", "at-work", "elsewhere")
+    )
 
     assert sims4_runtime.eligible_unborn_ids(
         sims,
