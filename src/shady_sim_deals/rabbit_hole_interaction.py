@@ -16,6 +16,7 @@ class _LoggedHideSimLiability(HideSimLiability):
 
     def _enter_native_rabbit_hole(self):
         import services
+        from .sims4_adapters import reattach_rabbit_hole_callback
 
         sim_id = self._interaction.sim.sim_id
         service = services.get_rabbit_hole_service()
@@ -28,17 +29,27 @@ class _LoggedHideSimLiability(HideSimLiability):
             and sim_id not in rabbit_hole.get_all_sim_ids_in_rabbit_hole()
         ):
             service._on_sim_enter_rabbit_hole(sim_id, rabbit_hole_id)
+        reattach_rabbit_hole_callback(sim_id, rabbit_hole_id, service)
 
     def release(self):
+        finishing_naturally = bool(
+            getattr(self._interaction, "is_finishing_naturally", False)
+        )
         LOGGER.log(
             "rabbit_hole_interaction_releasing",
-            finishing_naturally=bool(
-                getattr(self._interaction, "is_finishing_naturally", False)
-            ),
+            finishing_naturally=finishing_naturally,
             finishing_type=str(
                 getattr(self._interaction, "finishing_type", None)
             ),
         )
+        if not finishing_naturally:
+            from .sims4_adapters import (
+                mark_rabbit_hole_callback_for_reattach,
+            )
+
+            mark_rabbit_hole_callback_for_reattach(
+                self._interaction.sim.sim_id
+            )
         return super().release()
 
 

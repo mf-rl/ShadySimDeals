@@ -82,6 +82,15 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     fake_service = FakeRabbitHoleService()
     fake_service.is_in_rabbit_hole = lambda sim_id, rabbit_hole_id: True
     services.get_rabbit_hole_service = lambda: fake_service
+    sims4_adapters = ModuleType("shady_sim_deals.sims4_adapters")
+    sims4_adapters.reattach_rabbit_hole_callback = (
+        lambda sim_id, rabbit_hole_id, service: events.append(
+            ("callback_reattached", sim_id, rabbit_hole_id, service)
+        )
+    )
+    sims4_adapters.mark_rabbit_hole_callback_for_reattach = (
+        lambda sim_id: events.append(("callback_marked", sim_id))
+    )
 
     monkeypatch.setitem(sys.modules, "interactions", interactions)
     monkeypatch.setitem(sys.modules, "interactions.base", base)
@@ -91,6 +100,9 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
     monkeypatch.setitem(sys.modules, "interactions.rabbit_hole", rabbit_hole)
     monkeypatch.setitem(sys.modules, "element_utils", element_utils)
     monkeypatch.setitem(sys.modules, "services", services)
+    monkeypatch.setitem(
+        sys.modules, "shady_sim_deals.sims4_adapters", sims4_adapters
+    )
     sys.modules.pop("shady_sim_deals.rabbit_hole_interaction", None)
 
     module = importlib.import_module("shady_sim_deals.rabbit_hole_interaction")
@@ -121,20 +133,22 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
 
     assert events[3] == ("rabbit_hole_interaction_running", {})
     assert events[4] == ("service_enter", 1, 91)
-    assert events[5] == ("native_on_run",)
-    assert events[6] == (
+    assert events[5] == ("callback_reattached", 1, 91, fake_service)
+    assert events[6] == ("native_on_run",)
+    assert events[7] == (
         "rabbit_hole_interaction_releasing",
         {
             "finishing_naturally": False,
             "finishing_type": "TRANSITION_FAILURE",
         },
     )
-    assert events[7] == ("native_release",)
+    assert events[8] == ("callback_marked", 1)
+    assert events[9] == ("native_release",)
 
     interaction_type = module.ShadySimDealsRabbitHoleInteraction
     assert interaction_type._tuning_loaded_callback() == "loaded"
     assert interaction_type.basic_liabilities == ()
-    assert events[8] == ("super_tuning_loaded", ())
+    assert events[10] == ("super_tuning_loaded", ())
 
     assert interaction._conditional_action_satisfied_callback("early") is None
     fake_service.is_in_rabbit_hole = lambda sim_id, rabbit_hole_id: False
@@ -142,5 +156,5 @@ def test_queue_adds_native_hide_liability_before_native_handling(monkeypatch):
         interaction._conditional_action_satisfied_callback("expired")
         == "satisfied"
     )
-    assert events[9] == ("premature_rabbit_hole_exit_suppressed", {})
-    assert events[10] == ("super_conditional_action", "expired")
+    assert events[11] == ("premature_rabbit_hole_exit_suppressed", {})
+    assert events[12] == ("super_conditional_action", "expired")
