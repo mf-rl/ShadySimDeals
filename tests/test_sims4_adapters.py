@@ -649,6 +649,40 @@ def test_household_adapter_moves_target_to_reused_hidden_holdings_and_rolls_back
     ]
 
 
+def test_household_adapter_uses_current_manager_after_save_reload(
+    monkeypatch, household_change_origin
+):
+    first_target = FakeSimInfo("TEEN")
+    first_source = FakeHousehold()
+    first_source.sim_infos.append(first_target)
+    first_manager = FakeHouseholdManager((first_source,))
+    current_target = [first_target]
+    current_manager = [first_manager]
+    monkeypatch.setitem(
+        sys.modules,
+        "services",
+        SimpleNamespace(household_manager=lambda: current_manager[0]),
+    )
+    adapter = sims4_adapters.Sims4HouseholdAdapter(
+        sim_info_lookup=lambda sim_id: current_target[0]
+    )
+
+    adapter.transfer_to_holding_household("target")
+
+    second_target = FakeSimInfo("TEEN")
+    second_source = FakeHousehold()
+    second_source.sim_infos.append(second_target)
+    second_manager = FakeHouseholdManager((second_source,))
+    first_manager.households.clear()
+    current_target[0] = second_target
+    current_manager[0] = second_manager
+
+    adapter.transfer_to_holding_household("target")
+
+    assert second_target not in second_source.sim_infos
+    assert second_target in second_manager.get("holdings").sim_infos
+
+
 def test_household_adapter_restores_source_when_holding_add_fails(
     household_change_origin,
 ):

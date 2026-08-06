@@ -429,11 +429,11 @@ class Sims4HouseholdAdapter:
         )
 
     def _manager(self):
-        if self._household_manager is None:
-            import services
+        if self._household_manager is not None:
+            return self._household_manager
+        import services
 
-            self._household_manager = services.household_manager()
-        return self._household_manager
+        return services.household_manager()
 
     @staticmethod
     def _switch_household(manager, sim_info, source, destination):
