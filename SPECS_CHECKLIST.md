@@ -21,7 +21,7 @@ verification remain unchecked.
 - [x] Shared native household picker and confirmation dialog
 - [x] Phone and computer unborn-Nooboo entry points packaged and unit-tested
 - [x] Phone and computer unborn-Nooboo visibility verified in game
-- [ ] Computer-use and phone-use animations
+- [x] Computer-use and phone-use animations
   - [x] Native phone/computer tuning packaged and unit-tested
   - [x] Device-first runtime order and failure policies unit-tested
   - [x] Live: both phone actions animate before the picker
@@ -51,7 +51,7 @@ verification remain unchecked.
 
 - [x] Pregnant-Sim picker implemented and unit-tested
 - [x] Pregnancy adapter and safe pregnancy conclusion verified for patch `1.125.59.1030`
-- [ ] Unborn rabbit hole
+- [x] Unborn rabbit hole
   - [x] Automated: self-target uses a solo rabbit hole; another target uses a shared rabbit hole
   - [x] Automated: payment and pregnancy conclusion wait for natural expiration
   - [x] Package: private 90-, 120-, and 150-minute resources are indexed and non-saveable
@@ -68,7 +68,7 @@ verification remain unchecked.
 - [x] Same-session sold marker blocks repeat sales after external household restoration
 - [x] Save-slot-aware sold marker through normal `SimInfo` trait persistence
 - [x] Automated: household transfers refresh the service manager after a save reload
-- [ ] Live: a second household sale succeeds after a no-save main-menu reload
+- [x] Live: household and unborn sales succeed after a no-save main-menu reload
 - [ ] Explicit recovery command to return and unmark a deliberately restored sold Sim
 - [ ] Ghost-return outcome
 - [ ] Delayed events
@@ -118,7 +118,7 @@ verification remain unchecked.
   - [x] Public API adapter and compensated transaction tests
   - [x] Live: selected pregnancy concludes after a successful transaction
   - [ ] Live: active Sim pregnancy concludes with one payment
-  - [ ] Live: other household member pregnancy concludes with one payment
+  - [x] Live: other household member pregnancy concludes with one payment
 - [ ] 13. Twins and triplets affect the live pregnancy offer.
   - [x] Pricing uses the public expected-offspring count
   - [ ] Live twin and triplet offers verified
