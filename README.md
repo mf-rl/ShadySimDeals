@@ -30,13 +30,15 @@ The unborn picker includes every eligible pregnant non-pet household member, inc
 
 Successful sellers permanently receive **Family Asset Liquidator** plus the 12-hour **Quarterly Profits, Fewer Mouths** Happy moodlet. A sold household member permanently receives **Outsourced by My Own Family** plus the 24-hour **Apparently, Love Had a Return Policy** Sad moodlet. When another pregnant Sim's unborn Nooboo is sold, that Sim permanently receives **Stork Claim Mysteriously Denied** plus the 48-hour **The Nursery Has Been Downsized** Sad moodlet. A pregnant seller targeting themself receives only the seller consequences.
 
+A sold household member loses 100 friendship with the seller. When another pregnant Sim's unborn Nooboo is sold, their current friendship selects a complicit, regretful, or betrayed reaction that changes friendship by +10, -25, or -75. A pregnant seller targeting themself receives no relationship change.
+
 Do not remove the mod while sold Sims remain in the holding household; recover them first or keep a backup of the save.
 
 The permanent traits are normal save-managed Sim traits: saving preserves them, while exiting without saving restores the prior save state. Finish or cancel an active sale before saving and reloading because active sale callbacks and reservations remain session-local, and private rabbit-hole interactions are not persisted across reloads.
 
 ## Current scope
 
-This release intentionally omits ghosts, delayed outcomes, relationship consequences, and forced early multiple-birth detection. See [`SPECS_CHECKLIST.md`](SPECS_CHECKLIST.md) for detailed implementation status.
+This release intentionally omits ghosts, delayed outcomes, forced early multiple-birth detection, and wider relationship effects for relatives, witnesses, sentiments, and grudges. See [`SPECS_CHECKLIST.md`](SPECS_CHECKLIST.md) for detailed implementation status.
 
 ## Build and test
 

@@ -30,6 +30,10 @@ The service supports age, pregnancy count, traits, skills, fame, occults, and bu
 
 Phone and computer interactions share one unborn workflow. `Sims4PregnancyAdapter` contains the patch-sensitive `is_pregnant`, `offspring_count`, and `clear_pregnancy()` calls; the runtime and pure transaction services do not reach into pregnancy trackers directly.
 
+## Relationship consequences
+
+`Sims4SaleConsequences` applies direct-participant friendship changes after target processing and payment. Household targets lose 100 friendship with the seller. Other pregnant targets use the injected `PregnantSimReactionService` to apply +10, -25, or -75 from their current friendship score; self-target unborn sales make no relationship change. Relationship failures are logged without reversing the completed sale.
+
 ## Device integration
 
 The four interaction tunings reuse minimal native phone or computer content verified against patch `1.125.59.1030`. The shared runtime base delegates to `SuperInteraction` before calling the household or unborn `_open_picker()` hook. Phone device failure is cosmetic and falls back to the picker; computer routing or device failure ends without opening one.

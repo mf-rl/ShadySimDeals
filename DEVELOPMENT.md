@@ -55,9 +55,11 @@ After every supported game patch:
 27. Have a pregnant seller target themself and confirm that Sim receives only the seller trait and moodlet.
 28. Save after a completed sale and reload; confirm permanent traits remain and expired moodlets do not reappear.
 29. Complete a sale, exit to the main menu without saving, reload the pre-sale save, and confirm none of the sale traits or moodlets remain.
+30. Complete a household sale and confirm the target's friendship with the seller decreases by 100.
+31. Sell another Sim's unborn Nooboo and confirm their friendship with the seller changes by +10, -25, or -75; confirm a self-target unborn sale changes no relationship.
 
 Do not install or replace `.package` or `.ts4script` files while the game is running.
 
 ## Deferred work
 
-Trait and moodlet presentation, forced early multiple-birth detection, and ghost/delayed outcomes still require patch-specific live verification. The unborn rabbit-hole service calls and tunings require live verification on the supported patch. Recheck the recorded native device, rabbit-hole, trait, and buff tuning after every supported patch. Keep discovered identifiers in `sims4_adapters.py` or tuning, rather than spreading game calls through the domain code.
+Relationship effects for relatives and witnesses, sentiments, grudges, an explicit sold-Sim recovery command, forced early multiple-birth detection, and ghost/delayed outcomes remain deferred. The solo unborn rabbit-hole path, direct relationship consequences, and the remaining age- and offspring-specific duration cases still require live verification on the supported patch. Recheck the recorded native device, rabbit-hole, trait, buff, and relationship APIs after every supported patch. Keep discovered identifiers in `sims4_adapters.py` or tuning, rather than spreading game calls through the domain code.

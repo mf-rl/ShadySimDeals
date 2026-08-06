@@ -1,5 +1,10 @@
 # Session Progress — 2026-08-05
 
+> Historical snapshot from the end of the 2026-08-05 session. On 2026-08-06,
+> the reload fix was installed and household and unborn sales were successfully
+> verified after a no-save main-menu reload. See `SPECS_CHECKLIST.md` for the
+> current status.
+
 ## Objective
 
 Make every household-member and unborn-Nooboo transaction complete its rabbit
@@ -70,7 +75,7 @@ newly loaded zone. Commit `921d0f2` now fetches the current service manager
 for each live transfer while preserving explicitly injected managers in tests.
 A regression test reproduces the manager replacement and now passes.
 
-## Verification and artifacts
+## Verification and artifacts at session close
 
 - Current automated result: **117 passed**.
 - `py -3.12 build_mod.py` builds both
@@ -80,7 +85,7 @@ A regression test reproduces the manager replacement and now passes.
 - Commit `5d4912c` was installed and live-tested. The latest reload fix in
   `921d0f2` is built but still needs installation after the game is closed.
 
-## Remaining live checks
+## Live checks remaining at session close
 
 1. Close the game, install the build containing `921d0f2`, complete a sale,
    exit to the main menu without saving, reload, and complete another household
@@ -101,4 +106,3 @@ A regression test reproduces the manager replacement and now passes.
   allow school/work transitions, and package client data.
 - `5d4912c`: name and categorize traits as **Shady Attribute**.
 - `921d0f2`: refresh the household manager after a main-menu/save reload.
-

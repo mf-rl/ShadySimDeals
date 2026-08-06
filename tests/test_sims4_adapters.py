@@ -67,12 +67,13 @@ def test_sold_registry_uses_sim_info_trait_tracker():
 
 
 class FakeConsequenceSimInfo:
-    def __init__(self, hidden=False):
+    def __init__(self, hidden=False, relationship_tracker=None):
         self.events = []
         self.pending_trait = None
         self.trait_tracker = object()
         self.sim_instance = SimpleNamespace(add_buff=self._record_buff)
         self.hidden = hidden
+        self.relationship_tracker = relationship_tracker
 
     def has_trait(self, trait):
         return any(event[0] == trait for event in self.events)
@@ -185,6 +186,136 @@ def test_sale_consequence_failure_is_logged_without_raising(
     adapter.apply(SaleTransaction("household_member", "actor", "target", "home"))
 
     assert logger.events[0][0] == "sale_consequences_failed"
+
+
+class FakeRelationshipTracker:
+    def __init__(self, score=0, fail=False):
+        self.score = score
+        self.fail = fail
+        self.reads = []
+        self.changes = []
+
+    def get_relationship_score(self, sim_id):
+        self.reads.append(sim_id)
+        return self.score
+
+    def add_relationship_score(self, sim_id, increment):
+        if self.fail:
+            raise RuntimeError("relationship unavailable")
+        self.changes.append((sim_id, increment))
+
+
+class FakeReactionSelector:
+    def __init__(self, outcome):
+        self.outcome = outcome
+        self.scores = []
+
+    def select(self, score):
+        self.scores.append(score)
+        return self.outcome
+
+
+class FakeConsequenceLogger:
+    def __init__(self):
+        self.events = []
+
+    def exception(self, event, **fields):
+        self.events.append((event, fields))
+
+
+def relationship_adapter(sims, selector=None, logger=None):
+    tunings = {
+        0xEAA21FFB1081E014: "seller",
+        0xEAA21FFB1081E015: "sold",
+        0xEAA21FFB1081E016: "lost",
+        0xEAA21FFB1081E017: "happy",
+        0xEAA21FFB1081E018: "sad",
+        0xEAA21FFB1081E019: "extreme_sad",
+    }
+    return sims4_adapters.Sims4SaleConsequences(
+        sim_info_lookup=lambda sim_id: sims[sim_id],
+        trait_lookup=lambda instance: tunings[instance],
+        buff_lookup=lambda instance: tunings[instance],
+        logger=logger,
+        pregnant_reactions=selector,
+    )
+
+
+def test_household_relationship_consequence_subtracts_one_hundred_friendship(
+    all_hidden_reasons,
+):
+    tracker = FakeRelationshipTracker(score=40)
+    sims = {
+        "1": FakeConsequenceSimInfo(),
+        "2": FakeConsequenceSimInfo(hidden=True, relationship_tracker=tracker),
+    }
+
+    relationship_adapter(sims).apply(
+        SaleTransaction("household_member", "1", "2", "home")
+    )
+
+    assert tracker.reads == []
+    assert tracker.changes == [(1, -100)]
+
+
+@pytest.mark.parametrize(
+    ("outcome", "delta"),
+    (("complicit", 10), ("regretful", -25), ("betrayed", -75)),
+)
+def test_unborn_relationship_consequence_applies_selected_delta(
+    outcome, delta, all_hidden_reasons
+):
+    tracker = FakeRelationshipTracker(score=42)
+    selector = FakeReactionSelector(outcome)
+    sims = {
+        "1": FakeConsequenceSimInfo(),
+        "2": FakeConsequenceSimInfo(relationship_tracker=tracker),
+    }
+
+    relationship_adapter(sims, selector).apply(
+        SaleTransaction("unborn", "1", "2", "home")
+    )
+
+    assert selector.scores == [42]
+    assert tracker.reads == [1]
+    assert tracker.changes == [(1, delta)]
+
+
+def test_self_target_unborn_relationship_consequence_is_neutral(
+    all_hidden_reasons,
+):
+    tracker = FakeRelationshipTracker(score=42)
+    selector = FakeReactionSelector("betrayed")
+    sims = {"1": FakeConsequenceSimInfo(relationship_tracker=tracker)}
+
+    relationship_adapter(sims, selector).apply(
+        SaleTransaction("unborn", "1", "1", "home")
+    )
+
+    assert selector.scores == []
+    assert tracker.reads == []
+    assert tracker.changes == []
+
+
+def test_relationship_consequence_failure_is_logged_without_raising(
+    all_hidden_reasons,
+):
+    logger = FakeConsequenceLogger()
+    sims = {
+        "1": FakeConsequenceSimInfo(),
+        "2": FakeConsequenceSimInfo(
+            hidden=True,
+            relationship_tracker=FakeRelationshipTracker(fail=True),
+        ),
+    }
+
+    relationship_adapter(sims, logger=logger).apply(
+        SaleTransaction("household_member", "1", "2", "home")
+    )
+
+    assert sims["1"].events == [("seller", "happy")]
+    assert sims["2"].events == [("sold", "sad")]
+    assert logger.events[-1][0] == "relationship_consequence_failed"
 
 
 class FakeHousehold:

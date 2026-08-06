@@ -45,7 +45,8 @@ verification remain unchecked.
   - [x] Live: sold child leaves the selectable household before payment
 - [x] Exactly-once payment ordering
 - [x] Seller trait and Happy moodlet
-- [ ] Relationship consequences
+- [x] Direct seller/target friendship consequences implemented and unit-tested
+- [ ] Wider relative, witness, sentiment, and grudge consequences
 
 ### Phase 4: Unborn-Nooboo transaction
 

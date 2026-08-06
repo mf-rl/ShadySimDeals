@@ -1,6 +1,9 @@
 """Version-sensitive Sims 4 operations isolated behind explicit adapters."""
 
+import random
+
 from .logging import ModLogger
+from .reactions import PregnantSimReactionService
 
 
 _RABBIT_HOLE_CALLBACKS = {}
@@ -165,6 +168,11 @@ class Sims4SaleConsequences:
     SELLER_BUFF_ID = 0xEAA21FFB1081E017
     SOLD_BUFF_ID = 0xEAA21FFB1081E018
     LOST_UNBORN_BUFF_ID = 0xEAA21FFB1081E019
+    RELATIONSHIP_DELTAS = {
+        "complicit": 10,
+        "regretful": -25,
+        "betrayed": -75,
+    }
 
     def __init__(
         self,
@@ -172,6 +180,7 @@ class Sims4SaleConsequences:
         trait_lookup=None,
         buff_lookup=None,
         logger=None,
+        pregnant_reactions=None,
     ):
         self._sim_info_lookup = (
             sim_info_lookup or Sims4TransactionValidator._find_sim_info
@@ -179,26 +188,13 @@ class Sims4SaleConsequences:
         self._trait_lookup = trait_lookup or self._find_trait
         self._buff_lookup = buff_lookup or self._find_buff
         self._logger = logger or ModLogger()
+        self._pregnant_reactions = (
+            pregnant_reactions or PregnantSimReactionService(random)
+        )
 
     def apply(self, transaction):
         try:
-            self._apply_pair(
-                transaction.actor_id,
-                self.SELLER_TRAIT_ID,
-                self.SELLER_BUFF_ID,
-            )
-            if transaction.transaction_type == "household_member":
-                self._apply_pair(
-                    transaction.target_id,
-                    self.SOLD_TRAIT_ID,
-                    self.SOLD_BUFF_ID,
-                )
-            elif transaction.actor_id != transaction.target_id:
-                self._apply_pair(
-                    transaction.target_id,
-                    self.LOST_UNBORN_TRAIT_ID,
-                    self.LOST_UNBORN_BUFF_ID,
-                )
+            self._apply_traits_and_moodlets(transaction)
         except Exception:
             self._logger.exception(
                 "sale_consequences_failed",
@@ -206,6 +202,53 @@ class Sims4SaleConsequences:
                 actor_id=str(transaction.actor_id),
                 target_id=str(transaction.target_id),
             )
+        try:
+            self._apply_relationship(transaction)
+        except Exception:
+            self._logger.exception(
+                "relationship_consequence_failed",
+                transaction_type=transaction.transaction_type,
+                actor_id=str(transaction.actor_id),
+                target_id=str(transaction.target_id),
+            )
+
+    def _apply_traits_and_moodlets(self, transaction):
+        self._apply_pair(
+            transaction.actor_id,
+            self.SELLER_TRAIT_ID,
+            self.SELLER_BUFF_ID,
+        )
+        if transaction.transaction_type == "household_member":
+            self._apply_pair(
+                transaction.target_id,
+                self.SOLD_TRAIT_ID,
+                self.SOLD_BUFF_ID,
+            )
+        elif transaction.actor_id != transaction.target_id:
+            self._apply_pair(
+                transaction.target_id,
+                self.LOST_UNBORN_TRAIT_ID,
+                self.LOST_UNBORN_BUFF_ID,
+            )
+
+    def _apply_relationship(self, transaction):
+        if transaction.actor_id == transaction.target_id:
+            return
+        target = self._sim_info_lookup(str(transaction.target_id))
+        tracker = getattr(target, "relationship_tracker", None)
+        if tracker is None:
+            raise IntegrationUnavailable("Relationship tracker is unavailable")
+        actor_id = int(transaction.actor_id)
+        if transaction.transaction_type == "household_member":
+            delta = -100
+        elif transaction.transaction_type == "unborn":
+            outcome = self._pregnant_reactions.select(
+                tracker.get_relationship_score(actor_id)
+            )
+            delta = self.RELATIONSHIP_DELTAS[outcome]
+        else:
+            return
+        tracker.add_relationship_score(actor_id, delta)
 
     def _apply_pair(self, sim_id, trait_id, buff_id):
         sim_info = self._sim_info_lookup(str(sim_id))
