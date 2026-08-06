@@ -15,6 +15,7 @@ from .sims4_adapters import (
     Sims4HouseholdAdapter,
     Sims4PregnancyAdapter,
     Sims4RabbitHoleAdapter,
+    Sims4SaleConsequences,
     Sims4SoldSimRegistry,
     Sims4TransactionValidator,
     age_key,
@@ -193,6 +194,7 @@ def _runtime_services():
     households = Sims4HouseholdAdapter()
     pregnancies = Sims4PregnancyAdapter()
     funds = Sims4FundsAdapter()
+    consequences = Sims4SaleConsequences()
     validator = Sims4TransactionValidator(
         reservation_check=reservations.is_reserved,
     )
@@ -211,7 +213,7 @@ def _runtime_services():
         Sims4RabbitHoleAdapter(),
         target_processor,
         funds,
-        SimpleNamespace(apply=lambda transaction: None),
+        consequences,
     )
     unborn_workflow = TransactionOrchestrator(
         unborn_validator,
@@ -221,7 +223,7 @@ def _runtime_services():
         ),
         UnbornTargetProcessor(pregnancies),
         funds,
-        SimpleNamespace(apply=lambda transaction: None),
+        consequences,
     )
     RUNTIME.update(
         reservations=reservations,

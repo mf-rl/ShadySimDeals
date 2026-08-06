@@ -54,6 +54,99 @@ def test_sold_registry_uses_sim_info_trait_tracker():
     assert not registry.is_sold("7")
 
 
+class FakeConsequenceSimInfo:
+    def __init__(self):
+        self.events = []
+        self.pending_trait = None
+        self.trait_tracker = self
+
+    def has_trait(self, trait):
+        return any(event[0] == trait for event in self.events)
+
+    def add_trait(self, trait):
+        self.pending_trait = trait
+        return True
+
+    def add_buff(self, buff):
+        self.events.append((self.pending_trait, buff))
+
+
+@pytest.mark.parametrize(
+    "transaction_type,expected_target",
+    (
+        ("household_member", ("sold", "sad")),
+        ("unborn", ("lost", "extreme_sad")),
+    ),
+)
+def test_sale_consequences_apply_exact_mapping(
+    transaction_type, expected_target
+):
+    sims = {"actor": FakeConsequenceSimInfo(), "target": FakeConsequenceSimInfo()}
+    tunings = {
+        0xEAA21FFB1081E014: "seller",
+        0xEAA21FFB1081E015: "sold",
+        0xEAA21FFB1081E016: "lost",
+        0xEAA21FFB1081E017: "happy",
+        0xEAA21FFB1081E018: "sad",
+        0xEAA21FFB1081E019: "extreme_sad",
+    }
+    adapter = sims4_adapters.Sims4SaleConsequences(
+        sim_info_lookup=lambda sim_id: sims[sim_id],
+        trait_lookup=lambda instance: tunings[instance],
+        buff_lookup=lambda instance: tunings[instance],
+    )
+    transaction = SaleTransaction(
+        transaction_type, "actor", "target", "home"
+    )
+
+    adapter.apply(transaction)
+
+    assert sims["actor"].events == [("seller", "happy")]
+    assert sims["target"].events == [expected_target]
+
+
+def test_solo_unborn_sale_applies_only_seller_consequences_once():
+    sim = FakeConsequenceSimInfo()
+    adapter = sims4_adapters.Sims4SaleConsequences(
+        sim_info_lookup=lambda sim_id: sim,
+        trait_lookup=lambda instance: {
+            0xEAA21FFB1081E014: "seller",
+        }[instance],
+        buff_lookup=lambda instance: {
+            0xEAA21FFB1081E017: "happy",
+        }[instance],
+    )
+
+    adapter.apply(SaleTransaction("unborn", "actor", "actor", "home"))
+
+    assert sim.events == [("seller", "happy")]
+
+
+def test_sale_consequence_failure_is_logged_without_raising():
+    class BrokenSim(FakeConsequenceSimInfo):
+        def add_buff(self, buff):
+            raise RuntimeError("buff unavailable")
+
+    class FakeLogger:
+        def __init__(self):
+            self.events = []
+
+        def exception(self, event, **fields):
+            self.events.append((event, fields))
+
+    logger = FakeLogger()
+    adapter = sims4_adapters.Sims4SaleConsequences(
+        sim_info_lookup=lambda sim_id: BrokenSim(),
+        trait_lookup=lambda instance: object(),
+        buff_lookup=lambda instance: object(),
+        logger=logger,
+    )
+
+    adapter.apply(SaleTransaction("household_member", "actor", "target", "home"))
+
+    assert logger.events[0][0] == "sale_consequences_failed"
+
+
 class FakeHousehold:
     def __init__(self, household_id="home", funds=object(), account="account"):
         self.id = household_id

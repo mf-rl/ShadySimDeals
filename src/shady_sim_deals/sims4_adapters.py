@@ -1,5 +1,7 @@
 """Version-sensitive Sims 4 operations isolated behind explicit adapters."""
 
+from .logging import ModLogger
+
 
 class IntegrationUnavailable(RuntimeError):
     pass
@@ -130,6 +132,80 @@ class Sims4SoldSimRegistry:
 
         return services.get_instance_manager(
             sims4.resources.Types.TRAIT
+        ).get(instance_id)
+
+
+class Sims4SaleConsequences:
+    SELLER_TRAIT_ID = 0xEAA21FFB1081E014
+    SOLD_TRAIT_ID = 0xEAA21FFB1081E015
+    LOST_UNBORN_TRAIT_ID = 0xEAA21FFB1081E016
+    SELLER_BUFF_ID = 0xEAA21FFB1081E017
+    SOLD_BUFF_ID = 0xEAA21FFB1081E018
+    LOST_UNBORN_BUFF_ID = 0xEAA21FFB1081E019
+
+    def __init__(
+        self,
+        sim_info_lookup=None,
+        trait_lookup=None,
+        buff_lookup=None,
+        logger=None,
+    ):
+        self._sim_info_lookup = (
+            sim_info_lookup or Sims4TransactionValidator._find_sim_info
+        )
+        self._trait_lookup = trait_lookup or self._find_trait
+        self._buff_lookup = buff_lookup or self._find_buff
+        self._logger = logger or ModLogger()
+
+    def apply(self, transaction):
+        try:
+            self._apply_pair(
+                transaction.actor_id,
+                self.SELLER_TRAIT_ID,
+                self.SELLER_BUFF_ID,
+            )
+            if transaction.transaction_type == "household_member":
+                self._apply_pair(
+                    transaction.target_id,
+                    self.SOLD_TRAIT_ID,
+                    self.SOLD_BUFF_ID,
+                )
+            elif transaction.actor_id != transaction.target_id:
+                self._apply_pair(
+                    transaction.target_id,
+                    self.LOST_UNBORN_TRAIT_ID,
+                    self.LOST_UNBORN_BUFF_ID,
+                )
+        except Exception:
+            self._logger.exception(
+                "sale_consequences_failed",
+                transaction_type=transaction.transaction_type,
+                actor_id=str(transaction.actor_id),
+                target_id=str(transaction.target_id),
+            )
+
+    def _apply_pair(self, sim_id, trait_id, buff_id):
+        sim_info = self._sim_info_lookup(str(sim_id))
+        trait = self._trait_lookup(trait_id)
+        buff = self._buff_lookup(buff_id)
+        if sim_info is None or trait is None or buff is None:
+            raise IntegrationUnavailable("Sale consequence tuning is unavailable")
+        if (
+            not sim_info.trait_tracker.has_trait(trait)
+            and sim_info.trait_tracker.add_trait(trait) is False
+        ):
+            raise IntegrationUnavailable("Sale consequence trait could not be added")
+        sim_info.add_buff(buff)
+
+    _find_trait = staticmethod(Sims4SoldSimRegistry._find_trait)
+
+    @staticmethod
+    def _find_buff(instance_id):
+        import services
+        import sims4.resources
+
+        return services.get_instance_manager(
+            sims4.resources.Types.BUFF
         ).get(instance_id)
 
 

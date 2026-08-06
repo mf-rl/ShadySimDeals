@@ -351,6 +351,14 @@ def test_runtime_uses_real_rabbit_holes_for_both_sale_types(monkeypatch):
 
     assert isinstance(runtime["sold"], sims4_runtime.Sims4SoldSimRegistry)
     assert isinstance(
+        runtime["workflow"]._consequences,
+        sims4_runtime.Sims4SaleConsequences,
+    )
+    assert (
+        runtime["workflow"]._consequences
+        is runtime["unborn_workflow"]._consequences
+    )
+    assert isinstance(
         runtime["workflow"]._rabbit_holes,
         sims4_runtime.Sims4RabbitHoleAdapter,
     )
