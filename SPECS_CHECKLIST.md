@@ -43,7 +43,7 @@ verification remain unchecked.
 - [x] Safe household transfer with rollback
   - [x] Live: sold child leaves the selectable household before payment
 - [x] Exactly-once payment ordering
-- [ ] Seller buffs
+- [x] Seller trait and Happy moodlet
 - [ ] Relationship consequences
 
 ### Phase 4: Unborn-Nooboo transaction
@@ -58,14 +58,14 @@ verification remain unchecked.
   - [ ] Live: seller and another pregnant target both enter and return before pregnancy conclusion and payment
 - [x] Multiple-offspring pricing connected to the public pregnancy tracker count
 - [ ] Forced early twin/triplet detection
-- [ ] Pregnant-Sim reaction
+- [x] Pregnant-target lost-unborn trait and Sad moodlet
 
 ### Phase 5: Sold-Sim outcomes
 
 - [x] Hidden ShadySimDeals Holdings household
-- [x] Session-local sold-Sim registry
+- [x] Permanent visible trait-backed sold-Sim registry
 - [x] Same-session sold marker blocks repeat sales after external household restoration
-- [ ] Save-slot-aware sold-Sim registry
+- [x] Save-slot-aware sold marker through normal `SimInfo` trait persistence
 - [ ] Explicit recovery command to return and unmark a deliberately restored sold Sim
 - [ ] Ghost-return outcome
 - [ ] Delayed events
@@ -119,8 +119,8 @@ verification remain unchecked.
 - [ ] 13. Twins and triplets affect the live pregnancy offer.
   - [x] Pricing uses the public expected-offspring count
   - [ ] Live twin and triplet offers verified
-- [ ] 14. Sellers receive trait-appropriate buffs.
-- [ ] 15. Other selected pregnant Sims receive reaction buffs.
+- [x] 14. Sellers receive a permanent trait and trait-appropriate Happy moodlet.
+- [x] 15. Sold household members and other selected pregnant Sims receive their permanent traits and Sad moodlets.
 - [x] 16. Transactions validate and fail safely, including transfer rollback.
 - [x] 17. Pricing and transaction logic have automated tests.
 - [x] 18. The mod builds installable `.package` and `.ts4script` files.

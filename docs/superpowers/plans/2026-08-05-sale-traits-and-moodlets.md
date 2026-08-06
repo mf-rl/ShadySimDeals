@@ -573,7 +573,7 @@ Pass `consequences` as the sixth argument to both `TransactionOrchestrator` inst
 - [ ] **Step 5: Run focused and full tests**
 
 ```powershell
-$env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py tests/test_runtime.py tests/test_orchestrator.py
+$env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py tests/test_runtime.py tests/test_transactions.py
 $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests
 ```
 

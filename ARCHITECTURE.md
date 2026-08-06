@@ -8,8 +8,8 @@
 - `orchestrator.py`: validation, reservation, rabbit hole, target processing, payment, and consequences.
 - `processors.py`: household transfer and pregnancy-specific target handling.
 - `outcomes.py` and `reactions.py`: injected random selection and priority rules.
-- `registry.py`: sold-Sim tracking and participant reservations.
-- `sims4_adapters.py`: all version-sensitive game calls.
+- `registry.py`: participant reservations and the pure sold registry used by domain tests.
+- `sims4_adapters.py`: all version-sensitive game calls, including live trait-backed sold filtering and sale consequences.
 - `sims4_runtime.py`: shared phone/computer pickers, confirmation, notification, and transaction composition boundary.
 
 ## Transaction order
@@ -36,4 +36,4 @@ The four interaction tunings reuse minimal native phone or computer content veri
 
 ## Persistence
 
-The current registries and active rabbit-hole callbacks are session-local. Private sale rabbit-hole interactions are deliberately non-saveable so a reload cannot resume without its transaction callback; finish or cancel an active sale before saving. Sold Sims themselves remain in the hidden **ShadySimDeals Holdings** household, preserving their `SimInfo`; completed transaction markers and reservations reset when the game process restarts. Add save-slot-aware persistence only after its hook is verified.
+Live sold filtering reads the permanent **Outsourced by My Own Family** trait from the target's `SimInfo`, so it follows normal save/reload semantics without a separate persistence hook. Sold Sims remain in the hidden **ShadySimDeals Holdings** household, preserving their `SimInfo`. Participant reservations and active rabbit-hole callbacks alone remain session-local. Private sale rabbit-hole interactions are deliberately non-saveable so a reload cannot resume without its transaction callback; finish or cancel an active sale before saving.

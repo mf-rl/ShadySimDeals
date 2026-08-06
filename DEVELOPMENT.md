@@ -18,6 +18,7 @@
 - Unborn sales use the same shared service for two Sims and `put_sim_in_managed_rabbithole` with `rabbit_hole.rabbit_hole.RabbitHole` when the pregnant seller targets themself.
 - Rabbit-hole tuning uses resource type `0xB16AD2FA`, generic rabbit-hole animation factory `23834`, household rabbit-hole IDs `0xEAA21FFB1081E005`-`007`, unborn rabbit-hole IDs `0xEAA21FFB1081E00B`-`010`, and private affordance IDs `0xEAA21FFB1081E008`-`00A` and `011`-`013`.
 - Managed rabbit-hole affordances route to `Spawn_Arrival`, use `rabbit_hole_based` duration conditions, and combine `fade_sim_out` with a `hide_sim_liability`. The similarly named `rabbit_hole` liability variant is not registered on patch `1.125.59.1030`.
+- Permanent sale markers use save-managed gameplay trait tuning (`0xCB5FDDC7`); timed Happy and Sad consequences use buff tuning (`0x6017E896`).
 
 Run tests with `py -3.12 -m pytest -q -p no:cacheprovider tests`. Build with `py -3.12 build_mod.py`; the build invokes Python 3.7 for game bytecode.
 
@@ -49,9 +50,14 @@ After every supported game patch:
 22. Confirm both computer actions route to and visibly use a reachable computer before their pickers.
 23. Confirm an inaccessible computer ends the interaction without opening a picker or changing game state.
 24. Check `Documents\Electronic Arts\The Sims 4` for `lastException.txt` and review `ShadySimDeals.log`.
+25. Complete a household sale and confirm the seller receives **Family Asset Liquidator** and **Quarterly Profits, Fewer Mouths**, while the target receives **Outsourced by My Own Family** and **Apparently, Love Had a Return Policy**.
+26. Sell another Sim's unborn Nooboo and confirm the seller receives seller consequences while the pregnant target receives **Stork Claim Mysteriously Denied** and **The Nursery Has Been Downsized**.
+27. Have a pregnant seller target themself and confirm that Sim receives only the seller trait and moodlet.
+28. Save after a completed sale and reload; confirm permanent traits remain and expired moodlets do not reappear.
+29. Complete a sale, exit to the main menu without saving, reload the pre-sale save, and confirm none of the sale traits or moodlets remain.
 
 Do not install or replace `.package` or `.ts4script` files while the game is running.
 
 ## Deferred work
 
-Buffs, persistence, forced early multiple-birth detection, and ghost/delayed outcomes still require patch-specific verification. The unborn rabbit-hole service calls and tunings require live verification on the supported patch. Recheck the recorded native device and rabbit-hole tuning after every supported patch. Keep discovered identifiers in `sims4_adapters.py` or tuning, rather than spreading game calls through the domain code.
+Trait and moodlet presentation, forced early multiple-birth detection, and ghost/delayed outcomes still require patch-specific live verification. The unborn rabbit-hole service calls and tunings require live verification on the supported patch. Recheck the recorded native device, rabbit-hole, trait, and buff tuning after every supported patch. Keep discovered identifiers in `sims4_adapters.py` or tuning, rather than spreading game calls through the domain code.
