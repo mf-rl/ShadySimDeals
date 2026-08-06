@@ -37,9 +37,9 @@ verification remain unchecked.
   - [x] Transfer and payment delayed until natural expiration; cancellation safety unit-tested
   - [x] Active private rabbit-hole interactions are non-saveable and package-tested
   - [x] Live: one household-member sale completed the shared rabbit hole before removal and payment
-  - [ ] Live: child sale runs for 90 Sim minutes
-  - [ ] Live: adult sale runs for 120 Sim minutes
-  - [ ] Live: elder sale runs for 75 Sim minutes
+  - [x] Live: child sale runs for 90 Sim minutes
+  - [x] Live: adult sale runs for 120 Sim minutes
+  - [x] Live: elder sale runs for 75 Sim minutes
   - [ ] Live: reloading an active sale makes no transfer or payment
 - [x] Safe household transfer with rollback
   - [x] Live: sold child leaves the selectable household before payment
@@ -47,12 +47,15 @@ verification remain unchecked.
 - [x] Seller trait and Happy moodlet
 - [x] Direct seller/target friendship consequences implemented and unit-tested
 - [x] Wider close-relative and household-witness friendship consequences implemented and unit-tested
-  - [ ] Live: close relative loses 50, household-only witness loses 25, and overlap receives one 50-point loss
+  - [ ] Live: after selling a toddler, its mother loses 50 friendship with the seller
+  - [ ] Live: household-only witness loses 25 and an overlapping relative receives one 50-point loss
 - [ ] Observer reaction buffs, sentiments, and persistent grudges
 
 ### Phase 4: Unborn-Nooboo transaction
 
 - [x] Pregnant-Sim picker implemented and unit-tested
+  - [x] Automated: both sale pickers exclude non-instanced/off-lot Sims
+  - [ ] Live: Sims at work or school are absent from both sale pickers
 - [x] Pregnancy adapter and safe pregnancy conclusion verified for patch `1.125.59.1030`
 - [x] Unborn rabbit hole
   - [x] Automated: self-target uses a solo rabbit hole; another target uses a shared rabbit hole
@@ -95,6 +98,8 @@ verification remain unchecked.
   - [x] Baby, infant, toddler, and child filtering and pricing
   - [x] Live: child appears and completes a sale
   - [ ] Live: newborn, infant, and toddler sales
+  - [x] Automated: infant sale queues native pickup before the shared rabbit hole
+  - [ ] Live: seller picks up an infant and carries it into the rabbit hole
 - [x] 5. Unborn picker includes only pregnant household members, including the actor.
   - [x] Repository filtering and picker-row tests
   - [x] Live: pregnant active Sim appears

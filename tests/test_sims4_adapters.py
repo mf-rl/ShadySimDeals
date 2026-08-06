@@ -711,6 +711,115 @@ def test_rabbit_hole_adapter_starts_shared_hole_in_participant_order(
     assert callbacks == [False]
 
 
+def test_infant_pickup_finishes_before_shared_rabbit_hole_starts():
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    target = FakeSimInfo("INFANT", sim_id="2")
+    service = FakeRabbitHoleService()
+    pickup_callbacks = []
+    finished = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=service,
+        sim_info_lookup={"1": actor, "2": target}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+        infant_pickup=lambda actor, target, callback: (
+            pickup_callbacks.append(callback) or True
+        ),
+    )
+
+    assert adapter.run(
+        SaleTransaction("household_member", "1", "2", "home"),
+        finished.append,
+    )
+    assert service.started == []
+
+    pickup_callbacks[0](canceled=False)
+
+    assert service.started == [
+        ([actor, target], sims4_adapters.Sims4RabbitHoleAdapter.RABBIT_HOLE_BY_AGE["infant"])
+    ]
+    service.callback(canceled=False)
+    assert finished == [False]
+
+
+def test_infant_pickup_cancellation_never_starts_rabbit_hole():
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    target = FakeSimInfo("INFANT", sim_id="2")
+    service = FakeRabbitHoleService()
+    pickup_callbacks = []
+    finished = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=service,
+        sim_info_lookup={"1": actor, "2": target}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+        infant_pickup=lambda actor, target, callback: (
+            pickup_callbacks.append(callback) or True
+        ),
+    )
+
+    adapter.run(
+        SaleTransaction("household_member", "1", "2", "home"),
+        finished.append,
+    )
+    pickup_callbacks[0](canceled=True)
+
+    assert service.started == []
+    assert finished == [True]
+
+
+def test_native_infant_pickup_queues_ea_affordance(monkeypatch):
+    pickup_interaction = SimpleNamespace(
+        is_finishing=False,
+        is_finishing_naturally=True,
+    )
+    finishing_callbacks = []
+    pickup_interaction.register_on_finishing_callback = finishing_callbacks.append
+    pushes = []
+
+    class Actor(FakeSimInfo):
+        def push_super_affordance(self, affordance, target, context):
+            pushes.append((affordance, target, context))
+            return SimpleNamespace(interaction=pickup_interaction)
+
+    actor = Actor("ADULT", sim_id="1")
+    target = FakeSimInfo("INFANT", sim_id="2")
+    affordance = object()
+    requested_ids = []
+    manager = SimpleNamespace(
+        get=lambda instance_id: (
+            requested_ids.append(instance_id) or affordance
+        )
+    )
+    services = SimpleNamespace(get_instance_manager=lambda resource: manager)
+    resource_types = SimpleNamespace(INTERACTION="interaction")
+    resources = SimpleNamespace(Types=resource_types)
+    sims4 = SimpleNamespace(resources=resources)
+
+    class InteractionContext:
+        SOURCE_SCRIPT = "script"
+
+        def __init__(self, sim, source, priority):
+            self.args = (sim, source, priority)
+
+    context_module = SimpleNamespace(InteractionContext=InteractionContext)
+    priority_module = SimpleNamespace(Priority=SimpleNamespace(High="high"))
+    interactions = SimpleNamespace(context=context_module, priority=priority_module)
+    monkeypatch.setitem(sys.modules, "services", services)
+    monkeypatch.setitem(sys.modules, "sims4", sims4)
+    monkeypatch.setitem(sys.modules, "sims4.resources", resources)
+    monkeypatch.setitem(sys.modules, "interactions", interactions)
+    monkeypatch.setitem(sys.modules, "interactions.context", context_module)
+    monkeypatch.setitem(sys.modules, "interactions.priority", priority_module)
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(actor, target, callbacks.append)
+    assert requested_ids == [271032]
+    assert pushes[0][0:2] == (affordance, target)
+
+    finishing_callbacks[0](pickup_interaction)
+    assert callbacks == [False]
+
+
 def test_rabbit_hole_callback_reattaches_after_cas_resets_hole():
     actor = FakeSimInfo("ADULT", sim_id="cas-actor")
     target = FakeSimInfo("CHILD", sim_id="cas-target")

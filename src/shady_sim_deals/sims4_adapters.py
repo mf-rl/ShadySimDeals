@@ -409,6 +409,7 @@ class Sims4PregnancyAdapter:
 
 
 class Sims4RabbitHoleAdapter:
+    INFANT_PICKUP_AFFORDANCE_ID = 271032
     RABBIT_HOLE_BY_AGE = {
         "elder": 0xEAA21FFB1081E005,
         "baby": 0xEAA21FFB1081E006,
@@ -436,6 +437,7 @@ class Sims4RabbitHoleAdapter:
         sim_info_lookup=None,
         rabbit_hole_lookup=None,
         expected_offspring_lookup=None,
+        infant_pickup=None,
     ):
         self._service = rabbit_hole_service
         self._sim_info_lookup = (
@@ -445,6 +447,7 @@ class Sims4RabbitHoleAdapter:
         self._expected_offspring_lookup = (
             expected_offspring_lookup or (lambda sim_id: 1)
         )
+        self._infant_pickup = infant_pickup or self._queue_infant_pickup
 
     def run(self, transaction, on_finished):
         actor = self._sim_info_lookup(str(transaction.actor_id))
@@ -467,6 +470,35 @@ class Sims4RabbitHoleAdapter:
         rabbit_hole_type = self._rabbit_hole_lookup(tuning_id)
         if rabbit_hole_type is None:
             raise IntegrationUnavailable("Rabbit-hole tuning is unavailable")
+        if (
+            transaction.transaction_type == "household_member"
+            and age_key(target) == "infant"
+        ):
+            def after_pickup(canceled=False):
+                if canceled:
+                    on_finished(True)
+                    return
+                try:
+                    self._start_rabbit_hole(
+                        actor,
+                        target,
+                        rabbit_hole_type,
+                        False,
+                        on_finished,
+                    )
+                except Exception:
+                    on_finished(True)
+
+            if not self._infant_pickup(actor, target, after_pickup):
+                raise IntegrationUnavailable("Infant pickup could not start")
+            return True
+        return self._start_rabbit_hole(
+            actor, target, rabbit_hole_type, solo, on_finished
+        )
+
+    def _start_rabbit_hole(
+        self, actor, target, rabbit_hole_type, solo, on_finished
+    ):
         service = self._service or self._find_service()
         if solo:
             rabbit_hole_id = service.put_sim_in_managed_rabbithole(
@@ -500,6 +532,34 @@ class Sims4RabbitHoleAdapter:
                 actor.sim_id, rabbit_hole_id, canceled=True
             )
             raise
+        return True
+
+    def _queue_infant_pickup(self, actor, target, callback):
+        import services
+        import sims4.resources
+        from interactions.context import InteractionContext
+        from interactions.priority import Priority
+
+        actor_sim = actor.get_sim_instance()
+        target_sim = target.get_sim_instance()
+        affordance = services.get_instance_manager(
+            sims4.resources.Types.INTERACTION
+        ).get(self.INFANT_PICKUP_AFFORDANCE_ID)
+        if actor_sim is None or target_sim is None or affordance is None:
+            return False
+        context = InteractionContext(
+            actor_sim, InteractionContext.SOURCE_SCRIPT, Priority.High
+        )
+        result = actor_sim.push_super_affordance(
+            affordance, target_sim, context
+        )
+        if not result or result.interaction.is_finishing:
+            return False
+
+        def pickup_finished(interaction):
+            callback(not interaction.is_finishing_naturally)
+
+        result.interaction.register_on_finishing_callback(pickup_finished)
         return True
 
     @staticmethod

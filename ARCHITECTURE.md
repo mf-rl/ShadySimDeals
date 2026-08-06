@@ -20,7 +20,7 @@ Cancellation is allowed before confirmation. Failures are terminal and release r
 
 ## Rabbit-hole integration
 
-`Sims4RabbitHoleAdapter` maps household targets by age to private 75-, 90-, or 120-minute `TwoSimRabbitHole` tunings. Unborn sales map expected offspring to private 90-, 120-, or 150-minute tunings: self-target sales use `RabbitHole`, while other targets use `TwoSimRabbitHole` with the seller first. Only the seller's expiration callback resumes either transaction. Household targets then move to holdings before returning; unborn participants return before payment and pregnancy conclusion. Startup failure or cancellation releases reservations without processing the target.
+`Sims4RabbitHoleAdapter` maps household targets by age to private 75-, 90-, or 120-minute `TwoSimRabbitHole` tunings. Infant sales first queue EA's native pickup affordance and start the shared rabbit hole only after the seller is carrying the infant. Unborn sales map expected offspring to private 90-, 120-, or 150-minute tunings: self-target sales use `RabbitHole`, while other targets use `TwoSimRabbitHole` with the seller first. Only the seller's expiration callback resumes either transaction. Household targets then move to holdings before returning; unborn participants return before payment and pregnancy conclusion. Startup failure or cancellation releases reservations without processing the target.
 
 ## Pricing pipeline
 
@@ -32,7 +32,7 @@ Phone and computer interactions share one unborn workflow. `Sims4PregnancyAdapte
 
 ## Relationship consequences
 
-`Sims4SaleConsequences` applies friendship changes after target processing and payment. Household targets lose 100 friendship with the seller. Their immediate genealogy and spouse lose 50, while other Sims remaining in the seller's current household lose 25; the deduplicated pass applies only the stronger loss to overlapping Sims and never scans the full save. Other pregnant targets use the injected `PregnantSimReactionService` to apply +10, -25, or -75 from their current friendship score; self-target unborn sales make no relationship change. Discovery and score-update failures are isolated per source or affected Sim and never reverse the completed sale.
+`Sims4SaleConsequences` snapshots the household and close-relative audience after rabbit-hole revalidation but before target transfer, then applies friendship changes after target processing and payment. Household targets lose 100 friendship with the seller. Their immediate genealogy and spouse lose 50, while other Sims remaining in the seller's household lose 25; the deduplicated pass applies only the stronger loss to overlapping Sims and never scans the full save. Other pregnant targets use the injected `PregnantSimReactionService` to apply +10, -25, or -75 from their current friendship score; self-target unborn sales make no relationship change. Discovery and score-update failures are isolated per source or affected Sim and never reverse the completed sale.
 
 ## Device integration
 
