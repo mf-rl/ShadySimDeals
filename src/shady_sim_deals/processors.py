@@ -9,7 +9,11 @@ class HouseholdMemberTargetProcessor:
 
     def process(self, transaction):
         self._households.transfer_to_holding_household(transaction.target_id)
-        self._sold.mark_sold(transaction.target_id)
+        try:
+            self._sold.mark_sold(transaction.target_id)
+        except Exception:
+            self._households.rollback_transfer(transaction.target_id)
+            raise
         transaction.outcome = self._outcomes.apply(transaction)
 
     def rollback(self, transaction):

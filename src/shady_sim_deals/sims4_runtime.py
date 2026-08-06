@@ -9,12 +9,13 @@ from .models import BuyerContext, SaleCandidate, SaleTransaction, SimRecord
 from .orchestrator import TransactionOrchestrator
 from .pricing import SimSalePricingService
 from .processors import HouseholdMemberTargetProcessor, UnbornTargetProcessor
-from .registry import SoldSimRegistry, TransactionRegistry
+from .registry import TransactionRegistry
 from .sims4_adapters import (
     Sims4FundsAdapter,
     Sims4HouseholdAdapter,
     Sims4PregnancyAdapter,
     Sims4RabbitHoleAdapter,
+    Sims4SoldSimRegistry,
     Sims4TransactionValidator,
     age_key,
 )
@@ -188,7 +189,7 @@ def _runtime_services():
     if RUNTIME:
         return RUNTIME
     reservations = TransactionRegistry()
-    sold = SoldSimRegistry()
+    sold = Sims4SoldSimRegistry()
     households = Sims4HouseholdAdapter()
     pregnancies = Sims4PregnancyAdapter()
     funds = Sims4FundsAdapter()

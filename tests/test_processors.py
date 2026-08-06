@@ -1,3 +1,5 @@
+import pytest
+
 from shady_sim_deals.models import SaleTransaction
 from shady_sim_deals.processors import HouseholdMemberTargetProcessor, UnbornTargetProcessor
 from shady_sim_deals.registry import SoldSimRegistry, TransactionRegistry
@@ -77,3 +79,25 @@ def test_household_processor_rollback_restores_target_and_sold_marker():
     assert households.rolled_back == ["target"]
     assert not sold.is_sold("target")
     assert deal.outcome is None
+
+
+def test_household_processor_rolls_back_transfer_when_sold_trait_fails():
+    households = FakeHouseholds()
+
+    class BrokenSoldRegistry:
+        def mark_sold(self, sim_id):
+            raise RuntimeError("trait unavailable")
+
+        def unmark_sold(self, sim_id):
+            pass
+
+    processor = HouseholdMemberTargetProcessor(
+        households, FakeOutcomes(), BrokenSoldRegistry()
+    )
+    transaction = SaleTransaction("household_member", "actor", "target", "home")
+
+    with pytest.raises(RuntimeError, match="trait unavailable"):
+        processor.process(transaction)
+
+    assert households.transferred == ["target"]
+    assert households.rolled_back == ["target"]

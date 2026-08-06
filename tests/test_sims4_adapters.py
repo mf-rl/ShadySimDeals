@@ -23,6 +23,37 @@ class FakeSimInfo:
         self.household_id = None if household is None else household.id
 
 
+def test_sold_registry_uses_sim_info_trait_tracker():
+    sold_trait = object()
+
+    class Tracker:
+        def __init__(self):
+            self.traits = set()
+
+        def add_trait(self, trait):
+            self.traits.add(trait)
+            return True
+
+        def has_trait(self, trait):
+            return trait in self.traits
+
+        def remove_trait(self, trait):
+            self.traits.discard(trait)
+            return True
+
+    sim_info = type("SimInfo", (), {"trait_tracker": Tracker()})()
+    registry = sims4_adapters.Sims4SoldSimRegistry(
+        sim_info_lookup=lambda sim_id: sim_info,
+        trait_lookup=lambda instance: sold_trait,
+    )
+
+    assert not registry.is_sold("7")
+    registry.mark_sold("7")
+    assert registry.is_sold("7")
+    registry.unmark_sold("7")
+    assert not registry.is_sold("7")
+
+
 class FakeHousehold:
     def __init__(self, household_id="home", funds=object(), account="account"):
         self.id = household_id

@@ -349,6 +349,7 @@ def test_runtime_uses_real_rabbit_holes_for_both_sale_types(monkeypatch):
 
     runtime = sims4_runtime._runtime_services()
 
+    assert isinstance(runtime["sold"], sims4_runtime.Sims4SoldSimRegistry)
     assert isinstance(
         runtime["workflow"]._rabbit_holes,
         sims4_runtime.Sims4RabbitHoleAdapter,

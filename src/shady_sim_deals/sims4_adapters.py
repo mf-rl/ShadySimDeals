@@ -93,6 +93,46 @@ class Sims4TransactionValidator:
         return zone is None or bool(getattr(zone, "is_zone_shutting_down", False))
 
 
+class Sims4SoldSimRegistry:
+    SOLD_TRAIT_ID = 0xEAA21FFB1081E015
+
+    def __init__(self, sim_info_lookup=None, trait_lookup=None):
+        self._sim_info_lookup = (
+            sim_info_lookup or Sims4TransactionValidator._find_sim_info
+        )
+        self._trait_lookup = trait_lookup or self._find_trait
+
+    def _state(self, sim_id):
+        sim_info = self._sim_info_lookup(str(sim_id))
+        trait = self._trait_lookup(self.SOLD_TRAIT_ID)
+        if sim_info is None or trait is None:
+            raise IntegrationUnavailable("Sold trait state is unavailable")
+        return sim_info.trait_tracker, trait
+
+    def mark_sold(self, sim_id):
+        tracker, trait = self._state(sim_id)
+        if not tracker.has_trait(trait) and tracker.add_trait(trait) is False:
+            raise IntegrationUnavailable("Sold trait could not be added")
+
+    def is_sold(self, sim_id):
+        tracker, trait = self._state(sim_id)
+        return tracker.has_trait(trait)
+
+    def unmark_sold(self, sim_id):
+        tracker, trait = self._state(sim_id)
+        if tracker.has_trait(trait) and tracker.remove_trait(trait) is False:
+            raise IntegrationUnavailable("Sold trait could not be removed")
+
+    @staticmethod
+    def _find_trait(instance_id):
+        import services
+        import sims4.resources
+
+        return services.get_instance_manager(
+            sims4.resources.Types.TRAIT
+        ).get(instance_id)
+
+
 class Sims4PregnancyAdapter:
     def __init__(self, sim_info_lookup=None):
         self._sim_info_lookup = sim_info_lookup or self._find_sim_info
