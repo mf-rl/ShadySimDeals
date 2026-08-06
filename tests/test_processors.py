@@ -99,5 +99,54 @@ def test_household_processor_rolls_back_transfer_when_sold_trait_fails():
     with pytest.raises(RuntimeError, match="trait unavailable"):
         processor.process(transaction)
 
-    assert households.transferred == ["target"]
-    assert households.rolled_back == ["target"]
+    assert households.transferred == []
+    assert households.rolled_back == []
+
+
+def test_household_processor_marks_sold_before_transfer():
+    events = []
+
+    class Households(FakeHouseholds):
+        def transfer_to_holding_household(self, sim_id):
+            events.append("transfer")
+            super().transfer_to_holding_household(sim_id)
+
+    class Sold:
+        def mark_sold(self, sim_id):
+            events.append("mark")
+
+        def unmark_sold(self, sim_id):
+            events.append("unmark")
+
+    HouseholdMemberTargetProcessor(Households(), FakeOutcomes(), Sold()).process(
+        SaleTransaction("household_member", "actor", "target", "home")
+    )
+
+    assert events[:2] == ["mark", "transfer"]
+
+
+def test_household_processor_unmarks_when_transfer_fails():
+    events = []
+
+    class Households(FakeHouseholds):
+        def transfer_to_holding_household(self, sim_id):
+            events.append("transfer")
+            raise RuntimeError("transfer unavailable")
+
+    class Sold:
+        def mark_sold(self, sim_id):
+            events.append("mark")
+
+        def unmark_sold(self, sim_id):
+            events.append("unmark")
+
+    processor = HouseholdMemberTargetProcessor(
+        Households(), FakeOutcomes(), Sold()
+    )
+
+    with pytest.raises(RuntimeError, match="transfer unavailable"):
+        processor.process(
+            SaleTransaction("household_member", "actor", "target", "home")
+        )
+
+    assert events == ["mark", "transfer", "unmark"]

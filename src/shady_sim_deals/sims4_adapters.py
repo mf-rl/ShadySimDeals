@@ -248,6 +248,7 @@ class Sims4PregnancyAdapter:
 
 
 class Sims4RabbitHoleAdapter:
+    MAX_RETURN_WAIT_ATTEMPTS = 30
     RABBIT_HOLE_BY_AGE = {
         "elder": 0xEAA21FFB1081E005,
         "baby": 0xEAA21FFB1081E006,
@@ -315,13 +316,16 @@ class Sims4RabbitHoleAdapter:
             rabbit_hole_id = service.put_sims_in_shared_rabbithole(
                 [actor, target], rabbit_hole_type
             )
+        participants = (actor,) if solo else (actor, target)
         if rabbit_hole_id is None:
             raise IntegrationUnavailable("Rabbit hole could not start")
         try:
             service.set_rabbit_hole_expiration_callback(
                 actor.sim_id,
                 rabbit_hole_id,
-                lambda canceled=False, **kwargs: on_finished(canceled),
+                lambda canceled=False, **kwargs: self._on_expired(
+                    canceled, participants, on_finished
+                ),
             )
         except Exception:
             service.remove_sim_from_rabbit_hole(
@@ -329,6 +333,39 @@ class Sims4RabbitHoleAdapter:
             )
             raise
         return True
+
+    def _on_expired(self, canceled, participants, on_finished):
+        if canceled:
+            on_finished(True)
+            return
+        self._finish_when_returned(participants, on_finished)
+
+    def _finish_when_returned(
+        self, participants, on_finished, attempt=0
+    ):
+        if all(sim_info.get_sim_instance() is not None for sim_info in participants):
+            on_finished(False)
+            return
+        if attempt >= self.MAX_RETURN_WAIT_ATTEMPTS:
+            on_finished(True)
+            return
+        self._schedule_alarm(
+            participants[0],
+            lambda: self._finish_when_returned(
+                participants, on_finished, attempt + 1
+            ),
+        )
+
+    @staticmethod
+    def _schedule_alarm(owner, callback):
+        import alarms
+        import date_and_time
+
+        alarms.add_alarm(
+            owner,
+            date_and_time.create_time_span(minutes=1),
+            lambda _: callback(),
+        )
 
     @staticmethod
     def _find_service():

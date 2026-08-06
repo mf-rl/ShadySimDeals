@@ -13,14 +13,25 @@ class FakeAge:
 
 
 class FakeSimInfo:
-    def __init__(self, age, sim_id="target", household_id="home", is_pet=False):
+    def __init__(
+        self,
+        age,
+        sim_id="target",
+        household_id="home",
+        is_pet=False,
+        instanced=True,
+    ):
         self.age = FakeAge(age)
         self.sim_id = sim_id
         self.household_id = household_id
         self.is_pet = is_pet
+        self.instanced = instanced
 
     def assign_to_household(self, household, assign_is_npc=True):
         self.household_id = None if household is None else household.id
+
+    def get_sim_instance(self):
+        return self if self.instanced else None
 
 
 def test_sold_registry_uses_sim_info_trait_tracker():
@@ -393,6 +404,33 @@ def test_rabbit_hole_adapter_cancels_started_hole_if_callback_setup_fails():
         adapter.run(deal, lambda canceled: None)
 
     assert service.removed == [(actor.sim_id, service.rabbit_hole_id, True)]
+
+
+def test_rabbit_hole_completion_waits_until_every_participant_returns():
+    actor = FakeSimInfo("ADULT", sim_id="1", instanced=False)
+    target = FakeSimInfo("CHILD", sim_id="2", instanced=False)
+    callbacks = []
+    scheduled = []
+    service = FakeRabbitHoleService()
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=service,
+        sim_info_lookup={"1": actor, "2": target}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+    )
+    adapter._schedule_alarm = lambda owner, callback: scheduled.append(callback)
+    adapter.run(
+        SaleTransaction("household_member", "1", "2", "home"),
+        callbacks.append,
+    )
+
+    service.callback(canceled=False)
+
+    assert callbacks == []
+    assert len(scheduled) == 1
+    actor.instanced = True
+    target.instanced = True
+    scheduled.pop()()
+    assert callbacks == [False]
 
 
 def test_unborn_rabbit_hole_uses_one_participant_for_pregnant_actor():
