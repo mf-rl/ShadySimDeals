@@ -354,6 +354,39 @@ def test_wider_relationship_consequences_use_stronger_delta_once(
     assert sims["4"].relationship_tracker.changes == [(1, -25)]
 
 
+def test_wider_relationship_snapshot_survives_target_transfer(
+    all_hidden_reasons,
+):
+    household_ids = ["1", "2", "3", "4"]
+    relative_ids = ["3"]
+    sims = {
+        "1": FakeConsequenceSimInfo(),
+        "2": FakeConsequenceSimInfo(
+            hidden=True, relationship_tracker=FakeRelationshipTracker()
+        ),
+        "3": FakeConsequenceSimInfo(
+            relationship_tracker=FakeRelationshipTracker()
+        ),
+        "4": FakeConsequenceSimInfo(
+            relationship_tracker=FakeRelationshipTracker()
+        ),
+    }
+    adapter = relationship_adapter(
+        sims,
+        household_member_lookup=lambda actor_id: tuple(household_ids),
+        close_relative_lookup=lambda target_id: tuple(relative_ids),
+    )
+    transaction = SaleTransaction("household_member", "1", "2", "home")
+
+    adapter.capture(transaction)
+    household_ids.clear()
+    relative_ids.clear()
+    adapter.apply(transaction)
+
+    assert sims["3"].relationship_tracker.changes == [(1, -50)]
+    assert sims["4"].relationship_tracker.changes == [(1, -25)]
+
+
 def test_unborn_sale_does_not_apply_wider_relationship_consequences(
     all_hidden_reasons,
 ):

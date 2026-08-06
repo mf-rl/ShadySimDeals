@@ -200,6 +200,12 @@ class Sims4SaleConsequences:
             close_relative_lookup or self._find_close_relative_ids
         )
 
+    def capture(self, transaction):
+        if transaction.transaction_type == "household_member":
+            transaction.wider_relationship_deltas = (
+                self._wider_relationship_deltas(transaction)
+            )
+
     def apply(self, transaction):
         try:
             self._apply_traits_and_moodlets(transaction)
@@ -262,6 +268,25 @@ class Sims4SaleConsequences:
     def _apply_wider_relationships(self, transaction):
         if transaction.transaction_type != "household_member":
             return
+        deltas = getattr(transaction, "wider_relationship_deltas", None)
+        if deltas is None:
+            deltas = self._wider_relationship_deltas(transaction)
+        actor_id = str(transaction.actor_id)
+        for sim_id, delta in deltas.items():
+            try:
+                sim_info = self._sim_info_lookup(sim_id)
+                tracker = getattr(sim_info, "relationship_tracker", None)
+                if tracker is None:
+                    raise IntegrationUnavailable(
+                        "Relationship tracker is unavailable"
+                    )
+                tracker.add_relationship_score(int(actor_id), delta)
+            except Exception:
+                self._log_wider_failure(
+                    transaction, sim_id, "relationship"
+                )
+
+    def _wider_relationship_deltas(self, transaction):
         actor_id = str(transaction.actor_id)
         target_id = str(transaction.target_id)
         deltas = {}
@@ -279,19 +304,7 @@ class Sims4SaleConsequences:
                     deltas[sim_id] = -50
         except Exception:
             self._log_wider_failure(transaction, None, "genealogy")
-        for sim_id, delta in deltas.items():
-            try:
-                sim_info = self._sim_info_lookup(sim_id)
-                tracker = getattr(sim_info, "relationship_tracker", None)
-                if tracker is None:
-                    raise IntegrationUnavailable(
-                        "Relationship tracker is unavailable"
-                    )
-                tracker.add_relationship_score(int(actor_id), delta)
-            except Exception:
-                self._log_wider_failure(
-                    transaction, sim_id, "relationship"
-                )
+        return deltas
 
     def _log_wider_failure(self, transaction, affected_sim_id, source):
         self._logger.exception(

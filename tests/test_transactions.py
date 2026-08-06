@@ -92,6 +92,29 @@ def test_household_completion_waits_for_rabbit_hole_expiration():
     assert events[-1] == "release"
 
 
+def test_consequence_audience_is_captured_before_target_processing():
+    events = []
+
+    class CapturingConsequences(Recorder):
+        def capture(self, transaction):
+            self.events.append("capture_consequences")
+
+    workflow = TransactionOrchestrator(
+        Recorder(events),
+        Recorder(events),
+        Recorder(events),
+        Recorder(events),
+        Recorder(events),
+        CapturingConsequences(events),
+    )
+    deal = transaction()
+    workflow.prepare(deal, SaleOffer(5000, {}, "buyer"))
+
+    assert workflow.confirm_and_complete(deal)
+    assert events.index("capture_consequences") < events.index("target")
+    assert events.index("target") < events.index("consequences")
+
+
 def test_cancelled_rabbit_hole_does_not_process_or_pay():
     events = []
     rabbit_hole = DelayedRabbitHole(events)

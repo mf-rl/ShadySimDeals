@@ -84,6 +84,9 @@ class TransactionOrchestrator:
             )
             if error:
                 raise TransactionError(str(error))
+            capture_consequences = getattr(self._consequences, "capture", None)
+            if capture_consequences is not None:
+                capture_consequences(transaction)
             self._states.transition(transaction, "target_disposition_pending")
             if (
                 getattr(self._target_processor, "requires_prepayment", False)
