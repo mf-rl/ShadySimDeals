@@ -18,7 +18,7 @@ ShadySimDeals is a darkly satirical The Sims 4 script mod. Household-member and 
 4. Delete `Documents\Electronic Arts\The Sims 4\localthumbcache.package`.
 5. Start the game and load a household.
 6. Open a Sim's phone, or click a compatible computer and open **ShadySimDeals**.
-7. Choose **Sell Household Member** or **Sell Unborn Nooboo**.
+7. Choose **Liquidate a Family Asset** or **Monetize Future Family Growth**.
 8. Phone actions briefly animate in place. Computer actions route the Sim to the clicked computer and briefly use it.
 9. Pick an eligible household member, review the offer, and confirm.
 
