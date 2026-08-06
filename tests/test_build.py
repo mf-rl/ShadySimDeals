@@ -31,6 +31,12 @@ EXPECTED_RESOURCE_KEYS = {
     (0x6017E896, 0, 0xEAA21FFB1081E017),
     (0x6017E896, 0, 0xEAA21FFB1081E018),
     (0x6017E896, 0, 0xEAA21FFB1081E019),
+    (0x545AC67A, 0x005FDD0C, 0xEAA21FFB1081E014),
+    (0x545AC67A, 0x005FDD0C, 0xEAA21FFB1081E015),
+    (0x545AC67A, 0x005FDD0C, 0xEAA21FFB1081E016),
+    (0x545AC67A, 0x0017E8F6, 0xEAA21FFB1081E017),
+    (0x545AC67A, 0x0017E8F6, 0xEAA21FFB1081E018),
+    (0x545AC67A, 0x0017E8F6, 0xEAA21FFB1081E019),
     (0x03E9D964, 0x80000000, 0xEAA1200000000010),
     (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
     (0x7DF2169C, 0, 0xEAA1200000000020),
@@ -84,6 +90,36 @@ def test_package_resources_include_every_planned_resource():
     keys = {(resource_type, group, instance) for _, resource_type, group, instance in resources}
 
     assert keys == EXPECTED_RESOURCE_KEYS
+
+
+def test_sale_trait_and_buff_simdata_has_client_schema_and_values():
+    resources = {
+        (group, instance): data
+        for data, resource_type, group, instance in build_mod.package_resources()
+        if resource_type == build_mod.SIMDATA_TYPE
+    }
+    trait = resources[(build_mod.TRAIT_SIMDATA_GROUP, 0xEAA21FFB1081E014)]
+    buff = resources[(build_mod.BUFF_SIMDATA_GROUP, 0xEAA21FFB1081E017)]
+
+    assert struct.unpack_from("<4sI", trait) == (b"DATA", 0x101)
+    assert struct.unpack_from("<II", trait, 12) == (3, 320)
+    assert b"Trait\0" in trait
+    assert b"ShadySimDeals_trait_FamilyAssetLiquidator\0" in trait
+    assert struct.unpack_from("<I", trait, 128 + 60)[0] == 0xA1100018
+    assert struct.unpack_from("<I", trait, 128 + 104)[0] == 0xA1100019
+    assert struct.unpack_from("<Q", trait, 128 + 72)[0] == 0x47FFEEDF30C4B115
+    assert struct.unpack_from("<I", trait, 128 + 112)[0] == 1
+
+    assert struct.unpack_from("<4sI", buff) == (b"DATA", 0x101)
+    assert struct.unpack_from("<II", buff, 12) == (1, 192)
+    assert b"Buff\0" in buff
+    assert b"ShadySimDeals_buff_QuarterlyProfitsFewerMouths\0" in buff
+    assert struct.unpack_from("<II", buff, 128 + 32) == (
+        0xA110001F,
+        0xA110001E,
+    )
+    assert struct.unpack_from("<Q", buff, 128 + 40)[0] == 0x2357E4F259B6A63E
+    assert struct.unpack_from("<Qi", buff, 128 + 56) == (14640, 4)
 
 
 def test_sale_traits_and_moodlets_are_visible_localized_and_timed():
@@ -370,8 +406,10 @@ def test_phone_interaction_uses_matching_custom_category_resources():
         if resource_type == 0x03E9D964
     )
     simdata = next(
-        data for data, resource_type, _, _ in resources
+        data for data, resource_type, group, instance in resources
         if resource_type == 0x545AC67A
+        and group == build_mod.CATEGORY_SIMDATA_GROUP
+        and instance == build_mod.CUSTOM_CATEGORY_ID
     )
 
     interaction = ET.fromstring(interaction_data)
@@ -402,8 +440,10 @@ def test_unborn_interactions_use_shady_sim_deals_category():
 
 def test_category_simdata_has_verified_schema_and_values():
     simdata = next(
-        data for data, resource_type, _, _ in build_mod.package_resources()
+        data for data, resource_type, group, instance in build_mod.package_resources()
         if resource_type == 0x545AC67A
+        and group == build_mod.CATEGORY_SIMDATA_GROUP
+        and instance == build_mod.CUSTOM_CATEGORY_ID
     )
     _, version, table_relative, table_count, schema_relative, schema_count, _ = (
         struct.unpack_from("<4sIiIiII", simdata)
