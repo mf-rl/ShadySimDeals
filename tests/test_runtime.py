@@ -344,18 +344,32 @@ def test_household_interaction_reports_delayed_failure(monkeypatch):
     assert notifications[0][2:4] == ("failure_title", "failure_body")
 
 
-def test_runtime_uses_real_household_rabbit_hole_and_immediate_unborn(monkeypatch):
+def test_runtime_uses_real_rabbit_holes_for_both_sale_types(monkeypatch):
     monkeypatch.setattr(sims4_runtime, "RUNTIME", {})
 
     runtime = sims4_runtime._runtime_services()
 
+    assert isinstance(runtime["sold"], sims4_runtime.Sims4SoldSimRegistry)
+    assert isinstance(
+        runtime["workflow"]._consequences,
+        sims4_runtime.Sims4SaleConsequences,
+    )
+    assert (
+        runtime["workflow"]._consequences
+        is runtime["unborn_workflow"]._consequences
+    )
     assert isinstance(
         runtime["workflow"]._rabbit_holes,
         sims4_runtime.Sims4RabbitHoleAdapter,
     )
-    assert runtime["unborn_workflow"]._rabbit_holes.run(
-        None, lambda transaction: None
-    ) is None
+    assert isinstance(
+        runtime["unborn_workflow"]._rabbit_holes,
+        sims4_runtime.Sims4RabbitHoleAdapter,
+    )
+    assert (
+        runtime["unborn_workflow"]._rabbit_holes._expected_offspring_lookup
+        == runtime["pregnancies"].expected_offspring_count
+    )
 
 
 def test_unborn_candidates_include_pregnant_actor_and_household_member():
@@ -411,6 +425,97 @@ def test_complete_unborn_sale_uses_unborn_pricing_and_workflow():
 
     assert deal.state == "completed"
     assert deal.offer.amount == 27000
+
+
+def test_unborn_sale_waits_for_rabbit_hole_before_pregnancy_and_payment():
+    events = []
+
+    class DelayedRabbitHole:
+        def run(self, transaction, on_finished):
+            events.append("rabbit_hole")
+            self.callback = on_finished
+            return True
+
+    class Pregnancies(FakePregnancies):
+        def conclude_pregnancy(self, sim_id):
+            events.append("pregnancy")
+            self.pregnant_ids.remove(str(sim_id))
+            return True
+
+    rabbit_hole = DelayedRabbitHole()
+    recorder = RuntimeRecorder(events)
+    pregnancies = Pregnancies(("pregnant",))
+    workflow = TransactionOrchestrator(
+        recorder,
+        recorder,
+        rabbit_hole,
+        sims4_runtime.UnbornTargetProcessor(pregnancies),
+        recorder,
+        recorder,
+    )
+    completed = []
+
+    deal = sims4_runtime.complete_unborn_sale(
+        "actor",
+        "pregnant",
+        "home",
+        lambda sim_id: FakeSimInfo("pregnant"),
+        pregnancies,
+        workflow,
+        SimSalePricingService(),
+        on_finished=completed.append,
+    )
+
+    assert deal.state == "rabbit_hole_started"
+    assert "pregnancy" not in events
+    assert not any(
+        isinstance(event, tuple) and event[0] == "payment" for event in events
+    )
+    assert completed == []
+
+    rabbit_hole.callback(canceled=False)
+
+    assert deal.state == "completed"
+    assert events.index(("payment", "home", 15000)) < events.index("pregnancy")
+    assert completed == [deal]
+
+
+def test_unborn_interaction_notifies_only_after_delayed_completion(monkeypatch):
+    notifications = []
+    workflow = DelayedWorkflow()
+    target = FakeSimInfo("pregnant")
+    actor = type(
+        "Actor",
+        (),
+        {"sim_id": "actor", "household": type("Household", (), {"id": "home"})()},
+    )()
+    monkeypatch.setattr(
+        sims4_runtime,
+        "_runtime_services",
+        lambda: {
+            "unborn_workflow": workflow,
+            "pricing": SimSalePricingService(),
+            "pregnancies": FakePregnancies(("pregnant",)),
+        },
+    )
+    monkeypatch.setattr(
+        sims4_runtime.Sims4TransactionValidator,
+        "_find_sim_info",
+        staticmethod(lambda sim_id: target),
+    )
+    monkeypatch.setattr(sims4_runtime, "_show_notification", lambda *args: notifications.append(args))
+    interaction = object.__new__(sims4_runtime.PhoneSellUnbornNoobooInteraction)
+    interaction.sim = actor
+    interaction.get_resolver = lambda: "resolver"
+
+    interaction._complete_sale("pregnant")
+
+    assert notifications == []
+    workflow.finish("completed")
+    assert notifications[0][2:4] == (
+        "completion_unborn_title",
+        "completion_unborn_body",
+    )
 
 
 def test_confirm_if_accepted_runs_only_for_ok_response():

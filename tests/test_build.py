@@ -16,6 +16,27 @@ EXPECTED_RESOURCE_KEYS = {
     (0xE882D22F, 0, 0xEAA21FFB1081E008),
     (0xE882D22F, 0, 0xEAA21FFB1081E009),
     (0xE882D22F, 0, 0xEAA21FFB1081E00A),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E00B),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E00C),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E00D),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E00E),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E00F),
+    (0xB16AD2FA, 0, 0xEAA21FFB1081E010),
+    (0xE882D22F, 0, 0xEAA21FFB1081E011),
+    (0xE882D22F, 0, 0xEAA21FFB1081E012),
+    (0xE882D22F, 0, 0xEAA21FFB1081E013),
+    (0xCB5FDDC7, 0, 0xEAA21FFB1081E014),
+    (0xCB5FDDC7, 0, 0xEAA21FFB1081E015),
+    (0xCB5FDDC7, 0, 0xEAA21FFB1081E016),
+    (0x6017E896, 0, 0xEAA21FFB1081E017),
+    (0x6017E896, 0, 0xEAA21FFB1081E018),
+    (0x6017E896, 0, 0xEAA21FFB1081E019),
+    (0x545AC67A, 0x005FDD0C, 0xEAA21FFB1081E014),
+    (0x545AC67A, 0x005FDD0C, 0xEAA21FFB1081E015),
+    (0x545AC67A, 0x005FDD0C, 0xEAA21FFB1081E016),
+    (0x545AC67A, 0x0017E8F6, 0xEAA21FFB1081E017),
+    (0x545AC67A, 0x0017E8F6, 0xEAA21FFB1081E018),
+    (0x545AC67A, 0x0017E8F6, 0xEAA21FFB1081E019),
     (0x03E9D964, 0x80000000, 0xEAA1200000000010),
     (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
     (0x7DF2169C, 0, 0xEAA1200000000020),
@@ -71,12 +92,137 @@ def test_package_resources_include_every_planned_resource():
     assert keys == EXPECTED_RESOURCE_KEYS
 
 
+def test_sale_trait_and_buff_simdata_has_client_schema_and_values():
+    def trait_simdata_fields(data):
+        _, version, table_relative, table_count, schema_relative, schema_count, _ = (
+            struct.unpack_from("<4sIiIiII", data)
+        )
+        table_offset = 8 + table_relative
+        schema_offset = 16 + schema_relative
+        table = struct.unpack_from("<iIiIIiI", data, table_offset)
+        row_offset = table_offset + 20 + table[5]
+        schema = struct.unpack_from("<iIIIiI", data, schema_offset)
+        fields = {}
+        if schema[2] == 0xC8782638:
+            column_offset = schema_offset + 16 + schema[4]
+            for index in range(schema[5]):
+                offset = column_offset + index * 20
+                pointer, _, data_type, _, field_offset, _ = struct.unpack_from(
+                    "<iIHHIi", data, offset
+                )
+                name = data[offset + pointer :].split(b"\0", 1)[0].decode()
+                fields[name] = (data_type, row_offset + field_offset)
+        return version, table_count, schema_count, table[4], schema[2], fields
+
+    resources = {
+        (group, instance): data
+        for data, resource_type, group, instance in build_mod.package_resources()
+        if resource_type == build_mod.SIMDATA_TYPE
+    }
+    buff = resources[(build_mod.BUFF_SIMDATA_GROUP, 0xEAA21FFB1081E017)]
+
+    expected = {
+        0xEAA21FFB1081E014: (0xA1100018, 0xA1100019, 0x47FFEEDF30C4B115),
+        0xEAA21FFB1081E015: (0xA110001A, 0xA110001B, 0x8B841C91497034A5),
+        0xEAA21FFB1081E016: (0xA110001C, 0xA110001D, 0x8B841C91497034A5),
+    }
+    for instance, (name_key, description_key, icon_instance) in expected.items():
+        data = resources[(build_mod.TRAIT_SIMDATA_GROUP, instance)]
+        version, tables, schemas, row_size, schema_hash, fields = (
+            trait_simdata_fields(data)
+        )
+        assert (version, tables, schemas, row_size, schema_hash) == (
+            0x101, 4, 1, 184, 0xC8782638
+        )
+        assert struct.unpack_from("<I", data, fields["display_name"][1])[0] == name_key
+        assert struct.unpack_from("<I", data, fields["trait_description"][1])[0] == description_key
+        assert struct.unpack_from("<I", data, fields["trait_origin_description"][1])[0] == 0xA1100024
+        assert struct.unpack_from("<I", data, fields["trait_type"][1])[0] == 1
+        assert struct.unpack_from("<Q", data, fields["icon"][1])[0] == icon_instance
+
+    assert struct.unpack_from("<4sI", buff) == (b"DATA", 0x101)
+    assert struct.unpack_from("<II", buff, 12) == (1, 192)
+    assert b"Buff\0" in buff
+    assert b"ShadySimDeals_buff_QuarterlyProfitsFewerMouths\0" in buff
+    assert struct.unpack_from("<II", buff, 128 + 32) == (
+        0xA110001F,
+        0xA110001E,
+    )
+    assert struct.unpack_from("<Q", buff, 128 + 40)[0] == 0x2357E4F259B6A63E
+    assert struct.unpack_from("<Qi", buff, 128 + 56) == (14640, 4)
+
+
+def test_sale_traits_and_moodlets_are_visible_localized_and_timed():
+    resources = build_mod.package_resources()
+    traits = {
+        instance: ET.fromstring(data)
+        for data, resource_type, _, instance in resources
+        if resource_type == build_mod.TRAIT_TUNING_TYPE
+    }
+    buffs = {
+        instance: ET.fromstring(data)
+        for data, resource_type, _, instance in resources
+        if resource_type == build_mod.BUFF_TUNING_TYPE
+    }
+
+    assert set(traits) == {
+        0xEAA21FFB1081E014,
+        0xEAA21FFB1081E015,
+        0xEAA21FFB1081E016,
+    }
+    for instance, xml in traits.items():
+        assert int(xml.attrib["s"]) == instance
+        assert xml.find("./E[@n='trait_type']").text == "GAMEPLAY"
+        assert xml.find("./T[@n='display_name']") is not None
+        assert xml.find("./T[@n='display_name_gender_neutral']") is not None
+        assert xml.find("./T[@n='trait_description']") is not None
+        assert xml.find("./T[@n='trait_origin_description']").text == "0xA1100024"
+
+    expected_buffs = {
+        0xEAA21FFB1081E017: (14640, 4, 720),
+        0xEAA21FFB1081E018: (14643, 6, 1440),
+        0xEAA21FFB1081E019: (14643, 10, 2880),
+    }
+    assert set(buffs) == set(expected_buffs)
+    for instance, (mood_type, weight, duration) in expected_buffs.items():
+        xml = buffs[instance]
+        assert int(xml.attrib["s"]) == instance
+        assert int(xml.find("./T[@n='mood_type']").text) == mood_type
+        assert int(xml.find("./T[@n='mood_weight']").text) == weight
+        assert int(
+            xml.find(
+                "./V[@n='_temporary_commodity_info']/U/T[@n='max_duration']"
+            ).text
+        ) == duration
+        assert xml.find("./T[@n='visible']").text == "True"
+
+    strings = json.loads(
+        (build_mod.ROOT / "localization" / "en_us.json").read_text("utf-8")
+    )
+    assert strings["0xA1100024"] == "Shady Attribute"
+    assert [strings["0xA110{:04X}".format(value)] for value in range(0x18, 0x24)] == [
+        "Family Asset Liquidator",
+        "Some Sims build family trees. This Sim trims them for quarterly growth and calls it logistics.",
+        "Outsourced by My Own Family",
+        "This Sim learned the family plan had an unsubscribe button, and somebody else clicked it.",
+        "Stork Claim Mysteriously Denied",
+        "The nursery plans vanished into a filing cabinet marked 'Definitely Not Our Department.'",
+        "Quarterly Profits, Fewer Mouths",
+        "The household budget is healthier, the headcount is lower, and ethics remain an optional expansion pack.",
+        "Apparently, Love Had a Return Policy",
+        "Nothing says unconditional love like being reassigned to an undisclosed buyer.",
+        "The Nursery Has Been Downsized",
+        "The crib is empty, the paperwork is sealed, and nobody can explain where tomorrow went.",
+    ]
+
+
 def test_household_rabbit_holes_pair_participants_with_timed_affordances():
     resources = build_mod.package_resources()
     rabbit_holes = {
         instance: ET.fromstring(data)
         for data, resource_type, _, instance in resources
         if resource_type == build_mod.RABBIT_HOLE_TYPE
+        and 0xEAA21FFB1081E005 <= instance <= 0xEAA21FFB1081E007
     }
     interactions = packaged_interactions()
     expected = {
@@ -96,11 +242,19 @@ def test_household_rabbit_holes_pair_participants_with_timed_affordances():
 
         interaction = interactions[affordance_id]
         assert interaction.find("./V[@n='_saveable']").attrib["t"] == "disabled"
+        arrival = interaction.find(
+            "./L[@n='_constraints']/U/L[@n='constraints']/U"
+            "/V[@t='spawn_points']/U/V[@n='tags']/L/E"
+        )
+        assert arrival is not None
+        assert arrival.text == "Spawn_Arrival"
         condition = interaction.find(
             "./V[@n='basic_content']/U/L[@n='conditional_actions']"
-            "/V/U/L[@n='conditions']/V[@t='time_based']/U"
+            "/V/U/L[@n='conditions']/V[@t='rabbit_hole_based']/U"
         )
-        assert interaction.find("./L[@n='basic_liabilities']/V").attrib["t"] == "rabbit_hole"
+        assert interaction.attrib["c"] == "ShadySimDealsRabbitHoleInteraction"
+        assert interaction.attrib["m"] == "shady_sim_deals.rabbit_hole_interaction"
+        assert interaction.find("./L[@n='basic_liabilities']") is None
         assert interaction.find("./E[@n='target_type']").text == "ACTOR"
         assert int(condition.find("./T[@n='min_time']").text) == minutes
         assert int(condition.find("./T[@n='max_time']").text) == minutes
@@ -108,6 +262,56 @@ def test_household_rabbit_holes_pair_participants_with_timed_affordances():
             "./V[@n='basic_content']/U/L[@n='conditional_actions']/V/U/E[@n='interaction_action']"
         )
         assert action.text == "EXIT_NATURALLY"
+
+
+def test_unborn_rabbit_holes_package_solo_shared_and_timed_resources():
+    resources = build_mod.package_resources()
+    rabbit_holes = {
+        instance: ET.fromstring(data)
+        for data, resource_type, _, instance in resources
+        if resource_type == build_mod.RABBIT_HOLE_TYPE
+        and 0xEAA21FFB1081E00B <= instance <= 0xEAA21FFB1081E010
+    }
+    interactions = packaged_interactions()
+    expected = {
+        0xEAA21FFB1081E00B: ("RabbitHole", 0xEAA21FFB1081E011, 90),
+        0xEAA21FFB1081E00C: ("TwoSimRabbitHole", 0xEAA21FFB1081E011, 90),
+        0xEAA21FFB1081E00D: ("RabbitHole", 0xEAA21FFB1081E012, 120),
+        0xEAA21FFB1081E00E: ("TwoSimRabbitHole", 0xEAA21FFB1081E012, 120),
+        0xEAA21FFB1081E00F: ("RabbitHole", 0xEAA21FFB1081E013, 150),
+        0xEAA21FFB1081E010: ("TwoSimRabbitHole", 0xEAA21FFB1081E013, 150),
+    }
+
+    assert set(rabbit_holes) == set(expected)
+    for rabbit_hole_id, (class_name, affordance_id, minutes) in expected.items():
+        rabbit_hole = rabbit_holes[rabbit_hole_id]
+        assert rabbit_hole.attrib["c"] == class_name
+        assert int(rabbit_hole.find("./T[@n='affordance']").text) == affordance_id
+        if class_name == "RabbitHole":
+            assert rabbit_hole.attrib["m"] == "rabbit_hole.rabbit_hole"
+        else:
+            assert rabbit_hole.attrib["m"] == "rabbit_hole.multi_sim_rabbit_hole"
+            assert rabbit_hole.find("./L[@n='first_participant_types']/E").text == "Actor"
+            assert rabbit_hole.find("./L[@n='second_participant_types']/E").text == "PickedSim"
+
+        interaction = interactions[affordance_id]
+        assert interaction.find("./V[@n='_saveable']").attrib["t"] == "disabled"
+        arrival = interaction.find(
+            "./L[@n='_constraints']/U/L[@n='constraints']/U"
+            "/V[@t='spawn_points']/U/V[@n='tags']/L/E"
+        )
+        assert arrival is not None
+        assert arrival.text == "Spawn_Arrival"
+        assert interaction.attrib["c"] == "ShadySimDealsRabbitHoleInteraction"
+        assert interaction.attrib["m"] == "shady_sim_deals.rabbit_hole_interaction"
+        assert interaction.find("./L[@n='basic_liabilities']") is None
+        assert interaction.find("./T[@n='display_name']").text == "0xA110000B"
+        condition = interaction.find(
+            "./V[@n='basic_content']/U/L[@n='conditional_actions']"
+            "/V/U/L[@n='conditions']/V[@t='rabbit_hole_based']/U"
+        )
+        assert int(condition.find("./T[@n='min_time']").text) == minutes
+        assert int(condition.find("./T[@n='max_time']").text) == minutes
 
 
 def test_phone_sales_use_verified_phone_browse_content():
@@ -235,8 +439,10 @@ def test_phone_interaction_uses_matching_custom_category_resources():
         if resource_type == 0x03E9D964
     )
     simdata = next(
-        data for data, resource_type, _, _ in resources
+        data for data, resource_type, group, instance in resources
         if resource_type == 0x545AC67A
+        and group == build_mod.CATEGORY_SIMDATA_GROUP
+        and instance == build_mod.CUSTOM_CATEGORY_ID
     )
 
     interaction = ET.fromstring(interaction_data)
@@ -267,8 +473,10 @@ def test_unborn_interactions_use_shady_sim_deals_category():
 
 def test_category_simdata_has_verified_schema_and_values():
     simdata = next(
-        data for data, resource_type, _, _ in build_mod.package_resources()
+        data for data, resource_type, group, instance in build_mod.package_resources()
         if resource_type == 0x545AC67A
+        and group == build_mod.CATEGORY_SIMDATA_GROUP
+        and instance == build_mod.CUSTOM_CATEGORY_ID
     )
     _, version, table_relative, table_count, schema_relative, schema_count, _ = (
         struct.unpack_from("<4sIiIiII", simdata)

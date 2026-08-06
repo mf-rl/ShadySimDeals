@@ -1,5 +1,7 @@
 """Version-sensitive Sims 4 operations isolated behind explicit adapters."""
 
+from .logging import ModLogger
+
 
 class IntegrationUnavailable(RuntimeError):
     pass
@@ -93,6 +95,127 @@ class Sims4TransactionValidator:
         return zone is None or bool(getattr(zone, "is_zone_shutting_down", False))
 
 
+class Sims4SoldSimRegistry:
+    SOLD_TRAIT_ID = 0xEAA21FFB1081E015
+
+    def __init__(self, sim_info_lookup=None, trait_lookup=None):
+        self._sim_info_lookup = (
+            sim_info_lookup or Sims4TransactionValidator._find_sim_info
+        )
+        self._trait_lookup = trait_lookup or self._find_trait
+
+    def _state(self, sim_id):
+        sim_info = self._sim_info_lookup(str(sim_id))
+        trait = self._trait_lookup(self.SOLD_TRAIT_ID)
+        if sim_info is None or trait is None:
+            raise IntegrationUnavailable("Sold trait state is unavailable")
+        return sim_info, trait
+
+    def mark_sold(self, sim_id):
+        sim_info, trait = self._state(sim_id)
+        if not sim_info.has_trait(trait) and sim_info.add_trait(trait) is False:
+            raise IntegrationUnavailable("Sold trait could not be added")
+
+    def is_sold(self, sim_id):
+        sim_info, trait = self._state(sim_id)
+        return sim_info.has_trait(trait)
+
+    def unmark_sold(self, sim_id):
+        sim_info, trait = self._state(sim_id)
+        if sim_info.has_trait(trait) and sim_info.remove_trait(trait) is False:
+            raise IntegrationUnavailable("Sold trait could not be removed")
+
+    @staticmethod
+    def _find_trait(instance_id):
+        import services
+        import sims4.resources
+
+        return services.get_instance_manager(
+            sims4.resources.Types.TRAIT
+        ).get(instance_id)
+
+
+class Sims4SaleConsequences:
+    SELLER_TRAIT_ID = 0xEAA21FFB1081E014
+    SOLD_TRAIT_ID = 0xEAA21FFB1081E015
+    LOST_UNBORN_TRAIT_ID = 0xEAA21FFB1081E016
+    SELLER_BUFF_ID = 0xEAA21FFB1081E017
+    SOLD_BUFF_ID = 0xEAA21FFB1081E018
+    LOST_UNBORN_BUFF_ID = 0xEAA21FFB1081E019
+
+    def __init__(
+        self,
+        sim_info_lookup=None,
+        trait_lookup=None,
+        buff_lookup=None,
+        logger=None,
+    ):
+        self._sim_info_lookup = (
+            sim_info_lookup or Sims4TransactionValidator._find_sim_info
+        )
+        self._trait_lookup = trait_lookup or self._find_trait
+        self._buff_lookup = buff_lookup or self._find_buff
+        self._logger = logger or ModLogger()
+
+    def apply(self, transaction):
+        try:
+            self._apply_pair(
+                transaction.actor_id,
+                self.SELLER_TRAIT_ID,
+                self.SELLER_BUFF_ID,
+            )
+            if transaction.transaction_type == "household_member":
+                self._apply_pair(
+                    transaction.target_id,
+                    self.SOLD_TRAIT_ID,
+                    self.SOLD_BUFF_ID,
+                )
+            elif transaction.actor_id != transaction.target_id:
+                self._apply_pair(
+                    transaction.target_id,
+                    self.LOST_UNBORN_TRAIT_ID,
+                    self.LOST_UNBORN_BUFF_ID,
+                )
+        except Exception:
+            self._logger.exception(
+                "sale_consequences_failed",
+                transaction_type=transaction.transaction_type,
+                actor_id=str(transaction.actor_id),
+                target_id=str(transaction.target_id),
+            )
+
+    def _apply_pair(self, sim_id, trait_id, buff_id):
+        sim_info = self._sim_info_lookup(str(sim_id))
+        trait = self._trait_lookup(trait_id)
+        buff = self._buff_lookup(buff_id)
+        if sim_info is None or trait is None or buff is None:
+            raise IntegrationUnavailable("Sale consequence tuning is unavailable")
+        if (
+            not sim_info.has_trait(trait)
+            and sim_info.add_trait(trait) is False
+        ):
+            raise IntegrationUnavailable("Sale consequence trait could not be added")
+        from objects import ALL_HIDDEN_REASONS
+
+        sim = sim_info.get_sim_instance(
+            allow_hidden_flags=ALL_HIDDEN_REASONS
+        )
+        if sim is None:
+            raise IntegrationUnavailable("Sale consequence Sim is unavailable")
+        sim.add_buff(buff)
+
+    _find_trait = staticmethod(Sims4SoldSimRegistry._find_trait)
+
+    @staticmethod
+    def _find_buff(instance_id):
+        import services
+        import sims4.resources
+
+        return services.get_instance_manager(
+            sims4.resources.Types.BUFF
+        ).get(instance_id)
+
+
 class Sims4PregnancyAdapter:
     def __init__(self, sim_info_lookup=None):
         self._sim_info_lookup = sim_info_lookup or self._find_sim_info
@@ -139,18 +262,32 @@ class Sims4RabbitHoleAdapter:
         "young_adult": 0xEAA21FFB1081E007,
         "adult": 0xEAA21FFB1081E007,
     }
+    UNBORN_SOLO_BY_COUNT = {
+        1: 0xEAA21FFB1081E00B,
+        2: 0xEAA21FFB1081E00D,
+        3: 0xEAA21FFB1081E00F,
+    }
+    UNBORN_SHARED_BY_COUNT = {
+        1: 0xEAA21FFB1081E00C,
+        2: 0xEAA21FFB1081E00E,
+        3: 0xEAA21FFB1081E010,
+    }
 
     def __init__(
         self,
         rabbit_hole_service=None,
         sim_info_lookup=None,
         rabbit_hole_lookup=None,
+        expected_offspring_lookup=None,
     ):
         self._service = rabbit_hole_service
         self._sim_info_lookup = (
             sim_info_lookup or Sims4PregnancyAdapter._find_sim_info
         )
         self._rabbit_hole_lookup = rabbit_hole_lookup or self._find_rabbit_hole
+        self._expected_offspring_lookup = (
+            expected_offspring_lookup or (lambda sim_id: 1)
+        )
 
     def run(self, transaction, on_finished):
         actor = self._sim_info_lookup(str(transaction.actor_id))
@@ -159,15 +296,29 @@ class Sims4RabbitHoleAdapter:
             raise IntegrationUnavailable(
                 "Rabbit-hole participant no longer exists"
             )
-        rabbit_hole_type = self._rabbit_hole_lookup(
-            self.RABBIT_HOLE_BY_AGE[age_key(target)]
-        )
+        solo = False
+        if transaction.transaction_type == "unborn":
+            count = min(
+                3,
+                max(1, int(self._expected_offspring_lookup(transaction.target_id))),
+            )
+            solo = transaction.actor_id == transaction.target_id
+            mapping = self.UNBORN_SOLO_BY_COUNT if solo else self.UNBORN_SHARED_BY_COUNT
+            tuning_id = mapping[count]
+        else:
+            tuning_id = self.RABBIT_HOLE_BY_AGE[age_key(target)]
+        rabbit_hole_type = self._rabbit_hole_lookup(tuning_id)
         if rabbit_hole_type is None:
             raise IntegrationUnavailable("Rabbit-hole tuning is unavailable")
         service = self._service or self._find_service()
-        rabbit_hole_id = service.put_sims_in_shared_rabbithole(
-            [actor, target], rabbit_hole_type
-        )
+        if solo:
+            rabbit_hole_id = service.put_sim_in_managed_rabbithole(
+                actor, rabbit_hole_type
+            )
+        else:
+            rabbit_hole_id = service.put_sims_in_shared_rabbithole(
+                [actor, target], rabbit_hole_type
+            )
         if rabbit_hole_id is None:
             raise IntegrationUnavailable("Rabbit hole could not start")
         try:
@@ -278,11 +429,11 @@ class Sims4HouseholdAdapter:
         )
 
     def _manager(self):
-        if self._household_manager is None:
-            import services
+        if self._household_manager is not None:
+            return self._household_manager
+        import services
 
-            self._household_manager = services.household_manager()
-        return self._household_manager
+        return services.household_manager()
 
     @staticmethod
     def _switch_household(manager, sim_info, source, destination):

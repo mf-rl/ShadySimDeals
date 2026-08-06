@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<I c="ShadySimDealsRabbitHoleInteraction" i="interaction" m="shady_sim_deals.rabbit_hole_interaction" n="ShadySimDeals:HouseholdRabbitHole90" s="16907111114276462601">
+<I c="ShadySimDealsRabbitHoleInteraction" i="interaction" m="shady_sim_deals.rabbit_hole_interaction" n="ShadySimDeals:UnbornRabbitHole150" s="16907111114276462611">
   <L n="_constraints"><U><L n="constraints"><U><V n="value" t="spawn_points"><U n="spawn_points"><V n="tags" t="Spawn_Point_Tags"><L n="Spawn_Point_Tags"><E>Spawn_Arrival</E></L></V></U></V></U></L></U></L>
   <V n="_saveable" t="disabled" />
   <T n="allow_autonomous">False</T>
@@ -8,13 +8,13 @@
     <U n="flexible_length">
       <L n="conditional_actions">
         <V t="literal"><U n="literal"><L n="conditions">
-          <V t="rabbit_hole_based"><U n="rabbit_hole_based"><T n="max_time">90</T><T n="min_time">90</T></U></V>
+          <V t="rabbit_hole_based"><U n="rabbit_hole_based"><T n="max_time">150</T><T n="min_time">150</T></U></V>
         </L><E n="interaction_action">EXIT_NATURALLY</E></U></V>
       </L>
       <V n="content" t="looping_content"><U n="looping_content"><U n="animation_ref"><T n="factory">23834</T></U></U></V>
     </U>
   </V>
-  <T n="display_name">0xA110000A</T>
+  <T n="display_name">0xA110000B</T>
   <T n="fade_sim_out">True</T>
   <E n="target_type">ACTOR</E>
 </I>

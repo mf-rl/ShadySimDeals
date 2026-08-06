@@ -13,6 +13,8 @@ SCRIPT_TARGET = DIST / "ShadySimDeals.ts4script"
 PACKAGE_TARGET = DIST / "ShadySimDeals.package"
 INTERACTION_TUNING_TYPE = 0xE882D22F
 RABBIT_HOLE_TYPE = 0xB16AD2FA
+TRAIT_TUNING_TYPE = 0xCB5FDDC7
+BUFF_TUNING_TYPE = 0x6017E896
 PIE_MENU_CATEGORY_TYPE = 0x03E9D964
 SIMDATA_TYPE = 0x545AC67A
 SNIPPET_TYPE = 0x7DF2169C
@@ -20,6 +22,8 @@ STRING_TABLE_TYPE = 0x220557DA
 CUSTOM_CATEGORY_ID = 0xEAA1200000000010
 CATEGORY_XML_GROUP = 0x80000000
 CATEGORY_SIMDATA_GROUP = 0x00E9D967
+TRAIT_SIMDATA_GROUP = 0x005FDD0C
+BUFF_SIMDATA_GROUP = 0x0017E8F6
 
 
 def build_stbl(entries):
@@ -145,6 +149,154 @@ def build_pie_menu_category_simdata(
     return bytes(data)
 
 
+def _append_simdata_strings(data, pointers):
+    for pointer_offset, value in pointers:
+        struct.pack_into("<i", data, pointer_offset, len(data) - pointer_offset)
+        data.extend(value.encode("utf-8") + b"\0")
+    return bytes(data)
+
+
+def build_trait_simdata(
+    table_name, display_name, description, origin_description, icon_instance
+):
+    columns = (
+        ("cas_idle_asm_key", 19, 32),
+        ("occults", 14, 128),
+        ("ui_category", 21, 176),
+        ("display_name", 20, 92),
+        ("trait_origin_description", 20, 164),
+        ("refresh_sim_thumbnail", 0, 136),
+        ("cas_trait_vfx", 11, 80),
+        ("cas_trait_hidden", 0, 76),
+        ("conflicting_traits", 14, 84),
+        ("thumbnail_type_asm_param", 11, 156),
+        ("genders", 14, 104),
+        ("icon", 19, 112),
+        ("cas_allowed_pack", 8, 24),
+        ("cas_trait_asm_param", 11, 72),
+        ("display_overrides", 14, 96),
+        ("bb_filter_tags", 14, 16),
+        ("trait_description", 20, 160),
+        ("trait_type", 8, 168),
+        ("cas_idle_asm_state", 11, 48),
+        ("ages", 14, 0),
+        ("tags", 14, 148),
+        ("cas_selected_icon", 19, 56),
+        ("species", 14, 140),
+        ("bb_filter_styles", 14, 8),
+    )
+    table_offset, row_offset, lists_offset = 32, 192, 384
+    string_table_offset, schema_offset, column_offset = 456, 464, 488
+    data = bytearray(968)
+    struct.pack_into(
+        "<4sIiIiII", data, 0, b"DATA", 0x101, 24, 4, 448, 1, 0
+    )
+    struct.pack_into(
+        "<iIiIIiI", data, table_offset, 0, _fnv32(table_name), 424,
+        13, 184, 140, 1,
+    )
+    struct.pack_into(
+        "<iIiIIiI", data, 60, -0x80000000, _fnv32(""), -0x80000000,
+        18, 8, 304, 0,
+    )
+    struct.pack_into(
+        "<iIiIIiI", data, 88, -0x80000000, _fnv32(""), -0x80000000,
+        8, 8, 276, 9,
+    )
+    struct.pack_into(
+        "<iIiIIiI", data, 116, -0x80000000, _fnv32(""), -0x80000000,
+        1, 1, 320, 6,
+    )
+    struct.pack_into("<iI", data, row_offset, lists_offset - row_offset, 8)
+    none_offset = string_table_offset + 1
+    for offset in (48, 72, 80, 156):
+        struct.pack_into("<i", data, row_offset + offset, none_offset - (row_offset + offset))
+    for offset in (8, 16, 84, 96, 104, 128, 148):
+        struct.pack_into("<iI", data, row_offset + offset, -0x80000000, 0)
+    struct.pack_into("<I", data, row_offset + 92, display_name)
+    struct.pack_into(
+        "<QII", data, row_offset + 112, icon_instance, 0x00B2D882, 0
+    )
+    species_offset = lists_offset + 64
+    struct.pack_into(
+        "<iI", data, row_offset + 140, species_offset - (row_offset + 140), 1
+    )
+    struct.pack_into("<III", data, row_offset + 160, description, origin_description, 1)
+    struct.pack_into("<II", data, row_offset + 176, 0x80000000, 0xC1A03855)
+    for index, value in enumerate((8, 32, 1, 4, 2, 64, 16, 128, 1)):
+        struct.pack_into("<Q", data, lists_offset + index * 8, value)
+    data[string_table_offset:string_table_offset + 6] = b"\0None\0"
+    struct.pack_into(
+        "<iIIIiI", data, schema_offset, 0, _fnv32("Trait"), 0xC8782638,
+        184, 8, len(columns),
+    )
+    for index, (name, data_type, field_offset) in enumerate(columns):
+        offset = column_offset + index * 20
+        struct.pack_into(
+            "<iIHHIi", data, offset, 0, _fnv32(name), data_type, 0,
+            field_offset, -0x80000000,
+        )
+    pointers = [(table_offset, table_name), (schema_offset, "Trait")]
+    pointers.extend(
+        (column_offset + index * 20, name)
+        for index, (name, _, _) in enumerate(columns)
+    )
+    return _append_simdata_strings(data, pointers)
+
+
+def build_buff_simdata(
+    table_name, name, description, icon_instance, mood_type, mood_weight
+):
+    columns = (
+        ("audio_sting_on_remove", 19, 16),
+        ("mood_type", 18, 56),
+        ("icon", 19, 40),
+        ("buff_description", 20, 32),
+        ("buff_name", 20, 36),
+        ("mood_weight", 6, 64),
+        ("timeout_string", 20, 68),
+        ("ui_sort_order", 6, 72),
+        ("audio_sting_on_add", 19, 0),
+    )
+    table_offset, row_offset, schema_offset, column_offset = 32, 128, 208, 232
+    data = bytearray(416)
+    struct.pack_into(
+        "<4sIiIiII", data, 0, b"DATA", 0x101, 24, 1, 192, 1, 0
+    )
+    struct.pack_into(
+        "<iIiIIiI", data, table_offset, 0, _fnv32(table_name), 168,
+        13, 80, 76, 1,
+    )
+    struct.pack_into(
+        "<QII", data, row_offset, 0x8AF8B916CF64C646, 0x39B2AA4A, 0
+    )
+    struct.pack_into(
+        "<QII", data, row_offset + 16, 0x3BF33216A25546EA, 0x39B2AA4A, 0
+    )
+    struct.pack_into("<II", data, row_offset + 32, description, name)
+    struct.pack_into(
+        "<QII", data, row_offset + 40, icon_instance, 0x00B2D882, 0
+    )
+    struct.pack_into("<Q", data, row_offset + 56, mood_type)
+    struct.pack_into("<iIi", data, row_offset + 64, mood_weight, 0, 1)
+    struct.pack_into(
+        "<iIIIiI", data, schema_offset, 0, _fnv32("Buff"), 0x71722956,
+        80, 8, len(columns),
+    )
+    for index, (column_name, data_type, field_offset) in enumerate(columns):
+        offset = column_offset + index * 20
+        struct.pack_into(
+            "<iIHHIi", data, offset, 0, _fnv32(column_name), data_type, 0,
+            field_offset, -0x80000000,
+        )
+    pointers = [(table_offset, table_name), (schema_offset, "Buff")]
+    pointers.extend(
+        (column_offset + index * 20, column_name)
+        for index, (column_name, _, _) in enumerate(columns)
+    )
+    return _append_simdata_strings(data, pointers)
+
+
 def package_resources():
     strings = json.loads((ROOT / "localization" / "en_us.json").read_text(encoding="utf-8"))
     return (
@@ -222,6 +374,138 @@ def package_resources():
             INTERACTION_TUNING_TYPE,
             0,
             0xEAA21FFB1081E00A,
+        ),
+        (
+            (ROOT / "tuning" / "rabbit_holes" / "unborn_sale_solo_90.xml").read_bytes(),
+            RABBIT_HOLE_TYPE,
+            0,
+            0xEAA21FFB1081E00B,
+        ),
+        (
+            (ROOT / "tuning" / "rabbit_holes" / "unborn_sale_shared_90.xml").read_bytes(),
+            RABBIT_HOLE_TYPE,
+            0,
+            0xEAA21FFB1081E00C,
+        ),
+        (
+            (ROOT / "tuning" / "rabbit_holes" / "unborn_sale_solo_120.xml").read_bytes(),
+            RABBIT_HOLE_TYPE,
+            0,
+            0xEAA21FFB1081E00D,
+        ),
+        (
+            (ROOT / "tuning" / "rabbit_holes" / "unborn_sale_shared_120.xml").read_bytes(),
+            RABBIT_HOLE_TYPE,
+            0,
+            0xEAA21FFB1081E00E,
+        ),
+        (
+            (ROOT / "tuning" / "rabbit_holes" / "unborn_sale_solo_150.xml").read_bytes(),
+            RABBIT_HOLE_TYPE,
+            0,
+            0xEAA21FFB1081E00F,
+        ),
+        (
+            (ROOT / "tuning" / "rabbit_holes" / "unborn_sale_shared_150.xml").read_bytes(),
+            RABBIT_HOLE_TYPE,
+            0,
+            0xEAA21FFB1081E010,
+        ),
+        (
+            (ROOT / "tuning" / "interactions" / "unborn_rabbit_hole_90.xml").read_bytes(),
+            INTERACTION_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E011,
+        ),
+        (
+            (ROOT / "tuning" / "interactions" / "unborn_rabbit_hole_120.xml").read_bytes(),
+            INTERACTION_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E012,
+        ),
+        (
+            (ROOT / "tuning" / "interactions" / "unborn_rabbit_hole_150.xml").read_bytes(),
+            INTERACTION_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E013,
+        ),
+        (
+            (ROOT / "tuning" / "traits" / "family_asset_liquidator.xml").read_bytes(),
+            TRAIT_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E014,
+        ),
+        (
+            (ROOT / "tuning" / "traits" / "outsourced_by_my_own_family.xml").read_bytes(),
+            TRAIT_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E015,
+        ),
+        (
+            (ROOT / "tuning" / "traits" / "stork_claim_mysteriously_denied.xml").read_bytes(),
+            TRAIT_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E016,
+        ),
+        (
+            (ROOT / "tuning" / "buffs" / "quarterly_profits_fewer_mouths.xml").read_bytes(),
+            BUFF_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E017,
+        ),
+        (
+            (ROOT / "tuning" / "buffs" / "love_had_a_return_policy.xml").read_bytes(),
+            BUFF_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E018,
+        ),
+        (
+            (ROOT / "tuning" / "buffs" / "nursery_has_been_downsized.xml").read_bytes(),
+            BUFF_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E019,
+        ),
+        (
+            build_trait_simdata(
+                "ShadySimDeals_trait_FamilyAssetLiquidator",
+                0xA1100018, 0xA1100019, 0xA1100024, 0x47FFEEDF30C4B115,
+            ),
+            SIMDATA_TYPE, TRAIT_SIMDATA_GROUP, 0xEAA21FFB1081E014,
+        ),
+        (
+            build_trait_simdata(
+                "ShadySimDeals_trait_OutsourcedByMyOwnFamily",
+                0xA110001A, 0xA110001B, 0xA1100024, 0x8B841C91497034A5,
+            ),
+            SIMDATA_TYPE, TRAIT_SIMDATA_GROUP, 0xEAA21FFB1081E015,
+        ),
+        (
+            build_trait_simdata(
+                "ShadySimDeals_trait_StorkClaimMysteriouslyDenied",
+                0xA110001C, 0xA110001D, 0xA1100024, 0x8B841C91497034A5,
+            ),
+            SIMDATA_TYPE, TRAIT_SIMDATA_GROUP, 0xEAA21FFB1081E016,
+        ),
+        (
+            build_buff_simdata(
+                "ShadySimDeals_buff_QuarterlyProfitsFewerMouths",
+                0xA110001E, 0xA110001F, 0x2357E4F259B6A63E, 14640, 4,
+            ),
+            SIMDATA_TYPE, BUFF_SIMDATA_GROUP, 0xEAA21FFB1081E017,
+        ),
+        (
+            build_buff_simdata(
+                "ShadySimDeals_buff_LoveHadAReturnPolicy",
+                0xA1100020, 0xA1100021, 0x8B841C91497034A5, 14643, 6,
+            ),
+            SIMDATA_TYPE, BUFF_SIMDATA_GROUP, 0xEAA21FFB1081E018,
+        ),
+        (
+            build_buff_simdata(
+                "ShadySimDeals_buff_NurseryHasBeenDownsized",
+                0xA1100022, 0xA1100023, 0x8B841C91497034A5, 14643, 10,
+            ),
+            SIMDATA_TYPE, BUFF_SIMDATA_GROUP, 0xEAA21FFB1081E019,
         ),
         (
             (ROOT / "tuning" / "categories" / "shady_sim_deals_phone.xml").read_bytes(),

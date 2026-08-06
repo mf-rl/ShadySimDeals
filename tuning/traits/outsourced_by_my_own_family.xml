@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<I c="Trait" i="trait" m="traits.traits" n="ShadySimDeals_trait_OutsourcedByMyOwnFamily" s="16907111114276462613">
+  <L n="ages"><E>TEEN</E><E>ADULT</E><E>BABY</E><E>CHILD</E><E>TODDLER</E><E>ELDER</E><E>YOUNGADULT</E><E>INFANT</E></L>
+  <T n="display_name">0xA110001A</T>
+  <T n="display_name_gender_neutral">0xA110001A</T>
+  <T n="icon">2f7d0004:00000000:8b841c91497034a5</T>
+  <L n="species"><E /></L>
+  <T n="trait_description">0xA110001B</T>
+  <T n="trait_origin_description">0xA1100024</T>
+  <E n="trait_type">GAMEPLAY</E>
+</I>

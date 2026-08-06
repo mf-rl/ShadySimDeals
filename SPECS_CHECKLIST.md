@@ -36,6 +36,7 @@ verification remain unchecked.
   - [x] Private 75-, 90-, and 120-minute rabbit-hole resources packaged and indexed
   - [x] Transfer and payment delayed until natural expiration; cancellation safety unit-tested
   - [x] Active private rabbit-hole interactions are non-saveable and package-tested
+  - [x] Live: one household-member sale completed the shared rabbit hole before removal and payment
   - [ ] Live: child sale runs for 90 Sim minutes
   - [ ] Live: adult sale runs for 120 Sim minutes
   - [ ] Live: elder sale runs for 75 Sim minutes
@@ -43,7 +44,7 @@ verification remain unchecked.
 - [x] Safe household transfer with rollback
   - [x] Live: sold child leaves the selectable household before payment
 - [x] Exactly-once payment ordering
-- [ ] Seller buffs
+- [x] Seller trait and Happy moodlet
 - [ ] Relationship consequences
 
 ### Phase 4: Unborn-Nooboo transaction
@@ -51,16 +52,23 @@ verification remain unchecked.
 - [x] Pregnant-Sim picker implemented and unit-tested
 - [x] Pregnancy adapter and safe pregnancy conclusion verified for patch `1.125.59.1030`
 - [ ] Unborn rabbit hole
+  - [x] Automated: self-target uses a solo rabbit hole; another target uses a shared rabbit hole
+  - [x] Automated: payment and pregnancy conclusion wait for natural expiration
+  - [x] Package: private 90-, 120-, and 150-minute resources are indexed and non-saveable
+  - [ ] Live: pregnant seller enters alone and returns before pregnancy conclusion and payment
+  - [x] Live: seller and another pregnant target both enter and return before pregnancy conclusion and payment
 - [x] Multiple-offspring pricing connected to the public pregnancy tracker count
 - [ ] Forced early twin/triplet detection
-- [ ] Pregnant-Sim reaction
+- [x] Pregnant-target lost-unborn trait and Sad moodlet
 
 ### Phase 5: Sold-Sim outcomes
 
 - [x] Hidden ShadySimDeals Holdings household
-- [x] Session-local sold-Sim registry
+- [x] Permanent visible trait-backed sold-Sim registry
 - [x] Same-session sold marker blocks repeat sales after external household restoration
-- [ ] Save-slot-aware sold-Sim registry
+- [x] Save-slot-aware sold marker through normal `SimInfo` trait persistence
+- [x] Automated: household transfers refresh the service manager after a save reload
+- [ ] Live: a second household sale succeeds after a no-save main-menu reload
 - [ ] Explicit recovery command to return and unmark a deliberately restored sold Sim
 - [ ] Ghost-return outcome
 - [ ] Delayed events
@@ -94,9 +102,12 @@ verification remain unchecked.
   - [ ] Live: twin and triplet household-member pregnancy bonuses
 - [x] 7. Cancellation makes no changes.
 - [ ] 8. Confirmation starts the appropriate rabbit hole.
-  - [x] Automated: target age selects the 75-, 90-, or 120-minute shared tuning
-  - [x] Package: `TwoSimRabbitHole` resources map Actor then PickedSim
+  - [x] Automated: target age selects the 75-, 90-, or 120-minute shared household tuning
+  - [x] Automated: expected offspring selects the 90-, 120-, or 150-minute unborn tuning
+  - [x] Package: shared `TwoSimRabbitHole` resources map Actor then PickedSim
+  - [x] Package: self-target unborn resources use a solo `RabbitHole`
   - [ ] Live: child, adult, and elder confirmations start shared rabbit holes
+  - [ ] Live: both unborn target paths start the expected rabbit hole
 - [ ] 9. Household-member transactions return only the seller from a rabbit hole.
   - [x] Automated: target processing waits for the seller expiration callback
   - [x] Automated: cancellation makes no transfer or payment
@@ -111,8 +122,8 @@ verification remain unchecked.
 - [ ] 13. Twins and triplets affect the live pregnancy offer.
   - [x] Pricing uses the public expected-offspring count
   - [ ] Live twin and triplet offers verified
-- [ ] 14. Sellers receive trait-appropriate buffs.
-- [ ] 15. Other selected pregnant Sims receive reaction buffs.
+- [x] 14. Sellers receive a permanent trait and trait-appropriate Happy moodlet.
+- [x] 15. Sold household members and other selected pregnant Sims receive their permanent traits and Sad moodlets.
 - [x] 16. Transactions validate and fail safely, including transfer rollback.
 - [x] 17. Pricing and transaction logic have automated tests.
 - [x] 18. The mod builds installable `.package` and `.ts4script` files.

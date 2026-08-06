@@ -21,5 +21,18 @@
   "0xA1100014": "ShadySimDeals requires Lot51 Core Library 1.43 or newer.",
   "0xA1100015": "The payment failed and the target could not be returned automatically. Exit without saving and inspect the ShadySimDeals log.",
   "0xA1100016": "Select a Prenatal Business Partner",
-  "0xA1100017": "Choose the pregnant household member whose future nursery expenses have become negotiable."
+  "0xA1100017": "Choose the pregnant household member whose future nursery expenses have become negotiable.",
+  "0xA1100018": "Family Asset Liquidator",
+  "0xA1100019": "Some Sims build family trees. This Sim trims them for quarterly growth and calls it logistics.",
+  "0xA110001A": "Outsourced by My Own Family",
+  "0xA110001B": "This Sim learned the family plan had an unsubscribe button, and somebody else clicked it.",
+  "0xA110001C": "Stork Claim Mysteriously Denied",
+  "0xA110001D": "The nursery plans vanished into a filing cabinet marked 'Definitely Not Our Department.'",
+  "0xA110001E": "Quarterly Profits, Fewer Mouths",
+  "0xA110001F": "The household budget is healthier, the headcount is lower, and ethics remain an optional expansion pack.",
+  "0xA1100020": "Apparently, Love Had a Return Policy",
+  "0xA1100021": "Nothing says unconditional love like being reassigned to an undisclosed buyer.",
+  "0xA1100022": "The Nursery Has Been Downsized",
+  "0xA1100023": "The crib is empty, the paperwork is sealed, and nobody can explain where tomorrow went.",
+  "0xA1100024": "Shady Attribute"
 }

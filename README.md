@@ -26,15 +26,17 @@ Eligible targets are household members from newborn/baby through elder. The acti
 
 The household-member offer starts with the target's age value. If the target is pregnant, the configured unborn value and multiple-offspring multiplier are added to the offer; the pregnancy remains with the transferred Sim. After confirmation, the seller and target enter one shared rabbit hole for 75 Sim minutes when selling an elder, 90 for baby through child, or 120 for teen through adult. Natural expiration returns only the seller, transfers the target to the hidden **ShadySimDeals Holdings** household, and then pays the active household. Cancellation or startup failure transfers nobody and pays nothing; if payment fails after transfer, the transfer is rolled back.
 
-The unborn picker includes every currently pregnant household member, including the active Sim. Its offer uses the pregnancy tracker's expected offspring count. Confirming immediately clears the selected pregnancy and deposits one payment; this version does not yet animate or delay the transaction through a rabbit hole. Because the count API only reports the current expected count, the mod does not force early twin or triplet detection.
+The unborn picker includes every currently pregnant household member, including the active Sim. Its offer uses the pregnancy tracker's expected offspring count. After confirmation, the seller and selected pregnant Sim enter a rabbit hole for 90 Sim minutes for one expected offspring, 120 for twins, or 150 for triplets or more. If the seller is selected, that Sim enters alone. Natural expiration returns every participant, deposits one payment, and then clears the selected pregnancy. Cancellation or startup failure leaves both pregnancy and funds unchanged. Because the count API only reports the current expected count, the mod does not force early twin or triplet detection.
+
+Successful sellers permanently receive **Family Asset Liquidator** plus the 12-hour **Quarterly Profits, Fewer Mouths** Happy moodlet. A sold household member permanently receives **Outsourced by My Own Family** plus the 24-hour **Apparently, Love Had a Return Policy** Sad moodlet. When another pregnant Sim's unborn Nooboo is sold, that Sim permanently receives **Stork Claim Mysteriously Denied** plus the 48-hour **The Nursery Has Been Downsized** Sad moodlet. A pregnant seller targeting themself receives only the seller consequences.
 
 Do not remove the mod while sold Sims remain in the holding household; recover them first or keep a backup of the save.
 
-Finish or cancel an active household sale before saving and reloading. Active sale callbacks are intentionally session-local, and the private rabbit-hole interactions are not persisted across reloads.
+The permanent traits are normal save-managed Sim traits: saving preserves them, while exiting without saving restores the prior save state. Finish or cancel an active sale before saving and reloading because active sale callbacks and reservations remain session-local, and private rabbit-hole interactions are not persisted across reloads.
 
 ## Current scope
 
-This release intentionally omits buffs, ghosts, delayed outcomes, and the unborn-sale rabbit hole. Those features remain isolated behind the existing domain services until their game APIs are verified. See [`SPECS_CHECKLIST.md`](SPECS_CHECKLIST.md) for detailed implementation status.
+This release intentionally omits ghosts, delayed outcomes, relationship consequences, and forced early multiple-birth detection. See [`SPECS_CHECKLIST.md`](SPECS_CHECKLIST.md) for detailed implementation status.
 
 ## Build and test
 

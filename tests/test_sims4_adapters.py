@@ -13,14 +13,178 @@ class FakeAge:
 
 
 class FakeSimInfo:
-    def __init__(self, age, sim_id="target", household_id="home", is_pet=False):
+    def __init__(
+        self,
+        age,
+        sim_id="target",
+        household_id="home",
+        is_pet=False,
+        instanced=True,
+    ):
         self.age = FakeAge(age)
         self.sim_id = sim_id
         self.household_id = household_id
         self.is_pet = is_pet
+        self.instanced = instanced
 
     def assign_to_household(self, household, assign_is_npc=True):
         self.household_id = None if household is None else household.id
+
+    def get_sim_instance(self):
+        return self if self.instanced else None
+
+
+def test_sold_registry_uses_sim_info_trait_tracker():
+    sold_trait = object()
+
+    class SimInfo:
+        def __init__(self):
+            self.traits = set()
+            self.trait_tracker = object()
+
+        def add_trait(self, trait):
+            self.traits.add(trait)
+            return True
+
+        def has_trait(self, trait):
+            return trait in self.traits
+
+        def remove_trait(self, trait):
+            self.traits.discard(trait)
+            return True
+
+    sim_info = SimInfo()
+    registry = sims4_adapters.Sims4SoldSimRegistry(
+        sim_info_lookup=lambda sim_id: sim_info,
+        trait_lookup=lambda instance: sold_trait,
+    )
+
+    assert not registry.is_sold("7")
+    registry.mark_sold("7")
+    assert registry.is_sold("7")
+    registry.unmark_sold("7")
+    assert not registry.is_sold("7")
+
+
+class FakeConsequenceSimInfo:
+    def __init__(self, hidden=False):
+        self.events = []
+        self.pending_trait = None
+        self.trait_tracker = object()
+        self.sim_instance = SimpleNamespace(add_buff=self._record_buff)
+        self.hidden = hidden
+
+    def has_trait(self, trait):
+        return any(event[0] == trait for event in self.events)
+
+    def add_trait(self, trait):
+        self.pending_trait = trait
+        return True
+
+    def _record_buff(self, buff):
+        self.events.append((self.pending_trait, buff))
+
+    def get_sim_instance(self, allow_hidden_flags=None):
+        if self.hidden and allow_hidden_flags is None:
+            return None
+        return self.sim_instance
+
+
+@pytest.fixture
+def all_hidden_reasons(monkeypatch):
+    monkeypatch.setitem(
+        sys.modules,
+        "objects",
+        SimpleNamespace(ALL_HIDDEN_REASONS=object()),
+    )
+
+
+@pytest.mark.parametrize(
+    "transaction_type,expected_target",
+    (
+        ("household_member", ("sold", "sad")),
+        ("unborn", ("lost", "extreme_sad")),
+    ),
+)
+def test_sale_consequences_apply_exact_mapping(
+    transaction_type, expected_target, all_hidden_reasons
+):
+    sims = {
+        "actor": FakeConsequenceSimInfo(),
+        "target": FakeConsequenceSimInfo(hidden=True),
+    }
+    tunings = {
+        0xEAA21FFB1081E014: "seller",
+        0xEAA21FFB1081E015: "sold",
+        0xEAA21FFB1081E016: "lost",
+        0xEAA21FFB1081E017: "happy",
+        0xEAA21FFB1081E018: "sad",
+        0xEAA21FFB1081E019: "extreme_sad",
+    }
+    adapter = sims4_adapters.Sims4SaleConsequences(
+        sim_info_lookup=lambda sim_id: sims[sim_id],
+        trait_lookup=lambda instance: tunings[instance],
+        buff_lookup=lambda instance: tunings[instance],
+    )
+    transaction = SaleTransaction(
+        transaction_type, "actor", "target", "home"
+    )
+
+    adapter.apply(transaction)
+
+    assert sims["actor"].events == [("seller", "happy")]
+    assert sims["target"].events == [expected_target]
+
+
+def test_solo_unborn_sale_applies_only_seller_consequences_once(
+    all_hidden_reasons,
+):
+    sim = FakeConsequenceSimInfo()
+    adapter = sims4_adapters.Sims4SaleConsequences(
+        sim_info_lookup=lambda sim_id: sim,
+        trait_lookup=lambda instance: {
+            0xEAA21FFB1081E014: "seller",
+        }[instance],
+        buff_lookup=lambda instance: {
+            0xEAA21FFB1081E017: "happy",
+        }[instance],
+    )
+
+    adapter.apply(SaleTransaction("unborn", "actor", "actor", "home"))
+
+    assert sim.events == [("seller", "happy")]
+
+
+def test_sale_consequence_failure_is_logged_without_raising(
+    all_hidden_reasons,
+):
+    class BrokenSim(FakeConsequenceSimInfo):
+        def __init__(self):
+            super().__init__()
+            self.sim_instance = SimpleNamespace(
+                add_buff=lambda buff: (_ for _ in ()).throw(
+                    RuntimeError("buff unavailable")
+                )
+            )
+
+    class FakeLogger:
+        def __init__(self):
+            self.events = []
+
+        def exception(self, event, **fields):
+            self.events.append((event, fields))
+
+    logger = FakeLogger()
+    adapter = sims4_adapters.Sims4SaleConsequences(
+        sim_info_lookup=lambda sim_id: BrokenSim(),
+        trait_lookup=lambda instance: object(),
+        buff_lookup=lambda instance: object(),
+        logger=logger,
+    )
+
+    adapter.apply(SaleTransaction("household_member", "actor", "target", "home"))
+
+    assert logger.events[0][0] == "sale_consequences_failed"
 
 
 class FakeHousehold:
@@ -121,12 +285,17 @@ class FakeRabbitHoleService:
         self.rabbit_hole_id = rabbit_hole_id
         self.callback_error = callback_error
         self.started = []
+        self.managed = []
         self.callback_key = None
         self.callback = None
         self.removed = []
 
     def put_sims_in_shared_rabbithole(self, sim_infos, rabbit_hole_type):
         self.started.append((sim_infos, rabbit_hole_type))
+        return self.rabbit_hole_id
+
+    def put_sim_in_managed_rabbithole(self, sim_info, rabbit_hole_type):
+        self.managed.append((sim_info, rabbit_hole_type))
         return self.rabbit_hole_id
 
     def set_rabbit_hole_expiration_callback(
@@ -254,6 +423,94 @@ def test_rabbit_hole_adapter_cancels_started_hole_if_callback_setup_fails():
         adapter.run(deal, lambda canceled: None)
 
     assert service.removed == [(actor.sim_id, service.rabbit_hole_id, True)]
+
+
+def test_rabbit_hole_completion_does_not_wait_for_sims_to_reinstance():
+    actor = FakeSimInfo("ADULT", sim_id="1", instanced=False)
+    target = FakeSimInfo("CHILD", sim_id="2", instanced=False)
+    callbacks = []
+    service = FakeRabbitHoleService()
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=service,
+        sim_info_lookup={"1": actor, "2": target}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+    )
+    adapter.run(
+        SaleTransaction("household_member", "1", "2", "home"),
+        callbacks.append,
+    )
+
+    service.callback(canceled=False)
+
+    assert callbacks == [False]
+
+
+def test_unborn_rabbit_hole_uses_one_participant_for_pregnant_actor():
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    service = FakeRabbitHoleService()
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=service,
+        sim_info_lookup={"1": actor}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+        expected_offspring_lookup=lambda sim_id: 1,
+    )
+    deal = SaleTransaction("unborn", "1", "1", "home")
+
+    assert adapter.run(deal, lambda canceled: None) is True
+    assert service.managed == [(actor, 0xEAA21FFB1081E00B)]
+    assert service.started == []
+
+
+def test_unborn_rabbit_hole_uses_actor_then_pregnant_target():
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    target = FakeSimInfo("ADULT", sim_id="2")
+    service = FakeRabbitHoleService()
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=service,
+        sim_info_lookup={"1": actor, "2": target}.get,
+        rabbit_hole_lookup=lambda instance: instance,
+        expected_offspring_lookup=lambda sim_id: 1,
+    )
+    deal = SaleTransaction("unborn", "1", "2", "home")
+
+    assert adapter.run(deal, lambda canceled: None) is True
+    assert service.started == [([actor, target], 0xEAA21FFB1081E00C)]
+    assert service.managed == []
+
+
+@pytest.mark.parametrize(
+    ("count", "solo_id", "shared_id"),
+    (
+        (1, 0xEAA21FFB1081E00B, 0xEAA21FFB1081E00C),
+        (2, 0xEAA21FFB1081E00D, 0xEAA21FFB1081E00E),
+        (3, 0xEAA21FFB1081E00F, 0xEAA21FFB1081E010),
+        (4, 0xEAA21FFB1081E00F, 0xEAA21FFB1081E010),
+    ),
+)
+def test_unborn_rabbit_hole_selects_offspring_duration(count, solo_id, shared_id):
+    actor = FakeSimInfo("ADULT", sim_id="1")
+    target = FakeSimInfo("ADULT", sim_id="2")
+    lookup = {"1": actor, "2": target}.get
+    solo_service = FakeRabbitHoleService()
+    solo = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=solo_service,
+        sim_info_lookup=lookup,
+        rabbit_hole_lookup=lambda instance: instance,
+        expected_offspring_lookup=lambda sim_id: count,
+    )
+    solo.run(SaleTransaction("unborn", "1", "1", "home"), lambda canceled: None)
+
+    shared_service = FakeRabbitHoleService()
+    shared = sims4_adapters.Sims4RabbitHoleAdapter(
+        rabbit_hole_service=shared_service,
+        sim_info_lookup=lookup,
+        rabbit_hole_lookup=lambda instance: instance,
+        expected_offspring_lookup=lambda sim_id: count,
+    )
+    shared.run(SaleTransaction("unborn", "1", "2", "home"), lambda canceled: None)
+
+    assert solo_service.managed == [(actor, solo_id)]
+    assert shared_service.started == [([actor, target], shared_id)]
 
 
 def test_transaction_validator_accepts_only_safe_current_household_targets():
@@ -390,6 +647,40 @@ def test_household_adapter_moves_target_to_reused_hidden_holdings_and_rolls_back
         (target, source, existing, False, household_change_origin.UNKNOWN),
         (target, existing, source, False, household_change_origin.UNKNOWN),
     ]
+
+
+def test_household_adapter_uses_current_manager_after_save_reload(
+    monkeypatch, household_change_origin
+):
+    first_target = FakeSimInfo("TEEN")
+    first_source = FakeHousehold()
+    first_source.sim_infos.append(first_target)
+    first_manager = FakeHouseholdManager((first_source,))
+    current_target = [first_target]
+    current_manager = [first_manager]
+    monkeypatch.setitem(
+        sys.modules,
+        "services",
+        SimpleNamespace(household_manager=lambda: current_manager[0]),
+    )
+    adapter = sims4_adapters.Sims4HouseholdAdapter(
+        sim_info_lookup=lambda sim_id: current_target[0]
+    )
+
+    adapter.transfer_to_holding_household("target")
+
+    second_target = FakeSimInfo("TEEN")
+    second_source = FakeHousehold()
+    second_source.sim_infos.append(second_target)
+    second_manager = FakeHouseholdManager((second_source,))
+    first_manager.households.clear()
+    current_target[0] = second_target
+    current_manager[0] = second_manager
+
+    adapter.transfer_to_holding_household("target")
+
+    assert second_target not in second_source.sim_infos
+    assert second_target in second_manager.get("holdings").sim_infos
 
 
 def test_household_adapter_restores_source_when_holding_add_fails(
