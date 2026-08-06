@@ -195,7 +195,11 @@ class Sims4SaleConsequences:
             and sim_info.add_trait(trait) is False
         ):
             raise IntegrationUnavailable("Sale consequence trait could not be added")
-        sim = sim_info.get_sim_instance()
+        from objects import ALL_HIDDEN_REASONS
+
+        sim = sim_info.get_sim_instance(
+            allow_hidden_flags=ALL_HIDDEN_REASONS
+        )
         if sim is None:
             raise IntegrationUnavailable("Sale consequence Sim is unavailable")
         sim.add_buff(buff)
@@ -316,7 +320,7 @@ class Sims4RabbitHoleAdapter:
             rabbit_hole_id = service.put_sims_in_shared_rabbithole(
                 [actor, target], rabbit_hole_type
             )
-        participants = (actor,) if solo else (actor, target)
+        participants = (actor,)
         if rabbit_hole_id is None:
             raise IntegrationUnavailable("Rabbit hole could not start")
         try:

@@ -67,11 +67,12 @@ def test_sold_registry_uses_sim_info_trait_tracker():
 
 
 class FakeConsequenceSimInfo:
-    def __init__(self):
+    def __init__(self, hidden=False):
         self.events = []
         self.pending_trait = None
         self.trait_tracker = object()
         self.sim_instance = SimpleNamespace(add_buff=self._record_buff)
+        self.hidden = hidden
 
     def has_trait(self, trait):
         return any(event[0] == trait for event in self.events)
@@ -83,8 +84,19 @@ class FakeConsequenceSimInfo:
     def _record_buff(self, buff):
         self.events.append((self.pending_trait, buff))
 
-    def get_sim_instance(self):
+    def get_sim_instance(self, allow_hidden_flags=None):
+        if self.hidden and allow_hidden_flags is None:
+            return None
         return self.sim_instance
+
+
+@pytest.fixture
+def all_hidden_reasons(monkeypatch):
+    monkeypatch.setitem(
+        sys.modules,
+        "objects",
+        SimpleNamespace(ALL_HIDDEN_REASONS=object()),
+    )
 
 
 @pytest.mark.parametrize(
@@ -95,9 +107,12 @@ class FakeConsequenceSimInfo:
     ),
 )
 def test_sale_consequences_apply_exact_mapping(
-    transaction_type, expected_target
+    transaction_type, expected_target, all_hidden_reasons
 ):
-    sims = {"actor": FakeConsequenceSimInfo(), "target": FakeConsequenceSimInfo()}
+    sims = {
+        "actor": FakeConsequenceSimInfo(),
+        "target": FakeConsequenceSimInfo(hidden=True),
+    }
     tunings = {
         0xEAA21FFB1081E014: "seller",
         0xEAA21FFB1081E015: "sold",
@@ -121,7 +136,9 @@ def test_sale_consequences_apply_exact_mapping(
     assert sims["target"].events == [expected_target]
 
 
-def test_solo_unborn_sale_applies_only_seller_consequences_once():
+def test_solo_unborn_sale_applies_only_seller_consequences_once(
+    all_hidden_reasons,
+):
     sim = FakeConsequenceSimInfo()
     adapter = sims4_adapters.Sims4SaleConsequences(
         sim_info_lookup=lambda sim_id: sim,
@@ -138,7 +155,9 @@ def test_solo_unborn_sale_applies_only_seller_consequences_once():
     assert sim.events == [("seller", "happy")]
 
 
-def test_sale_consequence_failure_is_logged_without_raising():
+def test_sale_consequence_failure_is_logged_without_raising(
+    all_hidden_reasons,
+):
     class BrokenSim(FakeConsequenceSimInfo):
         def __init__(self):
             super().__init__()
@@ -406,7 +425,7 @@ def test_rabbit_hole_adapter_cancels_started_hole_if_callback_setup_fails():
     assert service.removed == [(actor.sim_id, service.rabbit_hole_id, True)]
 
 
-def test_rabbit_hole_completion_waits_until_every_participant_returns():
+def test_rabbit_hole_completion_waits_only_for_the_seller():
     actor = FakeSimInfo("ADULT", sim_id="1", instanced=False)
     target = FakeSimInfo("CHILD", sim_id="2", instanced=False)
     callbacks = []
@@ -428,7 +447,6 @@ def test_rabbit_hole_completion_waits_until_every_participant_returns():
     assert callbacks == []
     assert len(scheduled) == 1
     actor.instanced = True
-    target.instanced = True
     scheduled.pop()()
     assert callbacks == [False]
 
