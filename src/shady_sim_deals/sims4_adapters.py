@@ -572,21 +572,41 @@ class Sims4RabbitHoleAdapter:
             return failed("target_unavailable")
         carrier = getattr(target_sim, "parent", None)
         if target_age == "baby":
+            def find_held_actions():
+                return next(
+                    (
+                        active
+                        for active in getattr(actor_sim, "si_state", ())
+                        if getattr(
+                            getattr(active, "affordance", None),
+                            "guid64",
+                            None,
+                        ) == self.NEWBORN_HELD_ACTIONS_AFFORDANCE_ID
+                        and getattr(active, "target", None) is target_sim
+                    ),
+                    None,
+                )
+
             def queue_check_on(*_):
-                affordance = services.get_instance_manager(
-                    sims4.resources.Types.INTERACTION
-                ).get(self.NEWBORN_CHECK_ON_AFFORDANCE_ID)
-                if affordance is None:
+                try:
+                    affordance = services.get_instance_manager(
+                        sims4.resources.Types.INTERACTION
+                    ).get(self.NEWBORN_CHECK_ON_AFFORDANCE_ID)
+                    if affordance is None:
+                        callback(True)
+                        return
+                    context = InteractionContext(
+                        actor_sim,
+                        InteractionContext.SOURCE_SCRIPT,
+                        Priority.High,
+                    )
+                    result = actor_sim.push_super_affordance(
+                        affordance, target_sim, context
+                    )
+                except Exception:
+                    failed("check_on_startup_exception")
                     callback(True)
                     return
-                context = InteractionContext(
-                    actor_sim,
-                    InteractionContext.SOURCE_SCRIPT,
-                    Priority.High,
-                )
-                result = actor_sim.push_super_affordance(
-                    affordance, target_sim, context
-                )
                 if not result or result.interaction.is_finishing:
                     callback(True)
                     return
@@ -604,19 +624,7 @@ class Sims4RabbitHoleAdapter:
 
                 def check_on_finished(interaction):
                     parent = getattr(target_sim, "parent", None)
-                    held_actions = next(
-                        (
-                            active
-                            for active in getattr(actor_sim, "si_state", ())
-                            if getattr(
-                                getattr(active, "affordance", None),
-                                "guid64",
-                                None,
-                            ) == self.NEWBORN_HELD_ACTIONS_AFFORDANCE_ID
-                            and getattr(active, "target", None) is target_sim
-                        ),
-                        None,
-                    )
+                    held_actions = find_held_actions()
                     self._logger.log(
                         "newborn_check_on_finished",
                         finishing_naturally=(
@@ -644,7 +652,10 @@ class Sims4RabbitHoleAdapter:
                 )
 
             if carrier is actor_sim:
-                callback(False)
+                if find_held_actions() is not None:
+                    callback(False)
+                else:
+                    queue_check_on()
                 return True
             if getattr(carrier, "is_sim", False):
                 held_interaction = next(
@@ -663,6 +674,9 @@ class Sims4RabbitHoleAdapter:
                 if not held_interaction.cancel_user(
                     cancel_reason_msg="Shady Sim Deals newborn handoff"
                 ):
+                    held_interaction.unregister_on_finishing_callback(
+                        queue_check_on
+                    )
                     return failed("carrier_release_rejected")
                 return True
             queue_check_on()

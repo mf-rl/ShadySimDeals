@@ -863,8 +863,13 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
     carry_target.parent = mother
     pickup_affordance = object()
     handoff_affordance = object()
+    check_on_affordance = object()
     requested_ids = []
-    affordances = {271032: pickup_affordance, 269721: handoff_affordance}
+    affordances = {
+        271032: pickup_affordance,
+        269721: handoff_affordance,
+        275655: check_on_affordance,
+    }
     manager = SimpleNamespace(
         get=lambda instance_id: (
             requested_ids.append(instance_id) or affordances[instance_id]
@@ -903,6 +908,7 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
         infant=infant,
         carry_target=carry_target,
         handoff_affordance=handoff_affordance,
+        check_on_affordance=check_on_affordance,
         requested_ids=requested_ids,
         finishing_callbacks=finishing_callbacks,
         interaction=interaction,
@@ -1008,6 +1014,58 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
             "target_id": "infant",
         },
     )
+
+
+def test_parented_newborn_without_held_actions_queues_check_on(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.carry_target.parent = env.actor
+    env.actor.si_state = []
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+
+    assert env.requested_ids == [275655]
+    assert callbacks == []
+
+
+def test_newborn_check_on_startup_exception_cancels_pickup(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.interaction.target = env.carry_target
+    env.interaction.cancel_user = lambda **kwargs: True
+    env.mother.si_state = [env.interaction]
+    env.actor.push_super_affordance = lambda *args, **kwargs: (_ for _ in ()).throw(
+        RuntimeError("push failed")
+    )
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+    env.carry_target.parent = None
+    env.finishing_callbacks[0](env.interaction)
+
+    assert callbacks == [True]
+
+
+def test_rejected_newborn_release_unregisters_finishing_callback(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.interaction.target = env.carry_target
+    env.interaction.cancel_user = lambda **kwargs: False
+    env.interaction.unregister_on_finishing_callback = (
+        env.finishing_callbacks.remove
+    )
+    env.mother.si_state = [env.interaction]
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert not adapter._queue_infant_pickup(
+        env.actor, env.infant, lambda canceled: None
+    )
+
+    assert env.finishing_callbacks == []
 
 
 def test_carried_infant_handoff_cancels_without_seller_ownership(monkeypatch):

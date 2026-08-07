@@ -55,7 +55,7 @@ verification remain unchecked.
 ### Phase 4: Unborn-Nooboo transaction
 
 - [x] Pregnant-Sim picker implemented and unit-tested
-  - [x] Automated: both sale pickers exclude non-instanced/off-lot Sims
+  - [x] Automated: sale pickers exclude off-lot non-newborn Sims; the household picker retains uninstantiated newborns
   - [x] Live: Sims at work or school are absent from both sale pickers
 - [x] Pregnancy adapter and safe pregnancy conclusion verified for patch `1.125.59.1030`
 - [x] Unborn rabbit hole
