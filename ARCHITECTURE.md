@@ -7,7 +7,7 @@
 - `state_machine.py`: rejects invalid transaction transitions.
 - `orchestrator.py`: validation, reservation, rabbit hole, target processing, payment, and consequences.
 - `processors.py`: household transfer and pregnancy-specific target handling.
-- `outcomes.py` and `reactions.py`: injected random selection and priority rules.
+- `outcomes.py` and `reactions.py`: pure outcome selection and reaction rules; only pregnant-Sim relationship selection is wired into the live runtime.
 - `registry.py`: participant reservations and the pure sold registry used by domain tests.
 - `sims4_adapters.py`: all version-sensitive game calls, including live trait-backed sold filtering and sale consequences.
 - `sims4_runtime.py`: shared phone/computer pickers, confirmation, notification, and transaction composition boundary.
@@ -20,7 +20,7 @@ Cancellation is allowed before confirmation. Failures are terminal and release r
 
 ## Rabbit-hole integration
 
-`Sims4RabbitHoleAdapter` maps non-infant household targets by age to private 75-, 90-, or 120-minute `TwoSimRabbitHole` tunings. Uncarried infant targets first queue EA pickup affordance `271032`; an infant carried by another Sim uses EA handoff continuation `269721` from that carrier to the seller. After carry ownership is verified, only the seller is registered in the private 90-minute solo `RabbitHole`; the infant stays attached to the seller and receives no independent routing interaction. Unborn sales map expected offspring to private 90-, 120-, or 150-minute tunings: self-target sales use `RabbitHole`, while other targets use `TwoSimRabbitHole` with the seller first. Only the seller's expiration callback resumes either transaction. Household targets then move to holdings before the seller returns; unborn participants return before payment and pregnancy conclusion. Startup failure or cancellation releases reservations without processing the target.
+`Sims4RabbitHoleAdapter` maps toddler-through-elder household targets by age to private 75-, 90-, or 120-minute `TwoSimRabbitHole` tunings. Newborn `SimInfo` records resolve their matching `Baby` object through the object manager. Infants use EA pickup affordance `271032`, or handoff continuation `269721` when carried by another Sim. Newborns use native Hold affordance `13011`; when another Sim is carrying the newborn, that carrier's active newborn interaction is canceled before the seller queues Hold. After carry ownership is verified, only the seller is registered in the private 90-minute solo `RabbitHole`; the target stays attached to the seller and receives no independent routing interaction. Unborn sales map expected offspring to private 90-, 120-, or 150-minute tunings: self-target sales use `RabbitHole`, while other targets use `TwoSimRabbitHole` with the seller first. Only the seller's expiration callback resumes either transaction. Household targets then move to holdings before the seller returns; unborn participants return before payment and pregnancy conclusion. Startup failure or cancellation releases reservations without processing the target.
 
 ## Pricing pipeline
 

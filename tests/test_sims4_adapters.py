@@ -683,7 +683,6 @@ def test_age_key_rejects_unsupported_game_age():
     ("age", "expected_type"),
     (
         ("ELDER", 0xEAA21FFB1081E005),
-        ("BABY", 0xEAA21FFB1081E006),
         ("CHILD", 0xEAA21FFB1081E006),
         ("TEEN", 0xEAA21FFB1081E007),
         ("ADULT", 0xEAA21FFB1081E007),
@@ -711,9 +710,12 @@ def test_rabbit_hole_adapter_starts_shared_hole_in_participant_order(
     assert callbacks == [False]
 
 
-def test_infant_pickup_finishes_before_seller_only_rabbit_hole_starts():
+@pytest.mark.parametrize("target_age", ("BABY", "INFANT"))
+def test_dependent_pickup_finishes_before_seller_only_rabbit_hole_starts(
+    target_age,
+):
     actor = FakeSimInfo("ADULT", sim_id="1")
-    target = FakeSimInfo("INFANT", sim_id="2")
+    target = FakeSimInfo(target_age, sim_id="2")
     service = FakeRabbitHoleService()
     pickup_callbacks = []
     finished = []
@@ -825,7 +827,7 @@ def test_native_infant_pickup_queues_ea_affordance(monkeypatch):
     assert callbacks == [False]
 
 
-def carried_infant_handoff_environment(monkeypatch):
+def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
     finishing_callbacks = []
     interaction = SimpleNamespace(
         is_finishing=False,
@@ -848,8 +850,17 @@ def carried_infant_handoff_environment(monkeypatch):
 
     actor = Sim("ADULT", "seller")
     mother = Sim("ADULT", "mother")
-    infant = FakeSimInfo("INFANT", sim_id="infant")
-    infant.parent = mother
+    infant = FakeSimInfo(
+        target_age,
+        sim_id="infant",
+        instanced=target_age != "BABY",
+    )
+    carry_target = (
+        infant
+        if target_age != "BABY"
+        else SimpleNamespace(parent=mother)
+    )
+    carry_target.parent = mother
     pickup_affordance = object()
     handoff_affordance = object()
     requested_ids = []
@@ -859,7 +870,11 @@ def carried_infant_handoff_environment(monkeypatch):
             requested_ids.append(instance_id) or affordances[instance_id]
         )
     )
-    services = SimpleNamespace(get_instance_manager=lambda resource: manager)
+    object_manager = SimpleNamespace(get=lambda object_id: carry_target)
+    services = SimpleNamespace(
+        get_instance_manager=lambda resource: manager,
+        object_manager=lambda: object_manager,
+    )
     resources = SimpleNamespace(
         Types=SimpleNamespace(INTERACTION="interaction")
     )
@@ -886,6 +901,7 @@ def carried_infant_handoff_environment(monkeypatch):
         actor=actor,
         mother=mother,
         infant=infant,
+        carry_target=carry_target,
         handoff_affordance=handoff_affordance,
         requested_ids=requested_ids,
         finishing_callbacks=finishing_callbacks,
@@ -893,7 +909,9 @@ def carried_infant_handoff_environment(monkeypatch):
     )
 
 
-def test_carried_infant_uses_native_handoff_before_rabbit_hole(monkeypatch):
+def test_carried_infant_uses_native_handoff_before_rabbit_hole(
+    monkeypatch,
+):
     env = carried_infant_handoff_environment(monkeypatch)
     callbacks = []
     adapter = sims4_adapters.Sims4RabbitHoleAdapter()
@@ -906,12 +924,86 @@ def test_carried_infant_uses_native_handoff_before_rabbit_hole(monkeypatch):
         env.handoff_affordance,
         env.actor,
     )
-    assert env.mother.pushes[0][2].carry_target is env.infant
+    assert env.mother.pushes[0][2].carry_target is env.carry_target
     assert env.mother.pushes[0][3] == {}
 
-    env.infant.parent = env.actor
+    env.carry_target.parent = env.actor
     env.finishing_callbacks[0](env.interaction)
     assert callbacks == [False]
+
+
+def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    events = []
+    release_callbacks = []
+    hold_callbacks = []
+    env.interaction.target = env.carry_target
+    env.interaction.cancel_user = lambda **kwargs: release_callbacks.append(
+        kwargs
+    ) or True
+    env.mother.si_state = [env.interaction]
+    hold_interaction = SimpleNamespace(
+        is_finishing=False,
+        is_finishing_naturally=True,
+        register_on_finishing_callback=hold_callbacks.append,
+    )
+    env.mother.pushes.clear()
+    env.actor.push_super_affordance = lambda affordance, target, context: (
+        env.actor.pushes.append((affordance, target, context, {}))
+        or SimpleNamespace(interaction=hold_interaction)
+    )
+    hold_affordance = object()
+    sys.modules["services"].get_instance_manager(
+        "interaction"
+    ).get = lambda instance_id: (
+        env.requested_ids.append(instance_id) or hold_affordance
+    )
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        logger=SimpleNamespace(
+            log=lambda event, **fields: events.append((event, fields))
+        )
+    )
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+    assert release_callbacks == [
+        {"cancel_reason_msg": "Shady Sim Deals newborn handoff"}
+    ]
+    assert env.actor.pushes == []
+
+    env.finishing_callbacks[0](env.interaction)
+    assert env.requested_ids == [13011]
+    assert env.actor.pushes[0][0:2] == (
+        hold_affordance,
+        env.carry_target,
+    )
+    assert events[-1] == (
+        "newborn_hold_queued",
+        {
+            "parent_id": "mother",
+            "parent_is_actor": False,
+            "target_id": "infant",
+        },
+    )
+
+    env.carry_target.parent = env.actor
+    env.actor.si_state = [
+        SimpleNamespace(affordance=SimpleNamespace(guid64=275181))
+    ]
+    hold_callbacks[0](hold_interaction)
+    assert callbacks == [False]
+    assert events[-1] == (
+        "newborn_hold_finished",
+        {
+            "finishing_naturally": True,
+            "held_actions_active": True,
+            "parent_id": "seller",
+            "parent_is_actor": True,
+            "target_id": "infant",
+        },
+    )
 
 
 def test_carried_infant_handoff_cancels_without_seller_ownership(monkeypatch):
@@ -925,6 +1017,32 @@ def test_carried_infant_handoff_cancels_without_seller_ownership(monkeypatch):
     env.finishing_callbacks[0](env.interaction)
 
     assert callbacks == [True]
+
+
+def test_missing_newborn_carry_object_logs_pickup_failure(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    sys.modules["services"].object_manager = lambda: SimpleNamespace(
+        get=lambda object_id: None
+    )
+    events = []
+    logger = SimpleNamespace(
+        log=lambda event, **fields: events.append((event, fields))
+    )
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(logger=logger)
+
+    assert not adapter._queue_infant_pickup(
+        env.actor, env.infant, lambda canceled: None
+    )
+    assert events == [
+        (
+            "baby_pickup_failed",
+            {
+                "reason": "target_unavailable",
+                "target_age": "baby",
+                "target_id": "infant",
+            },
+        )
+    ]
 
 
 def test_rabbit_hole_callback_reattaches_after_cas_resets_hole():

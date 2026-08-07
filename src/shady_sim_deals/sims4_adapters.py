@@ -409,6 +409,7 @@ class Sims4PregnancyAdapter:
 
 
 class Sims4RabbitHoleAdapter:
+    NEWBORN_HOLD_AFFORDANCE_ID = 13011
     INFANT_PICKUP_AFFORDANCE_ID = 271032
     INFANT_HANDOFF_AFFORDANCE_ID = 269721
     INFANT_SOLO_RABBIT_HOLE_ID = 0xEAA21FFB1081E00B
@@ -440,6 +441,7 @@ class Sims4RabbitHoleAdapter:
         rabbit_hole_lookup=None,
         expected_offspring_lookup=None,
         infant_pickup=None,
+        logger=None,
     ):
         self._service = rabbit_hole_service
         self._sim_info_lookup = (
@@ -450,6 +452,7 @@ class Sims4RabbitHoleAdapter:
             expected_offspring_lookup or (lambda sim_id: 1)
         )
         self._infant_pickup = infant_pickup or self._queue_infant_pickup
+        self._logger = logger or ModLogger()
 
     def run(self, transaction, on_finished):
         actor = self._sim_info_lookup(str(transaction.actor_id))
@@ -471,7 +474,7 @@ class Sims4RabbitHoleAdapter:
             target_age = age_key(target)
             tuning_id = (
                 self.INFANT_SOLO_RABBIT_HOLE_ID
-                if target_age == "infant"
+                if target_age in ("baby", "infant")
                 else self.RABBIT_HOLE_BY_AGE[target_age]
             )
         rabbit_hole_type = self._rabbit_hole_lookup(tuning_id)
@@ -479,7 +482,7 @@ class Sims4RabbitHoleAdapter:
             raise IntegrationUnavailable("Rabbit-hole tuning is unavailable")
         if (
             transaction.transaction_type == "household_member"
-            and age_key(target) == "infant"
+            and age_key(target) in ("baby", "infant")
         ):
             def after_pickup(canceled=False):
                 if canceled:
@@ -497,7 +500,7 @@ class Sims4RabbitHoleAdapter:
                     on_finished(True)
 
             if not self._infant_pickup(actor, target, after_pickup):
-                raise IntegrationUnavailable("Infant pickup could not start")
+                raise IntegrationUnavailable("Baby pickup could not start")
             return True
         return self._start_rabbit_hole(
             actor, target, rabbit_hole_type, solo, on_finished
@@ -547,11 +550,113 @@ class Sims4RabbitHoleAdapter:
         from interactions.context import InteractionContext
         from interactions.priority import Priority
 
+        target_age = age_key(target)
+
+        def failed(reason):
+            self._logger.log(
+                "baby_pickup_failed",
+                reason=reason,
+                target_age=target_age,
+                target_id=str(target.sim_id),
+            )
+            return False
+
         actor_sim = actor.get_sim_instance()
         target_sim = target.get_sim_instance()
-        if actor_sim is None or target_sim is None:
-            return False
+        if target_sim is None and target_age == "baby":
+            target_sim = services.object_manager().get(target.sim_id)
+        if actor_sim is None:
+            return failed("actor_unavailable")
+        if target_sim is None:
+            return failed("target_unavailable")
         carrier = getattr(target_sim, "parent", None)
+        if target_age == "baby":
+            def queue_hold(*_):
+                affordance = services.get_instance_manager(
+                    sims4.resources.Types.INTERACTION
+                ).get(self.NEWBORN_HOLD_AFFORDANCE_ID)
+                if affordance is None:
+                    callback(True)
+                    return
+                context = InteractionContext(
+                    actor_sim,
+                    InteractionContext.SOURCE_SCRIPT,
+                    Priority.High,
+                )
+                result = actor_sim.push_super_affordance(
+                    affordance, target_sim, context
+                )
+                if not result or result.interaction.is_finishing:
+                    callback(True)
+                    return
+                parent = getattr(target_sim, "parent", None)
+                self._logger.log(
+                    "newborn_hold_queued",
+                    parent_id=(
+                        str(parent.sim_id)
+                        if getattr(parent, "sim_id", None) is not None
+                        else None
+                    ),
+                    parent_is_actor=parent is actor_sim,
+                    target_id=str(target.sim_id),
+                )
+
+                def hold_finished(interaction):
+                    parent = getattr(target_sim, "parent", None)
+                    self._logger.log(
+                        "newborn_hold_finished",
+                        finishing_naturally=(
+                            interaction.is_finishing_naturally
+                        ),
+                        held_actions_active=any(
+                            getattr(
+                                getattr(active, "affordance", None),
+                                "guid64",
+                                None,
+                            ) == 275181
+                            for active in getattr(actor_sim, "si_state", ())
+                        ),
+                        parent_id=(
+                            str(parent.sim_id)
+                            if getattr(parent, "sim_id", None) is not None
+                            else None
+                        ),
+                        parent_is_actor=parent is actor_sim,
+                        target_id=str(target.sim_id),
+                    )
+                    callback(
+                        not (
+                            interaction.is_finishing_naturally
+                            and target_sim.parent is actor_sim
+                        )
+                    )
+
+                result.interaction.register_on_finishing_callback(
+                    hold_finished
+                )
+
+            if carrier is actor_sim:
+                callback(False)
+                return True
+            if getattr(carrier, "is_sim", False):
+                held_interaction = next(
+                    (
+                        interaction
+                        for interaction in carrier.si_state
+                        if getattr(interaction, "target", None) is target_sim
+                    ),
+                    None,
+                )
+                if held_interaction is None:
+                    return failed("carrier_interaction_unavailable")
+                held_interaction.register_on_finishing_callback(queue_hold)
+                if not held_interaction.cancel_user(
+                    cancel_reason_msg="Shady Sim Deals newborn handoff"
+                ):
+                    return failed("carrier_release_rejected")
+                return True
+            queue_hold()
+            return True
         if getattr(carrier, "is_sim", False) and carrier is not actor_sim:
             source_sim = carrier
             interaction_target = actor_sim
@@ -566,7 +671,7 @@ class Sims4RabbitHoleAdapter:
             sims4.resources.Types.INTERACTION
         ).get(affordance_id)
         if affordance is None:
-            return False
+            return failed("affordance_unavailable")
         context = InteractionContext(
             source_sim, InteractionContext.SOURCE_SCRIPT, Priority.High
         )
@@ -575,8 +680,10 @@ class Sims4RabbitHoleAdapter:
         result = source_sim.push_super_affordance(
             affordance, interaction_target, context, **interaction_kwargs
         )
-        if not result or result.interaction.is_finishing:
-            return False
+        if not result:
+            return failed("interaction_rejected")
+        if result.interaction.is_finishing:
+            return failed("interaction_finished_during_startup")
 
         def pickup_finished(interaction):
             completed = (

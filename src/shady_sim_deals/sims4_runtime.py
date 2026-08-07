@@ -65,7 +65,7 @@ def eligible_household_member_ids(
                 sim_id,
                 sim_info.household_id,
                 age=age,
-                valid=_is_on_active_lot(sim_info)
+                valid=(age == "baby" or _is_on_active_lot(sim_info))
                 and not getattr(sim_info, "is_dying", False)
                 and not getattr(sim_info, "is_destroyed", False),
                 sold=sold_check(sim_id),

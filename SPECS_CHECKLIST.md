@@ -44,7 +44,8 @@ verification remain unchecked.
 - [x] Safe household transfer with rollback
   - [x] Live: sold child leaves the selectable household before payment
 - [x] Exactly-once payment ordering
-- [x] Seller trait and Happy moodlet
+- [x] Fixed seller trait and Happy moodlet
+- [ ] Trait-aware seller reaction buffs wired to live consequences
 - [x] Direct seller/target friendship consequences implemented and unit-tested
 - [x] Wider close-relative and household-witness friendship consequences implemented and unit-tested
   - [x] Live: after selling a toddler, its mother loses 50 friendship with the seller
@@ -61,11 +62,12 @@ verification remain unchecked.
   - [x] Automated: self-target uses a solo rabbit hole; another target uses a shared rabbit hole
   - [x] Automated: payment and pregnancy conclusion wait for natural expiration
   - [x] Package: private 90-, 120-, and 150-minute resources are indexed and non-saveable
-  - [ ] Live: pregnant seller enters alone and returns before pregnancy conclusion and payment
+  - [x] Live: pregnant seller enters alone and returns before pregnancy conclusion and payment
   - [x] Live: seller and another pregnant target both enter and return before pregnancy conclusion and payment
 - [x] Multiple-offspring pricing connected to the public pregnancy tracker count
 - [ ] Forced early twin/triplet detection
-- [x] Pregnant-target lost-unborn trait and Sad moodlet
+- [x] Fixed pregnant-target lost-unborn trait and Sad moodlet
+- [ ] Outcome-specific complicit, regretful, and betrayed moodlets
 
 ### Phase 5: Sold-Sim outcomes
 
@@ -101,10 +103,12 @@ verification remain unchecked.
   - [x] Baby, infant, toddler, and child filtering and pricing
   - [x] Live: child appears and completes a sale
   - [x] Live: infant sale completes after the seller carries the infant into the rabbit hole
-  - [ ] Live: newborn and toddler sales
-  - [x] Automated: infant sale queues native pickup before a seller-only 90-minute rabbit hole
-  - [x] Automated: an existing carrier hands the infant to the seller and carry ownership gates rabbit-hole startup
-  - [x] Automated: the carried infant is not registered as a second rabbit-hole participant
+  - [ ] Live: newborn appears; release and native Hold start, but pickup completion cancels the transaction with **Inconvenient Fact** before rabbit-hole entry
+  - [x] Live: toddler appears and completes a sale
+  - [x] Automated: newborn and infant sales acquire carry ownership before a seller-only 90-minute rabbit hole
+  - [x] Automated: newborn `SimInfo` resolves its matching `Baby` object before native Hold
+  - [x] Automated: an existing newborn carrier releases it before the seller queues native Hold; an existing infant carrier hands it to the seller
+  - [x] Automated: the carried newborn or infant is not registered as a second rabbit-hole participant
   - [x] Live: another carrier hands the infant to the seller, who carries it into the rabbit hole
 - [x] 5. Unborn picker includes only pregnant household members, including the actor.
   - [x] Repository filtering and picker-row tests
@@ -115,31 +119,37 @@ verification remain unchecked.
   - [x] Live: singleton pregnancy bonus and retained pregnancy
   - [ ] Live: twin and triplet household-member pregnancy bonuses
 - [x] 7. Cancellation makes no changes.
-- [ ] 8. Confirmation starts the appropriate rabbit hole.
-  - [x] Automated: non-infant target age selects the 75-, 90-, or 120-minute shared household tuning
-  - [x] Automated: infant sales use the private 90-minute solo tuning for the seller
+- [x] 8. Confirmation starts the appropriate rabbit hole.
+  - [x] Automated: toddler-through-elder target age selects the 75-, 90-, or 120-minute shared household tuning
+  - [x] Automated: newborn and infant sales use the private 90-minute solo tuning for the seller
   - [x] Automated: expected offspring selects the 90-, 120-, or 150-minute unborn tuning
   - [x] Package: shared `TwoSimRabbitHole` resources map Actor then PickedSim
   - [x] Package: self-target unborn resources use a solo `RabbitHole`
-  - [ ] Live: child, adult, and elder confirmations start shared rabbit holes
-  - [ ] Live: both unborn target paths start the expected rabbit hole
-- [ ] 9. Household-member transactions return only the seller from a rabbit hole.
+  - [x] Live: child, adult, and elder confirmations start shared rabbit holes
+  - [x] Live: both unborn target paths start the expected rabbit hole
+- [x] 9. Household-member transactions return only the seller from a rabbit hole.
   - [x] Automated: target processing waits for the seller expiration callback
   - [x] Automated: cancellation makes no transfer or payment
   - [x] Live: seller returns alone after the 90-minute infant sale and payment completes
-  - [ ] Live: only the seller returns after child, adult, and elder sales
+  - [x] Live: only the seller returns after child, adult, and elder sales
 - [x] 10. Targets move out of the active household without hard deletion.
 - [x] 11. Payment is deposited exactly once and only after target processing.
 - [x] 12. Unborn transactions safely conclude the selected pregnancy.
   - [x] Public API adapter and compensated transaction tests
   - [x] Live: selected pregnancy concludes after a successful transaction
-  - [ ] Live: active Sim pregnancy concludes with one payment
+  - [x] Live: active Sim pregnancy concludes with one payment
   - [x] Live: other household member pregnancy concludes with one payment
 - [ ] 13. Twins and triplets affect the live pregnancy offer.
   - [x] Pricing uses the public expected-offspring count
   - [ ] Live twin and triplet offers verified
-- [x] 14. Sellers receive a permanent trait and trait-appropriate Happy moodlet.
-- [x] 15. Sold household members and other selected pregnant Sims receive their permanent traits and Sad moodlets.
+- [ ] 14. Sellers receive trait-appropriate buffs.
+  - [x] Sellers receive the permanent trait and fixed Happy moodlet.
+  - [x] Pure seller-reaction priority selection is unit-tested.
+  - [ ] Live consequences select and apply tuned buffs from seller traits and sale context.
+- [ ] 15. Another selected pregnant Sim receives a reaction buff.
+  - [x] Other selected pregnant Sims receive the permanent trait and fixed Sad moodlet.
+  - [x] Complicit, regretful, and betrayed outcomes drive the implemented relationship change.
+  - [ ] The selected outcome drives a corresponding tuned reaction moodlet.
 - [x] 16. Transactions validate and fail safely, including transfer rollback.
 - [x] 17. Pricing and transaction logic have automated tests.
 - [x] 18. The mod builds installable `.package` and `.ts4script` files.

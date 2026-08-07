@@ -1,5 +1,7 @@
 # Younger Household Sales Implementation Plan
 
+> **Historical note (2026-08-07):** This implementation plan is retained as a development record. Its unchecked boxes describe the original workflow, not current repository status; use [`SPECS_CHECKLIST.md`](../../../SPECS_CHECKLIST.md) for current status.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add newborn/baby, infant, toddler, and child Sims to Sell Household Member on both phone and computer.
