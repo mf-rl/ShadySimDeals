@@ -83,6 +83,9 @@ verification remain unchecked.
 
 - [x] `.package` and `.ts4script` build
 - [x] English localization resources
+- [x] Custom app, pie-menu, queue, trait, and moodlet DST5 resources packaged and reference-tested
+- [x] Source PNGs compile automatically during the normal build without checked-in generated textures
+- [x] Live: custom icons render in phone/computer menus, the interaction queue, trait panels, and moodlet panels
 - [x] Architecture, build, installation, and usage documentation
 - [x] Automated regression suite
 - [x] Computer interaction live compatibility check

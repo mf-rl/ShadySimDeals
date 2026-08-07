@@ -38,6 +38,10 @@ Phone and computer interactions share one unborn workflow. `Sims4PregnancyAdapte
 
 The four interaction tunings reuse minimal native phone or computer content verified against patch `1.125.59.1030`. The shared runtime base delegates to `SuperInteraction` before calling the household or unborn `_open_picker()` hook. Phone device failure is cosmetic and falls back to the picker; computer routing or device failure ends without opening one.
 
+## Presentation resources
+
+The package embeds eleven 256x256 BC3/DST5 image resources (`0x00B2D882`) compiled from the normalized source PNGs. During each build, the vendored DirectXTex `texconv.exe` creates temporary one-mip DXT5 data and `build_mod.py` rearranges its blocks into Sims 4 DST5 order; no compiled image assets are retained. Tuning and generated SimData reference the results for the shared app category, phone/computer pie-menu choices, active queue actions, permanent traits, and timed moodlets. These references are presentation-only; transaction behavior remains in the existing runtime and domain modules.
+
 ## Persistence
 
 Live sold filtering reads the permanent **Outsourced by My Own Family** trait from the target's `SimInfo`, so it follows normal save/reload semantics without a separate persistence hook. Sold Sims remain in the hidden **ShadySimDeals Holdings** household, preserving their `SimInfo`. Participant reservations and active rabbit-hole callbacks alone remain session-local. Private sale rabbit-hole interactions are deliberately non-saveable so a reload cannot resume without its transaction callback; finish or cancel an active sale before saving.

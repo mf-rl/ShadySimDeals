@@ -10,6 +10,8 @@
 - Lot 51's `TuningInjector` injects the phone affordance into Sim object tuning `14965` through `phone_affordances`.
 - Lot 51's `inject_by_object_tags` injects the computer affordance into objects tagged `Func_Computer` through their normal `affordances` list.
 - The package contains phone and computer interactions for household-member and unborn-Nooboo sales, the injector snippet, the custom category XML and SimData, and ENG_US STBL resources.
+- Custom artwork is packaged as BC3/DST5 resource type `0x00B2D882`, group `0`, with instances `0xEAA21FFB1081E01A`-`0xEAA21FFB1081E024`. Entry interactions use `_icon` and `pie_menu_icon`; private timed interactions use `_icon`; category, Trait, and Buff XML and SimData reference their matching images.
+- The normal build validates each 256x256 8-bit RGBA source PNG, runs vendored DirectXTex `may2026` from `tools/directxtex/`, converts DXT5 blocks to DST5 order in memory, and discards temporary DDS files. DirectXTex is MIT-licensed; provenance and SHA-256 are recorded in `tools/directxtex/SOURCE.md`.
 - Patch `1.125.59.1030` exposes pregnancy state through `SimInfo.pregnancy_tracker.is_pregnant`, expected offspring through `offspring_count`, and safe conclusion through `clear_pregnancy()`.
 - Device tuning was extracted with `ssinakhot/sims4-workspace` commit `15b984081907ad6961839db47a31331d749de294`.
 - Phone device use derives from `phone_BrowseWebsites` (`13782`), `Phone_Browse` (`11701`), cellphone prop definition `62464`, and compatibility filter `76418`.

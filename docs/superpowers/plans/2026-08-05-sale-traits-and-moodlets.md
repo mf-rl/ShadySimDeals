@@ -1,5 +1,7 @@
 # Sale Traits and Moodlets Implementation Plan
 
+> **Historical note (2026-08-07):** This plan records the original implementation. Its base-game trait and buff icon references are superseded by the custom DST5 icon system documented in [`2026-08-06-custom-icons-design.md`](../specs/2026-08-06-custom-icons-design.md) and the automatic source-PNG compilation pipeline documented in [`2026-08-07-automatic-icon-compilation-design.md`](../specs/2026-08-07-automatic-icon-compilation-design.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the live process-local sold marker with a save-managed visible trait and apply the approved permanent traits and timed moodlets after successful sales.

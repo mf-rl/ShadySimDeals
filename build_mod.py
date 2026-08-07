@@ -3,6 +3,7 @@ import shutil
 import struct
 import subprocess
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
 
@@ -11,6 +12,7 @@ SOURCE_ROOT = ROOT / "src" / "shady_sim_deals"
 DIST = ROOT / "dist"
 SCRIPT_TARGET = DIST / "ShadySimDeals.ts4script"
 PACKAGE_TARGET = DIST / "ShadySimDeals.package"
+TEXCONV_PATH = ROOT / "tools" / "directxtex" / "texconv.exe"
 INTERACTION_TUNING_TYPE = 0xE882D22F
 RABBIT_HOLE_TYPE = 0xB16AD2FA
 TRAIT_TUNING_TYPE = 0xCB5FDDC7
@@ -19,11 +21,96 @@ PIE_MENU_CATEGORY_TYPE = 0x03E9D964
 SIMDATA_TYPE = 0x545AC67A
 SNIPPET_TYPE = 0x7DF2169C
 STRING_TABLE_TYPE = 0x220557DA
+DST_IMAGE_TYPE = 0x00B2D882
 CUSTOM_CATEGORY_ID = 0xEAA1200000000010
 CATEGORY_XML_GROUP = 0x80000000
 CATEGORY_SIMDATA_GROUP = 0x00E9D967
 TRAIT_SIMDATA_GROUP = 0x005FDD0C
 BUFF_SIMDATA_GROUP = 0x0017E8F6
+ICON_RESOURCES = (
+    ("icons/Phone-Computer-App/app-icon.png", 0xEAA21FFB1081E01A),
+    ("icons/QueueActions/Sell House Member.png", 0xEAA21FFB1081E01B),
+    ("icons/QueueActions/Sell Unborn Nooboo.png", 0xEAA21FFB1081E01C),
+    ("icons/QueueActions/Attend a Definitely Legal Exchange.png", 0xEAA21FFB1081E01D),
+    ("icons/QueueActions/Arrange a Pre-order.png", 0xEAA21FFB1081E01E),
+    ("icons/Traits/Family Asset Liquidator.png", 0xEAA21FFB1081E01F),
+    ("icons/Traits/Outsourced by My Own Family.png", 0xEAA21FFB1081E020),
+    ("icons/Traits/Stork Claim Mysteriously Denied.png", 0xEAA21FFB1081E021),
+    ("icons/Moodlets/Quarterly Profits, Fewer Mouths.png", 0xEAA21FFB1081E022),
+    ("icons/Moodlets/Apparently, Love Had a Return Policy.png", 0xEAA21FFB1081E023),
+    ("icons/Moodlets/The Nursery Has Been Downsized.png", 0xEAA21FFB1081E024),
+)
+
+
+def dxt5_to_dst5(data):
+    if len(data) < 128 or data[:4] != b"DDS ":
+        raise ValueError("Expected a complete DDS image")
+    height, width = struct.unpack_from("<II", data, 12)
+    if width < 1 or height < 1:
+        raise ValueError("DDS dimensions must be positive")
+    if data[84:88] != b"DXT5":
+        raise ValueError("Expected DXT5 DDS data")
+    if struct.unpack_from("<I", data, 28)[0] != 1:
+        raise ValueError("Expected a DDS image with one mip")
+    expected_size = 128 + ((width + 3) // 4) * ((height + 3) // 4) * 16
+    if len(data) != expected_size:
+        raise ValueError("Incomplete or extra DXT5 block data")
+
+    blocks = tuple(
+        data[offset:offset + 16]
+        for offset in range(128, len(data), 16)
+    )
+    header = bytearray(data[:128])
+    header[84:88] = b"DST5"
+    return bytes(header) + b"".join(
+        tuple(block[0:2] for block in blocks)
+        + tuple(block[8:12] for block in blocks)
+        + tuple(block[2:8] for block in blocks)
+        + tuple(block[12:16] for block in blocks)
+    )
+
+
+def validate_icon_png(source):
+    if not source.is_file():
+        raise FileNotFoundError(f"Missing icon source: {source}")
+    header = source.read_bytes()[:29]
+    if len(header) < 29 or header[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError(f"Expected a PNG icon: {source}")
+    width, height = struct.unpack_from(">II", header, 16)
+    if (width, height) != (256, 256):
+        raise ValueError(f"Icon must be 256x256: {source}")
+    if tuple(header[24:26]) != (8, 6):
+        raise ValueError(f"Icon must be 8-bit RGBA: {source}")
+
+
+def compile_icon(source, temporary_directory, converter=TEXCONV_PATH):
+    validate_icon_png(source)
+    if not converter.is_file():
+        raise FileNotFoundError(f"Missing texconv executable: {converter}")
+    result = subprocess.run(
+        (
+            str(converter),
+            "-nologo",
+            "-y",
+            "-dx9",
+            "-f",
+            "BC3_UNORM",
+            "-m",
+            "1",
+            "-o",
+            str(temporary_directory),
+            str(source),
+        ),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode:
+        output = "\n".join(part for part in (result.stdout, result.stderr) if part)
+        raise RuntimeError(f"texconv failed for {source}: {output}")
+    converted = temporary_directory / f"{source.stem}.dds"
+    if not converted.is_file():
+        raise FileNotFoundError(f"texconv did not produce {converted}")
+    return dxt5_to_dst5(converted.read_bytes())
 
 
 def build_stbl(entries):
@@ -106,7 +193,7 @@ def build_pie_menu_category_simdata(
         data,
         row_offset + 16,
         icon_instance,
-        0x00B2D882,
+        DST_IMAGE_TYPE,
         0,
     )
     struct.pack_into("<Q", data, row_offset + 32, 0)
@@ -215,7 +302,7 @@ def build_trait_simdata(
         struct.pack_into("<iI", data, row_offset + offset, -0x80000000, 0)
     struct.pack_into("<I", data, row_offset + 92, display_name)
     struct.pack_into(
-        "<QII", data, row_offset + 112, icon_instance, 0x00B2D882, 0
+        "<QII", data, row_offset + 112, icon_instance, DST_IMAGE_TYPE, 0
     )
     species_offset = lists_offset + 64
     struct.pack_into(
@@ -275,7 +362,7 @@ def build_buff_simdata(
     )
     struct.pack_into("<II", data, row_offset + 32, description, name)
     struct.pack_into(
-        "<QII", data, row_offset + 40, icon_instance, 0x00B2D882, 0
+        "<QII", data, row_offset + 40, icon_instance, DST_IMAGE_TYPE, 0
     )
     struct.pack_into("<Q", data, row_offset + 56, mood_type)
     struct.pack_into("<iIi", data, row_offset + 64, mood_weight, 0, 1)
@@ -297,9 +384,24 @@ def build_buff_simdata(
     return _append_simdata_strings(data, pointers)
 
 
+@lru_cache(maxsize=1)
+def compiled_icon_resources():
+    with tempfile.TemporaryDirectory(prefix="shady-sim-deals-icons-") as directory:
+        temporary_directory = Path(directory)
+        return tuple(
+            (
+                compile_icon(ROOT / relative_path, temporary_directory),
+                DST_IMAGE_TYPE,
+                0,
+                instance,
+            )
+            for relative_path, instance in ICON_RESOURCES
+        )
+
+
 def package_resources():
     strings = json.loads((ROOT / "localization" / "en_us.json").read_text(encoding="utf-8"))
-    return (
+    resources = (
         (
             (ROOT / "tuning" / "interactions" / "phone_sell_household_member.xml").read_bytes(),
             INTERACTION_TUNING_TYPE,
@@ -468,42 +570,42 @@ def package_resources():
         (
             build_trait_simdata(
                 "ShadySimDeals_trait_FamilyAssetLiquidator",
-                0xA1100018, 0xA1100019, 0xA1100024, 0x47FFEEDF30C4B115,
+                0xA1100018, 0xA1100019, 0xA1100024, 0xEAA21FFB1081E01F,
             ),
             SIMDATA_TYPE, TRAIT_SIMDATA_GROUP, 0xEAA21FFB1081E014,
         ),
         (
             build_trait_simdata(
                 "ShadySimDeals_trait_OutsourcedByMyOwnFamily",
-                0xA110001A, 0xA110001B, 0xA1100024, 0x8B841C91497034A5,
+                0xA110001A, 0xA110001B, 0xA1100024, 0xEAA21FFB1081E020,
             ),
             SIMDATA_TYPE, TRAIT_SIMDATA_GROUP, 0xEAA21FFB1081E015,
         ),
         (
             build_trait_simdata(
                 "ShadySimDeals_trait_StorkClaimMysteriouslyDenied",
-                0xA110001C, 0xA110001D, 0xA1100024, 0x8B841C91497034A5,
+                0xA110001C, 0xA110001D, 0xA1100024, 0xEAA21FFB1081E021,
             ),
             SIMDATA_TYPE, TRAIT_SIMDATA_GROUP, 0xEAA21FFB1081E016,
         ),
         (
             build_buff_simdata(
                 "ShadySimDeals_buff_QuarterlyProfitsFewerMouths",
-                0xA110001E, 0xA110001F, 0x2357E4F259B6A63E, 14640, 4,
+                0xA110001E, 0xA110001F, 0xEAA21FFB1081E022, 14640, 4,
             ),
             SIMDATA_TYPE, BUFF_SIMDATA_GROUP, 0xEAA21FFB1081E017,
         ),
         (
             build_buff_simdata(
                 "ShadySimDeals_buff_LoveHadAReturnPolicy",
-                0xA1100020, 0xA1100021, 0x8B841C91497034A5, 14643, 6,
+                0xA1100020, 0xA1100021, 0xEAA21FFB1081E023, 14643, 6,
             ),
             SIMDATA_TYPE, BUFF_SIMDATA_GROUP, 0xEAA21FFB1081E018,
         ),
         (
             build_buff_simdata(
                 "ShadySimDeals_buff_NurseryHasBeenDownsized",
-                0xA1100022, 0xA1100023, 0x8B841C91497034A5, 14643, 10,
+                0xA1100022, 0xA1100023, 0xEAA21FFB1081E024, 14643, 10,
             ),
             SIMDATA_TYPE, BUFF_SIMDATA_GROUP, 0xEAA21FFB1081E019,
         ),
@@ -518,7 +620,7 @@ def package_resources():
                 "ShadySimDeals:phoneCategory",
                 0xA1100001,
                 8,
-                0x6189CED9570B8609,
+                0xEAA21FFB1081E01A,
             ),
             SIMDATA_TYPE,
             CATEGORY_SIMDATA_GROUP,
@@ -537,6 +639,7 @@ def package_resources():
             0x00A1100000000001,
         ),
     )
+    return resources + compiled_icon_resources()
 
 
 def compile_scripts(temporary_directory):

@@ -1,5 +1,7 @@
 # Custom Phone App and Empty Picker Implementation Plan
 
+> **Historical note (2026-08-07):** This plan records the original implementation. Its EA phone-icon constraint is superseded by the custom DST5 icon system documented in [`2026-08-06-custom-icons-design.md`](../specs/2026-08-06-custom-icons-design.md) and the automatic source-PNG compilation pipeline documented in [`2026-08-07-automatic-icon-compilation-design.md`](../specs/2026-08-07-automatic-icon-compilation-design.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Put Sell Household Member in a dedicated ShadySimDeals phone app and always open its picker, including when it has zero eligible rows.

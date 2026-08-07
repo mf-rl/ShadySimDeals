@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <I c="ShadySimDealsRabbitHoleInteraction" i="interaction" m="shady_sim_deals.rabbit_hole_interaction" n="ShadySimDeals:HouseholdRabbitHole120" s="16907111114276462602">
+  <V n="_icon" t="resource_key"><U n="resource_key"><T n="key">00b2d882:00000000:eaa21ffb1081e01d</T></U></V>
   <L n="_constraints"><U><L n="constraints"><U><V n="value" t="spawn_points"><U n="spawn_points"><V n="tags" t="Spawn_Point_Tags"><L n="Spawn_Point_Tags"><E>Spawn_Arrival</E></L></V></U></V></U></L></U></L>
   <V n="_saveable" t="disabled" />
   <T n="allow_autonomous">False</T>

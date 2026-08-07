@@ -3,6 +3,7 @@ import struct
 import xml.etree.ElementTree as ET
 
 import build_mod
+import pytest
 
 
 EXPECTED_RESOURCE_KEYS = {
@@ -41,6 +42,9 @@ EXPECTED_RESOURCE_KEYS = {
     (0x545AC67A, 0x00E9D967, 0xEAA1200000000010),
     (0x7DF2169C, 0, 0xEAA1200000000020),
     (0x220557DA, 0x80000000, 0x00A1100000000001),
+} | {
+    (0x00B2D882, 0, instance)
+    for instance in range(0xEAA21FFB1081E01A, 0xEAA21FFB1081E025)
 }
 
 
@@ -50,6 +54,111 @@ def packaged_interactions():
         for data, resource_type, _, instance in build_mod.package_resources()
         if resource_type == build_mod.INTERACTION_TUNING_TYPE
     }
+
+
+def dxt5_fixture():
+    header = bytearray(128)
+    header[:4] = b"DDS "
+    struct.pack_into("<II", header, 12, 4, 8)
+    struct.pack_into("<I", header, 28, 1)
+    header[84:88] = b"DXT5"
+    return header, bytes(range(32))
+
+
+def assert_dst_icon(node, instance):
+    assert node.text == f"00b2d882:00000000:{instance:016x}"
+
+
+def test_dxt5_to_dst5_groups_block_components_in_sims4_order():
+    header, body = dxt5_fixture()
+    first, second = body[:16], body[16:]
+
+    result = build_mod.dxt5_to_dst5(bytes(header) + body)
+
+    assert result[:4] == b"DDS "
+    assert result[84:88] == b"DST5"
+    assert result[128:] == (
+        first[0:2] + second[0:2]
+        + first[8:12] + second[8:12]
+        + first[2:8] + second[2:8]
+        + first[12:16] + second[12:16]
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    (
+        (lambda header, body: b"BAD!" + bytes(header[4:]) + body, "DDS"),
+        (lambda header, body: bytes(header[:84]) + b"DXT1" + bytes(header[88:]) + body, "DXT5"),
+        (
+            lambda header, body: (
+                struct.pack_into("<I", header, 28, 2),
+                bytes(header) + body,
+            )[1],
+            "one mip",
+        ),
+        (lambda header, body: bytes(header) + body[:-1], "block data"),
+    ),
+)
+def test_dxt5_to_dst5_rejects_malformed_data(mutation, message):
+    header, body = dxt5_fixture()
+    with pytest.raises(ValueError, match=message):
+        build_mod.dxt5_to_dst5(mutation(header, body))
+
+
+def write_png_header(path, width=256, height=256, bit_depth=8, color_type=6):
+    data = bytearray(29)
+    data[:8] = b"\x89PNG\r\n\x1a\n"
+    struct.pack_into(">II", data, 16, width, height)
+    data[24:26] = bytes((bit_depth, color_type))
+    path.write_bytes(data)
+
+
+def test_compile_icon_uses_vendored_converter_and_returns_dst5(tmp_path):
+    result = build_mod.compile_icon(
+        build_mod.ROOT / "icons/Phone-Computer-App/app-icon.png",
+        tmp_path,
+    )
+
+    assert result[:4] == b"DDS "
+    assert struct.unpack_from("<II", result, 12) == (256, 256)
+    assert result[84:88] == b"DST5"
+
+
+def test_validate_icon_png_rejects_wrong_dimensions(tmp_path):
+    source = tmp_path / "bad.png"
+    write_png_header(source, width=128)
+
+    with pytest.raises(ValueError, match="256x256"):
+        build_mod.validate_icon_png(source)
+
+
+def test_validate_icon_png_rejects_non_rgba_source(tmp_path):
+    source = tmp_path / "bad.png"
+    write_png_header(source, color_type=2)
+
+    with pytest.raises(ValueError, match="8-bit RGBA"):
+        build_mod.validate_icon_png(source)
+
+
+def test_compile_icon_rejects_missing_source(tmp_path):
+    with pytest.raises(FileNotFoundError, match="icon"):
+        build_mod.compile_icon(tmp_path / "missing.png", tmp_path)
+
+
+def test_compile_icon_rejects_missing_converter(tmp_path):
+    source = build_mod.ROOT / "icons/Phone-Computer-App/app-icon.png"
+
+    with pytest.raises(FileNotFoundError, match="texconv"):
+        build_mod.compile_icon(source, tmp_path, tmp_path / "missing.exe")
+
+
+def test_compile_icon_reports_converter_failure(tmp_path):
+    source = tmp_path / "incomplete.png"
+    write_png_header(source)
+
+    with pytest.raises(RuntimeError, match="texconv failed"):
+        build_mod.compile_icon(source, tmp_path)
 
 
 def test_localized_money_tokens_have_no_control_character_prefix():
@@ -92,6 +201,38 @@ def test_package_resources_include_every_planned_resource():
     assert keys == EXPECTED_RESOURCE_KEYS
 
 
+def test_custom_icons_are_packaged_as_dst5_images():
+    expected = (
+        ("icons/Phone-Computer-App/app-icon.png", 0xEAA21FFB1081E01A),
+        ("icons/QueueActions/Sell House Member.png", 0xEAA21FFB1081E01B),
+        ("icons/QueueActions/Sell Unborn Nooboo.png", 0xEAA21FFB1081E01C),
+        ("icons/QueueActions/Attend a Definitely Legal Exchange.png", 0xEAA21FFB1081E01D),
+        ("icons/QueueActions/Arrange a Pre-order.png", 0xEAA21FFB1081E01E),
+        ("icons/Traits/Family Asset Liquidator.png", 0xEAA21FFB1081E01F),
+        ("icons/Traits/Outsourced by My Own Family.png", 0xEAA21FFB1081E020),
+        ("icons/Traits/Stork Claim Mysteriously Denied.png", 0xEAA21FFB1081E021),
+        ("icons/Moodlets/Quarterly Profits, Fewer Mouths.png", 0xEAA21FFB1081E022),
+        ("icons/Moodlets/Apparently, Love Had a Return Policy.png", 0xEAA21FFB1081E023),
+        ("icons/Moodlets/The Nursery Has Been Downsized.png", 0xEAA21FFB1081E024),
+    )
+    packaged = {
+        instance: data
+        for data, resource_type, group, instance in build_mod.package_resources()
+        if resource_type == 0x00B2D882 and group == 0
+    }
+
+    assert build_mod.ICON_RESOURCES == expected
+    assert set(packaged) == {instance for _, instance in expected}
+    for data in packaged.values():
+        assert data[:4] == b"DDS "
+        assert struct.unpack_from("<II", data, 12) == (256, 256)
+        assert data[84:88] == b"DST5"
+
+
+def test_icon_packaging_does_not_use_checked_in_compiled_assets():
+    assert not (build_mod.ROOT / "icons/Compiled").exists()
+
+
 def test_sale_trait_and_buff_simdata_has_client_schema_and_values():
     def trait_simdata_fields(data):
         _, version, table_relative, table_count, schema_relative, schema_count, _ = (
@@ -122,9 +263,9 @@ def test_sale_trait_and_buff_simdata_has_client_schema_and_values():
     buff = resources[(build_mod.BUFF_SIMDATA_GROUP, 0xEAA21FFB1081E017)]
 
     expected = {
-        0xEAA21FFB1081E014: (0xA1100018, 0xA1100019, 0x47FFEEDF30C4B115),
-        0xEAA21FFB1081E015: (0xA110001A, 0xA110001B, 0x8B841C91497034A5),
-        0xEAA21FFB1081E016: (0xA110001C, 0xA110001D, 0x8B841C91497034A5),
+        0xEAA21FFB1081E014: (0xA1100018, 0xA1100019, 0xEAA21FFB1081E01F),
+        0xEAA21FFB1081E015: (0xA110001A, 0xA110001B, 0xEAA21FFB1081E020),
+        0xEAA21FFB1081E016: (0xA110001C, 0xA110001D, 0xEAA21FFB1081E021),
     }
     for instance, (name_key, description_key, icon_instance) in expected.items():
         data = resources[(build_mod.TRAIT_SIMDATA_GROUP, instance)]
@@ -138,7 +279,11 @@ def test_sale_trait_and_buff_simdata_has_client_schema_and_values():
         assert struct.unpack_from("<I", data, fields["trait_description"][1])[0] == description_key
         assert struct.unpack_from("<I", data, fields["trait_origin_description"][1])[0] == 0xA1100024
         assert struct.unpack_from("<I", data, fields["trait_type"][1])[0] == 1
-        assert struct.unpack_from("<Q", data, fields["icon"][1])[0] == icon_instance
+        assert struct.unpack_from("<QII", data, fields["icon"][1]) == (
+            icon_instance,
+            0x00B2D882,
+            0,
+        )
 
     assert struct.unpack_from("<4sI", buff) == (b"DATA", 0x101)
     assert struct.unpack_from("<II", buff, 12) == (1, 192)
@@ -148,7 +293,11 @@ def test_sale_trait_and_buff_simdata_has_client_schema_and_values():
         0xA110001F,
         0xA110001E,
     )
-    assert struct.unpack_from("<Q", buff, 128 + 40)[0] == 0x2357E4F259B6A63E
+    assert struct.unpack_from("<QII", buff, 128 + 40) == (
+        0xEAA21FFB1081E022,
+        0x00B2D882,
+        0,
+    )
     assert struct.unpack_from("<Qi", buff, 128 + 56) == (14640, 4)
 
 
@@ -170,6 +319,11 @@ def test_sale_traits_and_moodlets_are_visible_localized_and_timed():
         0xEAA21FFB1081E015,
         0xEAA21FFB1081E016,
     }
+    trait_icons = {
+        0xEAA21FFB1081E014: 0xEAA21FFB1081E01F,
+        0xEAA21FFB1081E015: 0xEAA21FFB1081E020,
+        0xEAA21FFB1081E016: 0xEAA21FFB1081E021,
+    }
     for instance, xml in traits.items():
         assert int(xml.attrib["s"]) == instance
         assert xml.find("./E[@n='trait_type']").text == "GAMEPLAY"
@@ -177,14 +331,15 @@ def test_sale_traits_and_moodlets_are_visible_localized_and_timed():
         assert xml.find("./T[@n='display_name_gender_neutral']") is not None
         assert xml.find("./T[@n='trait_description']") is not None
         assert xml.find("./T[@n='trait_origin_description']").text == "0xA1100024"
+        assert_dst_icon(xml.find("./T[@n='icon']"), trait_icons[instance])
 
     expected_buffs = {
-        0xEAA21FFB1081E017: (14640, 4, 720),
-        0xEAA21FFB1081E018: (14643, 6, 1440),
-        0xEAA21FFB1081E019: (14643, 10, 2880),
+        0xEAA21FFB1081E017: (14640, 4, 720, 0xEAA21FFB1081E022),
+        0xEAA21FFB1081E018: (14643, 6, 1440, 0xEAA21FFB1081E023),
+        0xEAA21FFB1081E019: (14643, 10, 2880, 0xEAA21FFB1081E024),
     }
     assert set(buffs) == set(expected_buffs)
-    for instance, (mood_type, weight, duration) in expected_buffs.items():
+    for instance, (mood_type, weight, duration, icon) in expected_buffs.items():
         xml = buffs[instance]
         assert int(xml.attrib["s"]) == instance
         assert int(xml.find("./T[@n='mood_type']").text) == mood_type
@@ -195,6 +350,7 @@ def test_sale_traits_and_moodlets_are_visible_localized_and_timed():
             ).text
         ) == duration
         assert xml.find("./T[@n='visible']").text == "True"
+        assert_dst_icon(xml.find("./T[@n='icon']"), icon)
 
     strings = json.loads(
         (build_mod.ROOT / "localization" / "en_us.json").read_text("utf-8")
@@ -451,9 +607,37 @@ def test_phone_interaction_uses_matching_custom_category_resources():
     assert int(interaction.find("./T[@n='category']").text) == build_mod.CUSTOM_CATEGORY_ID
     assert int(category.attrib["s"]) == build_mod.CUSTOM_CATEGORY_ID
     assert category.find("./T[@n='_display_name']").text == "0xA1100001"
+    assert_dst_icon(category.find("./T[@n='_icon']"), 0xEAA21FFB1081E01A)
     assert simdata.startswith(b"DATA\x01\x01\x00\x00")
     assert b"PieMenuCategory\0" in simdata
     assert b"ShadySimDeals:phoneCategory\0" in simdata
+
+
+def test_sale_interactions_use_custom_queue_and_pie_menu_icons():
+    interactions = packaged_interactions()
+    entry_icons = {
+        0xEAA1200000000001: 0xEAA21FFB1081E01B,
+        0xEAA21FFB1081E002: 0xEAA21FFB1081E01C,
+        0xEAA21FFB1081E003: 0xEAA21FFB1081E01B,
+        0xEAA21FFB1081E004: 0xEAA21FFB1081E01C,
+    }
+    queue_icons = {
+        0xEAA21FFB1081E008: 0xEAA21FFB1081E01D,
+        0xEAA21FFB1081E009: 0xEAA21FFB1081E01D,
+        0xEAA21FFB1081E00A: 0xEAA21FFB1081E01D,
+        0xEAA21FFB1081E011: 0xEAA21FFB1081E01E,
+        0xEAA21FFB1081E012: 0xEAA21FFB1081E01E,
+        0xEAA21FFB1081E013: 0xEAA21FFB1081E01E,
+    }
+
+    for instance, icon in entry_icons.items():
+        xml = interactions[instance]
+        assert_dst_icon(xml.find("./V[@n='_icon']/U/T[@n='key']"), icon)
+        assert_dst_icon(xml.find("./V[@n='pie_menu_icon']/V/U/T[@n='key']"), icon)
+    for instance, icon in queue_icons.items():
+        xml = interactions[instance]
+        assert_dst_icon(xml.find("./V[@n='_icon']/U/T[@n='key']"), icon)
+        assert xml.find("./V[@n='pie_menu_icon']") is None
 
 
 def test_unborn_interactions_use_shady_sim_deals_category():
@@ -495,7 +679,7 @@ def test_category_simdata_has_verified_schema_and_values():
     assert struct.unpack_from("<I", simdata, row_offset + 4)[0] == 0xA1100001
     assert struct.unpack_from("<i", simdata, row_offset + 8)[0] == 8
     assert struct.unpack_from("<QII", simdata, row_offset + 16) == (
-        0x6189CED9570B8609,
+        0xEAA21FFB1081E01A,
         0x00B2D882,
         0,
     )

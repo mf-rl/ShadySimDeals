@@ -30,6 +30,8 @@ The unborn picker includes every eligible pregnant non-pet household member, inc
 
 Successful sellers permanently receive **Family Asset Liquidator** plus the 12-hour **Quarterly Profits, Fewer Mouths** Happy moodlet. A sold household member permanently receives **Outsourced by My Own Family** plus the 24-hour **Apparently, Love Had a Return Policy** Sad moodlet. When another pregnant Sim's unborn Nooboo is sold, that Sim permanently receives **Stork Claim Mysteriously Denied** plus the 48-hour **The Nursery Has Been Downsized** Sad moodlet. A pregnant seller targeting themself receives only the seller consequences.
 
+Custom artwork identifies the ShadySimDeals phone/computer category, both sale choices in pie menus, their active queue actions, and all sale traits and moodlets.
+
 A sold household member loses 100 friendship with the seller. Their parents, children, siblings, and spouse lose 50 friendship with the seller, while other members remaining in the seller's household lose 25; a Sim in both groups receives only the stronger 50-point loss. When another pregnant Sim's unborn Nooboo is sold, their current friendship selects a complicit, regretful, or betrayed reaction that changes friendship by +10, -25, or -75. A pregnant seller targeting themself receives no relationship change.
 
 Do not remove the mod while sold Sims remain in the holding household; recover them first or keep a backup of the save.
@@ -49,4 +51,6 @@ py -3.12 -m pytest -q -p no:cacheprovider tests
 py -3.12 build_mod.py
 ```
 
-The build creates `dist/ShadySimDeals.ts4script` and `dist/ShadySimDeals.package`, including the English string table and Lot 51 phone/computer injection tuning.
+The build creates `dist/ShadySimDeals.ts4script` and `dist/ShadySimDeals.package`, including the English string table, custom DST5 icons compiled from the source PNGs, and Lot 51 phone/computer injection tuning.
+
+To change an icon, replace its existing 256x256 8-bit RGBA PNG under `icons/` and run the normal build. The vendored Microsoft DirectXTex converter automatically produces the temporary BC3/DST5 data; no manual conversion or generated icon folder is required.

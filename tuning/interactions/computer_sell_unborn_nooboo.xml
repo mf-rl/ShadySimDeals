@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <I c="ComputerSellUnbornNoobooInteraction" i="interaction" m="shady_sim_deals.sims4_runtime" n="ShadySimDeals:ComputerSellUnbornNooboo" s="16907111114276462596">
+  <V n="_icon" t="resource_key"><U n="resource_key"><T n="key">00b2d882:00000000:eaa21ffb1081e01c</T></U></V>
+  <V n="pie_menu_icon" t="enabled"><V n="enabled" t="resource_key"><U n="resource_key"><T n="key">00b2d882:00000000:eaa21ffb1081e01c</T></U></V></V>
   <V n="_saveable" t="disabled" />
   <T n="allow_autonomous">False</T>
   <L n="basic_extras">
