@@ -4,7 +4,7 @@
 
 **Goal:** Fix wider relationship timing, exclude off-lot Sims from both sale pickers, and make sellers carry infants into household-sale rabbit holes.
 
-**Architecture:** Preserve the existing transaction workflow. Add one shared presence predicate for picker candidates, snapshot wider relationship deltas immediately before target disposition, and prepend EA's native infant pickup or handoff path to only the infant household-member rabbit-hole path.
+**Architecture:** Preserve the existing transaction workflow. Add one shared presence predicate for picker candidates, snapshot wider relationship deltas immediately before target disposition, and prepend EA's native infant pickup or handoff path to only the infant household-member rabbit-hole path. After pickup or handoff, register only the seller in the existing private 90-minute solo rabbit hole so the carried infant receives no independent routing interaction.
 
 **Tech Stack:** Python 3.7-compatible Sims 4 scripts, Python 3.12 and pytest, native Sims 4 `SimInfo`, `RelationshipTracker`, `InteractionContext`, and interaction tuning APIs.
 
@@ -13,7 +13,7 @@
 - Do not change pricing, sale durations, payment ordering, or transaction recovery.
 - Do not add dependencies or custom carry tuning.
 - Use EA pickup interaction `271032` for uncarried infants and EA handoff continuation `269721` for infants carried by another Sim.
-- Do not push changes.
+- Commit and push only when explicitly instructed by the user.
 
 ---
 
@@ -28,7 +28,7 @@
 - Consumes: `SimInfo.is_instanced() -> bool` with the native default hidden-instance behavior.
 - Produces: `_is_on_active_lot(sim_info) -> bool`, used by both eligibility functions.
 
-- [ ] **Step 1: Extend the test SimInfo with native-shaped presence behavior**
+- [x] **Step 1: Extend the test SimInfo with native-shaped presence behavior**
 
 Add an `instanced=True` constructor argument and method to the existing runtime `FakeSimInfo`:
 
@@ -39,7 +39,7 @@ def is_instanced(self):
     return self.instanced
 ```
 
-- [ ] **Step 2: Write failing picker tests**
+- [x] **Step 2: Write failing picker tests**
 
 Add one absent household member to the household picker test and one absent pregnant Sim to the unborn picker test:
 
@@ -53,7 +53,7 @@ FakeSimInfo("at_work", pregnant=True, instanced=False)
 
 Assert neither ID appears while existing on-lot candidates still do.
 
-- [ ] **Step 3: Run the focused tests and verify RED**
+- [x] **Step 3: Run the focused tests and verify RED**
 
 Run:
 
@@ -63,7 +63,7 @@ py -3.12 -m pytest -q -p no:cacheprovider tests/test_runtime.py -k "eligible_hou
 
 Expected: FAIL because the absent candidates are still returned.
 
-- [ ] **Step 4: Add the shared native presence guard**
+- [x] **Step 4: Add the shared native presence guard**
 
 Add beside the candidate builders:
 
@@ -77,11 +77,11 @@ def _is_on_active_lot(sim_info):
 
 Include `_is_on_active_lot(sim_info)` in the `valid` expression created by both `eligible_household_member_ids` and `eligible_unborn_ids`.
 
-- [ ] **Step 5: Run the focused tests and verify GREEN**
+- [x] **Step 5: Run the focused tests and verify GREEN**
 
 Run the command from Step 3. Expected: PASS.
 
-- [ ] **Step 6: Commit the picker fix locally**
+- [x] **Step 6: Commit the picker fix locally**
 
 ```powershell
 git add src/shady_sim_deals/sims4_runtime.py tests/test_runtime.py
@@ -103,7 +103,7 @@ git commit -m "fix: exclude off-lot sale candidates"
 - Stores: `transaction.wider_relationship_deltas`, a `dict[str, int]` captured before target processing.
 - Consumes: the captured mapping from `Sims4SaleConsequences.apply(transaction)` after successful transfer and payment.
 
-- [ ] **Step 1: Write a failing orchestration-order test**
+- [x] **Step 1: Write a failing orchestration-order test**
 
 Use a consequence recorder with `capture` and `apply` methods, then assert capture happens before target processing and apply happens afterward:
 
@@ -120,13 +120,13 @@ assert events.index("capture_consequences") < events.index("target")
 assert events.index("target") < events.index("consequences")
 ```
 
-- [ ] **Step 2: Write a failing adapter snapshot test**
+- [x] **Step 2: Write a failing adapter snapshot test**
 
 Create seller, target, mother, and unrelated household Sim fakes. Call `capture(transaction)`, mutate both lookup sources to empty results to represent post-transfer state, then call `apply(transaction)`.
 
 Assert the mother receives `-50`, the unrelated household Sim receives `-25`, and neither seller nor target is included.
 
-- [ ] **Step 3: Run the focused tests and verify RED**
+- [x] **Step 3: Run the focused tests and verify RED**
 
 Run:
 
@@ -136,7 +136,7 @@ py -3.12 -m pytest -q -p no:cacheprovider tests/test_transactions.py tests/test_
 
 Expected: FAIL because `capture` and the pre-disposition hook do not exist.
 
-- [ ] **Step 4: Add the pre-disposition capture hook**
+- [x] **Step 4: Add the pre-disposition capture hook**
 
 In `_finish_after_rabbit_hole`, after successful revalidation and before `target_disposition_pending`, call the optional hook so existing lightweight consequence doubles remain compatible:
 
@@ -146,7 +146,7 @@ if capture_consequences is not None:
     capture_consequences(transaction)
 ```
 
-- [ ] **Step 5: Extract and capture the existing wider delta calculation**
+- [x] **Step 5: Extract and capture the existing wider delta calculation**
 
 Move the current household/genealogy collection from `_apply_wider_relationships` into `_wider_relationship_deltas(transaction)`. Preserve its two independent source-level exception handlers and overlap rule.
 
@@ -170,11 +170,11 @@ if deltas is None:
 
 Keep the existing per-Sim tracker update and exception logging unchanged.
 
-- [ ] **Step 6: Run the focused tests and verify GREEN**
+- [x] **Step 6: Run the focused tests and verify GREEN**
 
 Run the command from Step 3. Expected: PASS.
 
-- [ ] **Step 7: Run transaction and consequence regression tests**
+- [x] **Step 7: Run transaction and consequence regression tests**
 
 ```powershell
 py -3.12 -m pytest -q -p no:cacheprovider tests/test_transactions.py tests/test_sims4_adapters.py
@@ -182,7 +182,7 @@ py -3.12 -m pytest -q -p no:cacheprovider tests/test_transactions.py tests/test_
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit the relationship fix locally**
+- [x] **Step 8: Commit the relationship fix locally**
 
 ```powershell
 git add src/shady_sim_deals/orchestrator.py src/shady_sim_deals/sims4_adapters.py tests/test_transactions.py tests/test_sims4_adapters.py
@@ -191,7 +191,9 @@ git commit -m "fix: capture relationship audience before transfer"
 
 ---
 
-### Task 3: Carry infants before starting the shared rabbit hole
+### Task 3: Carry infants before starting the rabbit hole
+
+> Intermediate milestone: Task 5 replaces this task's original shared infant startup with the final seller-only participant model.
 
 **Files:**
 - Modify: `src/shady_sim_deals/sims4_adapters.py:398-505`
@@ -206,7 +208,7 @@ git commit -m "fix: capture relationship audience before transfer"
 - Produces: `_queue_infant_pickup(actor, target, callback) -> bool` using interaction tuning ID `271032`.
 - Preserves: `run(transaction, on_finished) -> bool` and the existing final callback contract `on_finished(canceled: bool)`.
 
-- [ ] **Step 1: Write a failing infant sequence test**
+- [x] **Step 1: Write a failing infant sequence test**
 
 Inject a pickup callable that records its callback. Start an infant sale and assert the shared rabbit-hole service has not started. Complete pickup naturally and assert the service starts with `[actor, target]`:
 
@@ -227,11 +229,11 @@ pickup_callbacks[0](canceled=False)
 assert service.started == [([actor, target], expected_tuning_id)]
 ```
 
-- [ ] **Step 2: Write a failing pickup-cancellation test**
+- [x] **Step 2: Write a failing pickup-cancellation test**
 
 Using the same injected pickup seam, invoke `pickup_callbacks[0](canceled=True)`. Assert the shared rabbit hole never starts and the transaction callback receives `True`.
 
-- [ ] **Step 3: Write a failing native pickup wiring test**
+- [x] **Step 3: Write a failing native pickup wiring test**
 
 Provide fake `services`, `sims4.resources`, `interactions.context`, and `interactions.priority` modules. Return fake instantiated seller/infant Sims and an enqueue result whose interaction records a finishing callback.
 
@@ -241,7 +243,7 @@ Assert `_queue_infant_pickup`:
 - calls `seller_sim.push_super_affordance(affordance, infant_sim, context)`;
 - reports `canceled=False` only when the pickup interaction finishes naturally.
 
-- [ ] **Step 4: Run the focused tests and verify RED**
+- [x] **Step 4: Run the focused tests and verify RED**
 
 Run:
 
@@ -251,11 +253,11 @@ py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py -k "infan
 
 Expected: FAIL because the adapter starts the shared rabbit hole immediately and has no pickup seam.
 
-- [ ] **Step 5: Isolate existing rabbit-hole startup**
+- [x] **Step 5: Isolate existing rabbit-hole startup**
 
 Move the service call, callback registry, expiration callback, and cleanup currently in `run` into `_start_rabbit_hole(actor, target, rabbit_hole_type, solo, on_finished)`. Do not change that code's behavior.
 
-- [ ] **Step 6: Prepend pickup only for household-sale infants**
+- [x] **Step 6: Prepend pickup only for household-sale infants**
 
 Add `INFANT_PICKUP_AFFORDANCE_ID = 271032`. In `run`, after participant and rabbit-hole tuning resolution:
 
@@ -279,7 +281,7 @@ if transaction.transaction_type == "household_member" and age_key(target) == "in
 
 All other paths call `_start_rabbit_hole` immediately.
 
-- [ ] **Step 7: Implement the native pickup queue**
+- [x] **Step 7: Implement the native pickup queue**
 
 Resolve both visible instances with `get_sim_instance()`, the interaction affordance from the interaction instance manager, and construct:
 
@@ -289,7 +291,7 @@ InteractionContext(actor_sim, InteractionContext.SOURCE_SCRIPT, Priority.High)
 
 Queue it with `actor_sim.push_super_affordance(affordance, target_sim, context)`. Reject a false enqueue result or an already-finishing interaction. Register a finishing callback that passes `not interaction.is_finishing_naturally` to the adapter callback.
 
-- [ ] **Step 8: Run focused and full adapter tests**
+- [x] **Step 8: Run focused and full adapter tests**
 
 ```powershell
 py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py -k "infant and (pickup or rabbit_hole)"
@@ -298,11 +300,11 @@ py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py
 
 Expected: PASS.
 
-- [ ] **Step 9: Align maintained documentation**
+- [x] **Step 9: Align maintained documentation**
 
 Document that both pickers require on-lot Sims, wider audiences are captured before transfer, and infant sales use native pickup before rabbit-hole entry. Add three unchecked live verification entries to `SPECS_CHECKLIST.md` for the reported scenarios.
 
-- [ ] **Step 10: Run final verification**
+- [x] **Step 10: Run final verification**
 
 ```powershell
 py -3.12 -m pytest -q -p no:cacheprovider tests
@@ -313,7 +315,7 @@ git status --short --branch
 
 Expected: all tests pass, both mod artifacts build, `git diff --check` is empty, and only intended documentation/code/test changes are present.
 
-- [ ] **Step 11: Commit the infant and documentation fix locally**
+- [x] **Step 11: Commit the infant and documentation fix locally**
 
 ```powershell
 git add src/shady_sim_deals/sims4_adapters.py tests/test_sims4_adapters.py README.md ARCHITECTURE.md DEVELOPMENT.md SPECS_CHECKLIST.md docs/superpowers/plans/2026-08-06-live-sale-eligibility-infant-carry.md
@@ -334,10 +336,10 @@ git commit -m "fix: carry infants into sale rabbit holes"
 
 **Interfaces:**
 - Consumes: `target_sim.parent`, where a Sim parent is the current carrier.
-- Produces: native handoff continuation `269721` queued by the current carrier with `target=actor_sim` and `carry_target=target_sim`.
+- Produces: native handoff continuation `269721` queued by the current carrier with `target=actor_sim` and `context.carry_target=target_sim`, without a `carry_target` keyword argument.
 - Preserves: `_queue_infant_pickup(actor, target, callback) -> bool` and `callback(canceled: bool)`.
 
-- [ ] **Step 1: Write the failing carried-infant handoff test**
+- [x] **Step 1: Write the failing carried-infant handoff test**
 
 Create seller, mother, and infant Sim instances. Set `infant.parent = mother`, make the mother record `push_super_affordance`, and expose both pickup and handoff affordances from the fake interaction manager.
 
@@ -345,15 +347,16 @@ Create seller, mother, and infant Sim instances. Set `infant.parent = mother`, m
 assert adapter._queue_infant_pickup(actor, infant, callbacks.append)
 assert requested_ids == [269721]
 assert mother.pushes == [
-    (handoff_affordance, actor, context, {"carry_target": infant})
+    (handoff_affordance, actor, context, {})
 ]
+assert context.carry_target is infant
 
 infant.parent = actor
 finishing_callbacks[0](handoff_interaction)
 assert callbacks == [False]
 ```
 
-- [ ] **Step 2: Write the failing ownership-verification test**
+- [x] **Step 2: Write the failing ownership-verification test**
 
 Finish the same handoff naturally without changing `infant.parent` from the mother. Assert the callback receives cancellation and no rabbit hole starts:
 
@@ -363,7 +366,7 @@ assert callbacks == [True]
 assert service.started == []
 ```
 
-- [ ] **Step 3: Run the focused tests and verify RED**
+- [x] **Step 3: Run the focused tests and verify RED**
 
 ```powershell
 py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py -k "infant and (handoff or ownership)"
@@ -371,7 +374,7 @@ py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py -k "infan
 
 Expected: FAIL because `_queue_infant_pickup` always requests `271032` from the seller and does not verify final carry ownership.
 
-- [ ] **Step 4: Select EA's native handoff for a carried infant**
+- [x] **Step 4: Select EA's native handoff for a carried infant**
 
 Add `INFANT_HANDOFF_AFFORDANCE_ID = 269721`. In `_queue_infant_pickup`, resolve `target_sim.parent`. When that parent has `is_sim` and is not the seller, queue the handoff from the carrier:
 
@@ -381,17 +384,15 @@ if getattr(carrier, "is_sim", False) and carrier is not actor_sim:
     source_sim = carrier
     interaction_target = actor_sim
     affordance_id = self.INFANT_HANDOFF_AFFORDANCE_ID
-    interaction_kwargs = {"carry_target": target_sim}
 else:
     source_sim = actor_sim
     interaction_target = target_sim
     affordance_id = self.INFANT_PICKUP_AFFORDANCE_ID
-    interaction_kwargs = {}
 ```
 
-Construct the script context for `source_sim` and pass `**interaction_kwargs` to `push_super_affordance`.
+Construct the script context for `source_sim`. For the handoff branch only, assign `context.carry_target = target_sim`. Call `push_super_affordance` without a `carry_target` keyword argument.
 
-- [ ] **Step 5: Gate completion on actual carry ownership**
+- [x] **Step 5: Gate completion on actual carry ownership**
 
 Change the finishing callback to cancel unless both conditions hold:
 
@@ -405,7 +406,7 @@ callback(not completed)
 
 Update the existing uncarried-pickup wiring test to set `target.parent = actor` before completing the fake interaction.
 
-- [ ] **Step 6: Run focused and adapter regression tests**
+- [x] **Step 6: Run focused and adapter regression tests**
 
 ```powershell
 py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py -k "infant and (pickup or handoff or ownership or rabbit_hole)"
@@ -414,11 +415,11 @@ py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py
 
 Expected: PASS.
 
-- [ ] **Step 7: Align maintained documentation and live checklist**
+- [x] **Step 7: Align maintained documentation and live checklist**
 
 Document the native carried-infant handoff and ownership gate. Keep the live handoff item unchecked until it passes in game.
 
-- [ ] **Step 8: Run final verification and install the exact build**
+- [x] **Step 8: Run final verification and install the exact build**
 
 ```powershell
 py -3.12 -m pytest -q -p no:cacheprovider tests
@@ -431,9 +432,124 @@ Get-FileHash "$env:USERPROFILE\Documents\Electronic Arts\The Sims 4\Mods\ShadySi
 
 Expected: all tests pass, artifacts build, whitespace validation is clean, installation succeeds with the game closed, and both script hashes match.
 
-- [ ] **Step 9: Commit locally**
+- [x] **Step 9: Commit locally**
 
 ```powershell
 git add src/shady_sim_deals/sims4_adapters.py tests/test_sims4_adapters.py README.md ARCHITECTURE.md DEVELOPMENT.md SPECS_CHECKLIST.md docs/superpowers/plans/2026-08-06-live-sale-eligibility-infant-carry.md
 git commit -m "fix: hand off carried infants before sale"
 ```
+
+---
+
+### Task 5: Keep the carried infant out of the rabbit-hole participant list
+
+**Files:**
+- Modify: `src/shady_sim_deals/sims4_adapters.py:411-530`
+- Test: `tests/test_sims4_adapters.py:698-770`
+- Modify: `ARCHITECTURE.md:23`
+- Modify: `DEVELOPMENT.md:17-18`
+- Modify: `SPECS_CHECKLIST.md:110-125`
+
+**Interfaces:**
+- Produces: `Sims4RabbitHoleAdapter.INFANT_SOLO_RABBIT_HOLE_ID = 0xEAA21FFB1081E00B`, an alias for the existing private 90-minute `RabbitHole` tuning.
+- Preserves: `_start_rabbit_hole(actor, target, rabbit_hole_type, solo, on_finished) -> bool`.
+- Preserves: shared two-participant rabbit holes for every non-infant household sale and non-self unborn sale.
+
+- [x] **Step 1: Change the infant sequence test to require a seller-only rabbit hole**
+
+Rename `test_infant_pickup_finishes_before_shared_rabbit_hole_starts` to `test_infant_pickup_finishes_before_seller_only_rabbit_hole_starts`. After completing pickup, assert the seller is the only managed participant:
+
+```python
+pickup_callbacks[0](canceled=False)
+
+assert service.managed == [
+    (
+        actor,
+        sims4_adapters.Sims4RabbitHoleAdapter.INFANT_SOLO_RABBIT_HOLE_ID,
+    )
+]
+assert service.started == []
+service.callback(canceled=False)
+assert finished == [False]
+```
+
+- [x] **Step 2: Run the focused test and verify RED**
+
+```powershell
+py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py -k "seller_only_rabbit_hole"
+```
+
+Expected: FAIL because the adapter currently adds both seller and infant to `put_sims_in_shared_rabbithole`.
+
+- [x] **Step 3: Reuse the existing private 90-minute solo tuning for infant sales**
+
+Add the explicit alias beside the age mapping:
+
+```python
+INFANT_SOLO_RABBIT_HOLE_ID = 0xEAA21FFB1081E00B
+```
+
+In `run`, select this tuning for household-member infants and start it in solo mode only after verified pickup or handoff:
+
+```python
+solo = False
+if transaction.transaction_type == "unborn":
+    count = min(
+        3,
+        max(1, int(self._expected_offspring_lookup(transaction.target_id))),
+    )
+    solo = transaction.actor_id == transaction.target_id
+    mapping = (
+        self.UNBORN_SOLO_BY_COUNT
+        if solo
+        else self.UNBORN_SHARED_BY_COUNT
+    )
+    tuning_id = mapping[count]
+elif age_key(target) == "infant":
+    tuning_id = self.INFANT_SOLO_RABBIT_HOLE_ID
+else:
+    tuning_id = self.RABBIT_HOLE_BY_AGE[age_key(target)]
+```
+
+Then change only the infant completion call:
+
+```python
+self._start_rabbit_hole(
+    actor,
+    target,
+    rabbit_hole_type,
+    True,
+    on_finished,
+)
+```
+
+Do not add infant hide/show code: the infant remains attached to the seller and follows the seller's routing and fade behavior.
+
+- [x] **Step 4: Run focused and adapter regression tests**
+
+```powershell
+py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py -k "infant or rabbit_hole"
+py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py
+```
+
+Expected: PASS. The existing non-infant shared and unborn solo/shared assertions prove those paths are unchanged.
+
+- [x] **Step 5: Align maintained documentation**
+
+Update `ARCHITECTURE.md`, `DEVELOPMENT.md`, and `SPECS_CHECKLIST.md` to state that infant sales use native pickup/handoff followed by a seller-only 90-minute `RabbitHole`; the carried infant is not a second rabbit-hole participant. Mark the live infant verification complete after it passes in game.
+
+- [x] **Step 6: Run final verification, build, and install**
+
+With The Sims 4 closed:
+
+```powershell
+py -3.12 -m pytest -q -p no:cacheprovider tests
+py -3.12 build_mod.py
+git diff --check
+.\install_mod.ps1
+Get-FileHash dist\ShadySimDeals.ts4script
+Get-FileHash "$env:USERPROFILE\Documents\Electronic Arts\The Sims 4\Mods\ShadySimDeals\ShadySimDeals.ts4script"
+git status --short --branch
+```
+
+Expected: all tests pass, artifacts build, whitespace validation is clean, installation succeeds, both script hashes match, and only intended files are present for the user-authorized commit.

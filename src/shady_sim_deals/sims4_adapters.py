@@ -411,6 +411,7 @@ class Sims4PregnancyAdapter:
 class Sims4RabbitHoleAdapter:
     INFANT_PICKUP_AFFORDANCE_ID = 271032
     INFANT_HANDOFF_AFFORDANCE_ID = 269721
+    INFANT_SOLO_RABBIT_HOLE_ID = 0xEAA21FFB1081E00B
     RABBIT_HOLE_BY_AGE = {
         "elder": 0xEAA21FFB1081E005,
         "baby": 0xEAA21FFB1081E006,
@@ -467,7 +468,12 @@ class Sims4RabbitHoleAdapter:
             mapping = self.UNBORN_SOLO_BY_COUNT if solo else self.UNBORN_SHARED_BY_COUNT
             tuning_id = mapping[count]
         else:
-            tuning_id = self.RABBIT_HOLE_BY_AGE[age_key(target)]
+            target_age = age_key(target)
+            tuning_id = (
+                self.INFANT_SOLO_RABBIT_HOLE_ID
+                if target_age == "infant"
+                else self.RABBIT_HOLE_BY_AGE[target_age]
+            )
         rabbit_hole_type = self._rabbit_hole_lookup(tuning_id)
         if rabbit_hole_type is None:
             raise IntegrationUnavailable("Rabbit-hole tuning is unavailable")
@@ -484,7 +490,7 @@ class Sims4RabbitHoleAdapter:
                         actor,
                         target,
                         rabbit_hole_type,
-                        False,
+                        True,
                         on_finished,
                     )
                 except Exception:
@@ -550,7 +556,7 @@ class Sims4RabbitHoleAdapter:
             source_sim = carrier
             interaction_target = actor_sim
             affordance_id = self.INFANT_HANDOFF_AFFORDANCE_ID
-            interaction_kwargs = {"carry_target": target_sim}
+            interaction_kwargs = {}
         else:
             source_sim = actor_sim
             interaction_target = target_sim
@@ -564,6 +570,8 @@ class Sims4RabbitHoleAdapter:
         context = InteractionContext(
             source_sim, InteractionContext.SOURCE_SCRIPT, Priority.High
         )
+        if affordance_id == self.INFANT_HANDOFF_AFFORDANCE_ID:
+            context.carry_target = target_sim
         result = source_sim.push_super_affordance(
             affordance, interaction_target, context, **interaction_kwargs
         )

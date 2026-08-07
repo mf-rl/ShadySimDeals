@@ -711,7 +711,7 @@ def test_rabbit_hole_adapter_starts_shared_hole_in_participant_order(
     assert callbacks == [False]
 
 
-def test_infant_pickup_finishes_before_shared_rabbit_hole_starts():
+def test_infant_pickup_finishes_before_seller_only_rabbit_hole_starts():
     actor = FakeSimInfo("ADULT", sim_id="1")
     target = FakeSimInfo("INFANT", sim_id="2")
     service = FakeRabbitHoleService()
@@ -734,9 +734,13 @@ def test_infant_pickup_finishes_before_shared_rabbit_hole_starts():
 
     pickup_callbacks[0](canceled=False)
 
-    assert service.started == [
-        ([actor, target], sims4_adapters.Sims4RabbitHoleAdapter.RABBIT_HOLE_BY_AGE["infant"])
+    assert service.managed == [
+        (
+            actor,
+            sims4_adapters.Sims4RabbitHoleAdapter.INFANT_SOLO_RABBIT_HOLE_ID,
+        )
     ]
+    assert service.started == []
     service.callback(canceled=False)
     assert finished == [False]
 
@@ -902,7 +906,8 @@ def test_carried_infant_uses_native_handoff_before_rabbit_hole(monkeypatch):
         env.handoff_affordance,
         env.actor,
     )
-    assert env.mother.pushes[0][3] == {"carry_target": env.infant}
+    assert env.mother.pushes[0][2].carry_target is env.infant
+    assert env.mother.pushes[0][3] == {}
 
     env.infant.parent = env.actor
     env.finishing_callbacks[0](env.interaction)

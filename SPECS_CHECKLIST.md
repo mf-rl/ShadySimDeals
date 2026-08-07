@@ -97,10 +97,12 @@ verification remain unchecked.
   - [x] Actor exclusion and Teen-through-Elder filtering
   - [x] Baby, infant, toddler, and child filtering and pricing
   - [x] Live: child appears and completes a sale
-  - [ ] Live: newborn, infant, and toddler sales
-  - [x] Automated: infant sale queues native pickup before the shared rabbit hole
+  - [x] Live: infant sale completes after the seller carries the infant into the rabbit hole
+  - [ ] Live: newborn and toddler sales
+  - [x] Automated: infant sale queues native pickup before a seller-only 90-minute rabbit hole
   - [x] Automated: an existing carrier hands the infant to the seller and carry ownership gates rabbit-hole startup
-  - [ ] Live: another carrier hands the infant to the seller, who carries it into the rabbit hole
+  - [x] Automated: the carried infant is not registered as a second rabbit-hole participant
+  - [x] Live: another carrier hands the infant to the seller, who carries it into the rabbit hole
 - [x] 5. Unborn picker includes only pregnant household members, including the actor.
   - [x] Repository filtering and picker-row tests
   - [x] Live: pregnant active Sim appears
@@ -111,7 +113,8 @@ verification remain unchecked.
   - [ ] Live: twin and triplet household-member pregnancy bonuses
 - [x] 7. Cancellation makes no changes.
 - [ ] 8. Confirmation starts the appropriate rabbit hole.
-  - [x] Automated: target age selects the 75-, 90-, or 120-minute shared household tuning
+  - [x] Automated: non-infant target age selects the 75-, 90-, or 120-minute shared household tuning
+  - [x] Automated: infant sales use the private 90-minute solo tuning for the seller
   - [x] Automated: expected offspring selects the 90-, 120-, or 150-minute unborn tuning
   - [x] Package: shared `TwoSimRabbitHole` resources map Actor then PickedSim
   - [x] Package: self-target unborn resources use a solo `RabbitHole`
@@ -120,6 +123,7 @@ verification remain unchecked.
 - [ ] 9. Household-member transactions return only the seller from a rabbit hole.
   - [x] Automated: target processing waits for the seller expiration callback
   - [x] Automated: cancellation makes no transfer or payment
+  - [x] Live: seller returns alone after the 90-minute infant sale and payment completes
   - [ ] Live: only the seller returns after child, adult, and elder sales
 - [x] 10. Targets move out of the active household without hard deletion.
 - [x] 11. Payment is deposited exactly once and only after target processing.

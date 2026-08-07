@@ -128,7 +128,7 @@ Do not duplicate filtering, pricing, transaction, or consequence logic in the co
 
 When Liquidate a Family Asset is selected, open a Sim picker containing:
 
-- All members of the active household.
+- All on-lot members of the active household.
 - Exclude the active Sim.
 - Include Sims of every age:
   - Baby
@@ -141,11 +141,12 @@ When Liquidate a Family Asset is selected, open a Sim picker containing:
   - Elder
 - Include supported occult Sims.
 - Exclude invalid, destroyed, hidden, or otherwise unsafe SimInfo records.
+- Exclude Sims at work, school, or otherwise off-lot.
 - Exclude pets unless explicitly supported by a future configuration option.
 - Exclude Sims already marked as sold.
 - Exclude Sims currently participating in another ShadySimDeals transaction.
 
-The picker must operate on SimInfo where possible, because babies and off-lot household members may not have an instantiated Sim object.
+The picker operates on `SimInfo` and requires a visible instantiated Sim on the active lot. This keeps babies and other valid on-lot ages available while excluding work, school, and other off-lot states that cannot safely enter the transaction.
 
 After selection, refer to the selected Sim internally as the target Sim.
 
@@ -159,6 +160,7 @@ Requirements:
 
 - Include the active Sim when the active Sim is pregnant.
 - Include other pregnant household members.
+- Exclude pregnant Sims at work, school, or otherwise off-lot.
 - Exclude Sims whose pregnancies are invalid, completed, or already involved in a transaction.
 - Determine the expected offspring count through the game pregnancy tracker if safely available.
 - Do not rely only on visible pregnancy buffs.
@@ -176,8 +178,8 @@ After the player confirms the sale:
 
 1. Reserve the actor and target Sim for the transaction.
 2. Add a visible queued interaction.
-3. Route both Sims off the active lot.
-4. Place them into a rabbit-hole state.
+3. For non-infants, route both Sims off the active lot and place both in a shared rabbit-hole state.
+4. For infants, make the seller pick up or receive the infant, route while carrying it, and register only the seller in the 90-minute rabbit hole.
 5. Complete the transaction after the configured duration.
 6. Return only the active Sim.
 7. Remove the target Sim from the active household.
