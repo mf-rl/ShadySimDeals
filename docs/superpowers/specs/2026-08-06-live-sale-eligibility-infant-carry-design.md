@@ -14,7 +14,7 @@ The wider relationship audience is discovered only after the target has been tra
 
 The shared picker eligibility functions validate household membership and transaction state but never check `SimInfo.is_instanced()`. Sims at work, school, or otherwise off-lot therefore remain selectable.
 
-The shared rabbit-hole service pushes the same routing interaction to both participants. An infant cannot satisfy that route independently, so the infant interaction ends with a transition failure and cancels the transaction.
+The shared rabbit-hole service pushes the same routing interaction to both participants. An infant cannot satisfy that route independently, so the infant interaction ends with a transition failure and cancels the transaction. EA's standard infant pickup affordance also rejects an infant already carried by another Sim; that state requires the native handoff continuation instead.
 
 ## Design
 
@@ -30,15 +30,15 @@ Both `eligible_household_member_ids` and `eligible_unborn_ids` require `sim_info
 
 ### Infant pickup before rabbit-hole entry
 
-For household-member sales whose target age is `infant`, `Sims4RabbitHoleAdapter` resolves the seller and infant instances and queues EA's native `socialSuperInteraction_CarryPickUp_Infant` affordance (`271032`) with a script interaction context.
+For household-member sales whose target age is `infant`, `Sims4RabbitHoleAdapter` resolves the seller and infant instances. An uncarried infant uses EA's native `socialSuperInteraction_CarryPickUp_Infant` affordance (`271032`) with a script interaction context.
 
-If pickup finishes naturally, the adapter starts the existing age-based shared rabbit hole. If the pickup cannot be queued or finishes unsuccessfully, the adapter completes the transaction callback as canceled. Non-infant household sales and unborn sales keep their current path unchanged.
+When another Sim is carrying the infant, the adapter follows EA's handoff pattern: the current carrier queues continuation `269721`, targets the seller, and supplies the infant as `carry_target`. The adapter starts the existing age-based shared rabbit hole only after the interaction finishes naturally and the infant's parent/carrier is the seller. If pickup, handoff, or final ownership verification fails, the adapter completes the transaction callback as canceled. Non-infant household sales and unborn sales keep their current path unchanged.
 
 ## Error handling
 
 - Audience capture failures are logged by source and leave the successful sale recoverable.
 - Off-lot or uninspectable candidates are omitted rather than exposed as transactions that will fail later.
-- Pickup startup or completion failure cancels before transfer or payment.
+- Pickup or handoff startup, completion, or ownership-verification failure cancels before transfer or payment.
 - Existing rabbit-hole startup and expiration callback cleanup remains authoritative after pickup.
 
 ## Verification
@@ -47,8 +47,9 @@ Automated regression tests will prove:
 
 - wider relationship IDs are captured before target processing and consumed afterward;
 - both picker helpers exclude non-instanced Sims;
-- infants queue native pickup before the shared rabbit hole;
-- pickup failure cancels without starting the rabbit hole;
+- uncarried infants queue native pickup before the shared rabbit hole;
+- infants carried by another Sim use native handoff before the shared rabbit hole;
+- pickup, handoff, or ownership-verification failure cancels without starting the rabbit hole;
 - non-infant and unborn paths remain unchanged.
 
-Live verification will cover the reported three-Sim relationship scenario, work/school filtering in both pickers, successful infant pickup and entry, pickup cancellation, and unchanged payment/transfer ordering.
+Live verification will cover the reported three-Sim relationship scenario, work/school filtering in both pickers, successful uncarried pickup, successful handoff from another carrier, cancellation, and unchanged payment/transfer ordering.
