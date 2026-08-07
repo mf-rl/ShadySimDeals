@@ -572,6 +572,8 @@ class Sims4RabbitHoleAdapter:
             return failed("target_unavailable")
         carrier = getattr(target_sim, "parent", None)
         if target_age == "baby":
+            from interactions.interaction_finisher import FinishingType
+
             def find_held_actions():
                 return next(
                     (
@@ -668,16 +670,29 @@ class Sims4RabbitHoleAdapter:
                 )
                 if held_interaction is None:
                     return failed("carrier_interaction_unavailable")
+
+                def carrier_finished(interaction):
+                    if (
+                        not interaction.is_finishing_naturally
+                        or target_sim.parent is carrier
+                    ):
+                        callback(True)
+                        return
+                    queue_check_on()
+
                 held_interaction.register_on_finishing_callback(
-                    queue_check_on
+                    carrier_finished
                 )
-                if not held_interaction.cancel_user(
-                    cancel_reason_msg="Shady Sim Deals newborn handoff"
-                ):
-                    held_interaction.unregister_on_finishing_callback(
-                        queue_check_on
+                try:
+                    held_interaction.cancel(
+                        FinishingType.NATURAL,
+                        cancel_reason_msg="Shady Sim Deals newborn handoff",
                     )
-                    return failed("carrier_release_rejected")
+                except Exception:
+                    held_interaction.unregister_on_finishing_callback(
+                        carrier_finished
+                    )
+                    return failed("carrier_release_exception")
                 return True
             queue_check_on()
             return True

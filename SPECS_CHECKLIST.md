@@ -103,11 +103,11 @@ verification remain unchecked.
   - [x] Baby, infant, toddler, and child filtering and pricing
   - [x] Live: child appears and completes a sale
   - [x] Live: infant sale completes after the seller carries the infant into the rabbit hole
-  - [ ] Live: newborn appears; after user-cancel releases the carrier, native Check On cancels while the seller routes, no Held Actions starts, and **Inconvenient Fact** appears
+  - [ ] Live: newborn appears; corrected natural carrier put-down before native Check On awaits validation (the previous user-cancel path left the newborn unroutable and showed **Inconvenient Fact**)
   - [x] Live: toddler appears and completes a sale
   - [x] Automated: newborn and infant sales acquire carry ownership before a seller-only 90-minute rabbit hole
   - [x] Automated: newborn `SimInfo` resolves its matching `Baby` object before native Check On
-  - [x] Automated: an existing newborn carrier releases it before the seller queues native Check On and verifies persistent Held Actions; an existing infant carrier hands it to the seller
+  - [x] Automated: an existing newborn carrier completes a natural put-down before the seller queues native Check On and verifies persistent Held Actions; an existing infant carrier hands it to the seller
   - [x] Automated: the carried newborn or infant is not registered as a second rabbit-hole participant
   - [x] Live: another carrier hands the infant to the seller, who carries it into the rabbit hole
 - [x] 5. Unborn picker includes only pregnant household members, including the actor.

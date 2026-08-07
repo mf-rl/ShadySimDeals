@@ -893,14 +893,22 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
 
     context_module = SimpleNamespace(InteractionContext=InteractionContext)
     priority_module = SimpleNamespace(Priority=SimpleNamespace(High="high"))
+    finisher_module = SimpleNamespace(
+        FinishingType=SimpleNamespace(NATURAL="natural")
+    )
     interactions = SimpleNamespace(
-        context=context_module, priority=priority_module
+        context=context_module,
+        interaction_finisher=finisher_module,
+        priority=priority_module,
     )
     monkeypatch.setitem(sys.modules, "services", services)
     monkeypatch.setitem(sys.modules, "sims4", sims4)
     monkeypatch.setitem(sys.modules, "sims4.resources", resources)
     monkeypatch.setitem(sys.modules, "interactions", interactions)
     monkeypatch.setitem(sys.modules, "interactions.context", context_module)
+    monkeypatch.setitem(
+        sys.modules, "interactions.interaction_finisher", finisher_module
+    )
     monkeypatch.setitem(sys.modules, "interactions.priority", priority_module)
     return SimpleNamespace(
         actor=actor,
@@ -941,12 +949,12 @@ def test_carried_infant_uses_native_handoff_before_rabbit_hole(
 def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     events = []
-    release_callbacks = []
+    release_requests = []
     check_on_callbacks = []
     env.interaction.target = env.carry_target
-    env.interaction.cancel_user = lambda **kwargs: release_callbacks.append(
-        kwargs
-    ) or True
+    env.interaction.cancel = lambda finishing_type, **kwargs: (
+        release_requests.append((finishing_type, kwargs))
+    )
     env.mother.si_state = [env.interaction]
     check_on_interaction = SimpleNamespace(
         is_finishing=False,
@@ -974,8 +982,11 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
     assert adapter._queue_infant_pickup(
         env.actor, env.infant, callbacks.append
     )
-    assert release_callbacks == [
-        {"cancel_reason_msg": "Shady Sim Deals newborn handoff"}
+    assert release_requests == [
+        (
+            "natural",
+            {"cancel_reason_msg": "Shady Sim Deals newborn handoff"},
+        )
     ]
     assert env.actor.pushes == []
 
@@ -1034,7 +1045,7 @@ def test_parented_newborn_without_held_actions_queues_check_on(monkeypatch):
 def test_newborn_check_on_startup_exception_cancels_pickup(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.interaction.target = env.carry_target
-    env.interaction.cancel_user = lambda **kwargs: True
+    env.interaction.cancel = lambda *args, **kwargs: None
     env.mother.si_state = [env.interaction]
     env.actor.push_super_affordance = lambda *args, **kwargs: (_ for _ in ()).throw(
         RuntimeError("push failed")
@@ -1051,10 +1062,14 @@ def test_newborn_check_on_startup_exception_cancels_pickup(monkeypatch):
     assert callbacks == [True]
 
 
-def test_rejected_newborn_release_unregisters_finishing_callback(monkeypatch):
+def test_newborn_natural_release_exception_unregisters_finishing_callback(
+    monkeypatch,
+):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.interaction.target = env.carry_target
-    env.interaction.cancel_user = lambda **kwargs: False
+    env.interaction.cancel = lambda *args, **kwargs: (_ for _ in ()).throw(
+        RuntimeError("cancel failed")
+    )
     env.interaction.unregister_on_finishing_callback = (
         env.finishing_callbacks.remove
     )
@@ -1066,6 +1081,43 @@ def test_rejected_newborn_release_unregisters_finishing_callback(monkeypatch):
     )
 
     assert env.finishing_callbacks == []
+
+
+def test_unnatural_newborn_release_cancels_without_check_on(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.interaction.target = env.carry_target
+    env.interaction.cancel = lambda *args, **kwargs: None
+    env.mother.si_state = [env.interaction]
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+
+    env.interaction.is_finishing_naturally = False
+    env.finishing_callbacks[0](env.interaction)
+
+    assert callbacks == [True]
+    assert env.requested_ids == []
+
+
+def test_attached_newborn_release_cancels_without_check_on(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.interaction.target = env.carry_target
+    env.interaction.cancel = lambda *args, **kwargs: None
+    env.mother.si_state = [env.interaction]
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+
+    env.finishing_callbacks[0](env.interaction)
+
+    assert callbacks == [True]
+    assert env.requested_ids == []
 
 
 def test_carried_infant_handoff_cancels_without_seller_ownership(monkeypatch):

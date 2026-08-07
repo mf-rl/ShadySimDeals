@@ -148,7 +148,7 @@ Expected: the installer copies the verified artifacts to the game Mods directory
 - Consumes: the existing newborn-only `queue_check_on` callback and `baby_HeldActions` interaction selected by target identity.
 - Produces: a carrier release through `interaction.cancel(FinishingType.NATURAL, cancel_reason_msg=...)`; Check On starts only after the carrier finishes naturally and no longer parents the newborn.
 
-- [ ] **Step 1: Write failing natural-release regressions**
+- [x] **Step 1: Write failing natural-release regressions**
 
 Update `test_carried_newborn_is_released_then_held_by_seller` to expose a fake `FinishingType.NATURAL`, record calls to `interaction.cancel`, and assert:
 
@@ -167,7 +167,7 @@ Replace `test_rejected_newborn_release_unregisters_finishing_callback` with `tes
 
 Add `test_unnatural_newborn_release_cancels_without_check_on`: invoke the carrier finishing callback with `is_finishing_naturally=False` and require `callbacks == [True]` and `requested_ids == []`.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -177,7 +177,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_sims
 
 Expected: newborn natural-release tests fail because production still calls `cancel_user`; infant controls pass.
 
-- [ ] **Step 3: Implement natural carrier completion**
+- [x] **Step 3: Implement natural carrier completion**
 
 Import `FinishingType` inside `_queue_infant_pickup`:
 
@@ -215,11 +215,11 @@ return True
 
 Do not call `cancel_user()` and do not manually mutate newborn parenting or state.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run the Step 2 command. Expected: all selected newborn and infant tests pass.
 
-- [ ] **Step 5: Align current-state documentation**
+- [x] **Step 5: Align current-state documentation**
 
 - `README.md`, `ARCHITECTURE.md`, and `DEVELOPMENT.md`: state that the previous carrier completes a natural visible put-down before seller Check On.
 - `SPECS_CHECKLIST.md`: keep live newborn sale unchecked and state that natural put-down awaits validation.
