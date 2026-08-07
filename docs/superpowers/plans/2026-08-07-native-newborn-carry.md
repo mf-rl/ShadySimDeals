@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the newborn-only `baby_HoldOut` attempt with EA's native `baby_CheckOn_Minor` continuation into persistent `baby_HeldActions` without changing any other sale flow.
+**Goal:** Complete EA's natural newborn put-down before native `baby_CheckOn_Minor` continues into persistent `baby_HeldActions`, without changing any other sale flow.
 
-**Architecture:** Keep the existing `Sims4RabbitHoleAdapter._queue_infant_pickup` boundary and its separate newborn branch. After an existing carrier releases the `Baby` object, queue `baby_CheckOn_Minor` (`275655`); accept pickup only when its continuation leaves `baby_HeldActions` (`275181`) active on the seller with the newborn as target and the newborn parented to the seller. The infant branch and all downstream rabbit-hole, transfer, pricing, consequence, and payment code remain unchanged.
+**Architecture:** Keep the existing `Sims4RabbitHoleAdapter._queue_infant_pickup` boundary and its separate newborn branch. End an existing carrier's `baby_HeldActions` with `cancel(FinishingType.NATURAL, ...)`, wait for the visible put-down/restore-to-crib exit, and only then queue `baby_CheckOn_Minor` (`275655`). Accept pickup only when its continuation leaves `baby_HeldActions` (`275181`) active on the seller with the newborn as target and the newborn parented to the seller. The infant branch and all downstream rabbit-hole, transfer, pricing, consequence, and payment code remain unchanged.
 
 **Tech Stack:** Python 3.7-compatible Sims 4 script code, pytest under Python 3.12, EA interaction tuning IDs, PowerShell build/install scripts.
 
@@ -14,7 +14,7 @@
 - Keep infant pickup `271032` and handoff `269721` unchanged.
 - Do not manually mutate object parenting or newborn state.
 - Do not add dependencies, custom animations, or carry implementations.
-- Do not commit or push in this session.
+- Commit reviewed changes and push them to existing PR #7 without collaborator or AI attribution.
 - Keep the live newborn checklist pending until the complete sale passes in game.
 
 ---
@@ -130,4 +130,108 @@ Run `git diff -- src/shady_sim_deals/sims4_adapters.py tests/test_sims4_adapters
 .\install_mod.ps1
 ```
 
-Expected: the installer copies the verified artifacts to the game Mods directory. Do not commit or push.
+Expected: the installer copies the verified artifacts to the game Mods directory. This historical task was completed before PR #7 was selected as the integration path.
+
+---
+
+### Task 2: Replace user cancellation with natural newborn put-down
+
+**Files:**
+- Modify: `tests/test_sims4_adapters.py`
+- Modify: `src/shady_sim_deals/sims4_adapters.py`
+- Modify: `README.md`
+- Modify: `ARCHITECTURE.md`
+- Modify: `DEVELOPMENT.md`
+- Modify: `SPECS_CHECKLIST.md`
+
+**Interfaces:**
+- Consumes: the existing newborn-only `queue_check_on` callback and `baby_HeldActions` interaction selected by target identity.
+- Produces: a carrier release through `interaction.cancel(FinishingType.NATURAL, cancel_reason_msg=...)`; Check On starts only after the carrier finishes naturally and no longer parents the newborn.
+
+- [ ] **Step 1: Write failing natural-release regressions**
+
+Update `test_carried_newborn_is_released_then_held_by_seller` to expose a fake `FinishingType.NATURAL`, record calls to `interaction.cancel`, and assert:
+
+```python
+assert release_requests == [
+    ("natural", {"cancel_reason_msg": "Shady Sim Deals newborn handoff"})
+]
+assert env.requested_ids == []
+
+env.carry_target.parent = None
+env.finishing_callbacks[0](env.interaction)
+assert env.requested_ids == [275655]
+```
+
+Replace `test_rejected_newborn_release_unregisters_finishing_callback` with `test_newborn_natural_release_exception_unregisters_finishing_callback`, where `interaction.cancel` raises `RuntimeError`; require `_queue_infant_pickup` to return `False` and leave no finishing callback registered.
+
+Add `test_unnatural_newborn_release_cancels_without_check_on`: invoke the carrier finishing callback with `is_finishing_naturally=False` and require `callbacks == [True]` and `requested_ids == []`.
+
+- [ ] **Step 2: Run focused tests and verify RED**
+
+Run:
+
+```powershell
+$env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_sims4_adapters.py -k "carried_newborn_is_released or natural_release_exception or unnatural_newborn_release or native_infant_pickup or carried_infant"
+```
+
+Expected: newborn natural-release tests fail because production still calls `cancel_user`; infant controls pass.
+
+- [ ] **Step 3: Implement natural carrier completion**
+
+Import `FinishingType` inside `_queue_infant_pickup`:
+
+```python
+from interactions.interaction_finisher import FinishingType
+```
+
+Replace the carrier's direct `queue_check_on` finishing callback with:
+
+```python
+def carrier_finished(interaction):
+    if (
+        not interaction.is_finishing_naturally
+        or target_sim.parent is carrier
+    ):
+        callback(True)
+        return
+    queue_check_on()
+```
+
+Register `carrier_finished`, request the natural finish, and clean up only if that request raises:
+
+```python
+held_interaction.register_on_finishing_callback(carrier_finished)
+try:
+    held_interaction.cancel(
+        FinishingType.NATURAL,
+        cancel_reason_msg="Shady Sim Deals newborn handoff",
+    )
+except Exception:
+    held_interaction.unregister_on_finishing_callback(carrier_finished)
+    return failed("carrier_release_exception")
+return True
+```
+
+Do not call `cancel_user()` and do not manually mutate newborn parenting or state.
+
+- [ ] **Step 4: Run focused tests and verify GREEN**
+
+Run the Step 2 command. Expected: all selected newborn and infant tests pass.
+
+- [ ] **Step 5: Align current-state documentation**
+
+- `README.md`, `ARCHITECTURE.md`, and `DEVELOPMENT.md`: state that the previous carrier completes a natural visible put-down before seller Check On.
+- `SPECS_CHECKLIST.md`: keep live newborn sale unchecked and state that natural put-down awaits validation.
+
+- [ ] **Step 6: Verify, review, commit, and update PR #7**
+
+Run:
+
+```powershell
+$env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests
+py -3.12 build_mod.py
+git diff --check
+```
+
+Request read-only review over `bb78c4821c24faaf544557b0a120c817170bae4a..HEAD` plus the working-tree change. Fix all Critical and Important findings. Commit with conventional commit subject `fix: finish newborn release naturally`, push `fix/native-newborn-carry`, and install after The Sims 4 is closed.
