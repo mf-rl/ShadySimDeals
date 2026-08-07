@@ -103,7 +103,7 @@ verification remain unchecked.
   - [x] Baby, infant, toddler, and child filtering and pricing
   - [x] Live: child appears and completes a sale
   - [x] Live: infant sale completes after the seller carries the infant into the rabbit hole
-  - [ ] Live: newborn appears; the corrected native Check On-to-Held Actions carry flow awaits validation after the previous Hold attempt canceled with **Inconvenient Fact**
+  - [ ] Live: newborn appears; after user-cancel releases the carrier, native Check On cancels while the seller routes, no Held Actions starts, and **Inconvenient Fact** appears
   - [x] Live: toddler appears and completes a sale
   - [x] Automated: newborn and infant sales acquire carry ownership before a seller-only 90-minute rabbit hole
   - [x] Automated: newborn `SimInfo` resolves its matching `Baby` object before native Check On
