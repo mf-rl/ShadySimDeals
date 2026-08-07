@@ -4,7 +4,7 @@
 
 **Goal:** Fix wider relationship timing, exclude off-lot Sims from both sale pickers, and make sellers carry infants into household-sale rabbit holes.
 
-**Architecture:** Preserve the existing transaction workflow. Add one shared presence predicate for picker candidates, snapshot wider relationship deltas immediately before target disposition, and prepend EA's native infant pickup affordance to only the infant household-member rabbit-hole path.
+**Architecture:** Preserve the existing transaction workflow. Add one shared presence predicate for picker candidates, snapshot wider relationship deltas immediately before target disposition, and prepend EA's native infant pickup or handoff path to only the infant household-member rabbit-hole path.
 
 **Tech Stack:** Python 3.7-compatible Sims 4 scripts, Python 3.12 and pytest, native Sims 4 `SimInfo`, `RelationshipTracker`, `InteractionContext`, and interaction tuning APIs.
 
@@ -12,7 +12,7 @@
 
 - Do not change pricing, sale durations, payment ordering, or transaction recovery.
 - Do not add dependencies or custom carry tuning.
-- Use EA interaction `socialSuperInteraction_CarryPickUp_Infant` (`271032`).
+- Use EA pickup interaction `271032` for uncarried infants and EA handoff continuation `269721` for infants carried by another Sim.
 - Do not push changes.
 
 ---
@@ -318,4 +318,122 @@ Expected: all tests pass, both mod artifacts build, `git diff --check` is empty,
 ```powershell
 git add src/shady_sim_deals/sims4_adapters.py tests/test_sims4_adapters.py README.md ARCHITECTURE.md DEVELOPMENT.md SPECS_CHECKLIST.md docs/superpowers/plans/2026-08-06-live-sale-eligibility-infant-carry.md
 git commit -m "fix: carry infants into sale rabbit holes"
+```
+
+---
+
+### Task 4: Handoff infants already carried by another Sim
+
+**Files:**
+- Modify: `src/shady_sim_deals/sims4_adapters.py:470-570`
+- Test: `tests/test_sims4_adapters.py:710-840`
+- Modify: `README.md`
+- Modify: `ARCHITECTURE.md`
+- Modify: `DEVELOPMENT.md`
+- Modify: `SPECS_CHECKLIST.md`
+
+**Interfaces:**
+- Consumes: `target_sim.parent`, where a Sim parent is the current carrier.
+- Produces: native handoff continuation `269721` queued by the current carrier with `target=actor_sim` and `carry_target=target_sim`.
+- Preserves: `_queue_infant_pickup(actor, target, callback) -> bool` and `callback(canceled: bool)`.
+
+- [ ] **Step 1: Write the failing carried-infant handoff test**
+
+Create seller, mother, and infant Sim instances. Set `infant.parent = mother`, make the mother record `push_super_affordance`, and expose both pickup and handoff affordances from the fake interaction manager.
+
+```python
+assert adapter._queue_infant_pickup(actor, infant, callbacks.append)
+assert requested_ids == [269721]
+assert mother.pushes == [
+    (handoff_affordance, actor, context, {"carry_target": infant})
+]
+
+infant.parent = actor
+finishing_callbacks[0](handoff_interaction)
+assert callbacks == [False]
+```
+
+- [ ] **Step 2: Write the failing ownership-verification test**
+
+Finish the same handoff naturally without changing `infant.parent` from the mother. Assert the callback receives cancellation and no rabbit hole starts:
+
+```python
+finishing_callbacks[0](handoff_interaction)
+assert callbacks == [True]
+assert service.started == []
+```
+
+- [ ] **Step 3: Run the focused tests and verify RED**
+
+```powershell
+py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py -k "infant and (handoff or ownership)"
+```
+
+Expected: FAIL because `_queue_infant_pickup` always requests `271032` from the seller and does not verify final carry ownership.
+
+- [ ] **Step 4: Select EA's native handoff for a carried infant**
+
+Add `INFANT_HANDOFF_AFFORDANCE_ID = 269721`. In `_queue_infant_pickup`, resolve `target_sim.parent`. When that parent has `is_sim` and is not the seller, queue the handoff from the carrier:
+
+```python
+carrier = getattr(target_sim, "parent", None)
+if getattr(carrier, "is_sim", False) and carrier is not actor_sim:
+    source_sim = carrier
+    interaction_target = actor_sim
+    affordance_id = self.INFANT_HANDOFF_AFFORDANCE_ID
+    interaction_kwargs = {"carry_target": target_sim}
+else:
+    source_sim = actor_sim
+    interaction_target = target_sim
+    affordance_id = self.INFANT_PICKUP_AFFORDANCE_ID
+    interaction_kwargs = {}
+```
+
+Construct the script context for `source_sim` and pass `**interaction_kwargs` to `push_super_affordance`.
+
+- [ ] **Step 5: Gate completion on actual carry ownership**
+
+Change the finishing callback to cancel unless both conditions hold:
+
+```python
+completed = (
+    interaction.is_finishing_naturally
+    and target_sim.parent is actor_sim
+)
+callback(not completed)
+```
+
+Update the existing uncarried-pickup wiring test to set `target.parent = actor` before completing the fake interaction.
+
+- [ ] **Step 6: Run focused and adapter regression tests**
+
+```powershell
+py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py -k "infant and (pickup or handoff or ownership or rabbit_hole)"
+py -3.12 -m pytest -q -p no:cacheprovider tests/test_sims4_adapters.py
+```
+
+Expected: PASS.
+
+- [ ] **Step 7: Align maintained documentation and live checklist**
+
+Document the native carried-infant handoff and ownership gate. Keep the live handoff item unchecked until it passes in game.
+
+- [ ] **Step 8: Run final verification and install the exact build**
+
+```powershell
+py -3.12 -m pytest -q -p no:cacheprovider tests
+py -3.12 build_mod.py
+git diff --check
+.\install_mod.ps1
+Get-FileHash dist\ShadySimDeals.ts4script
+Get-FileHash "$env:USERPROFILE\Documents\Electronic Arts\The Sims 4\Mods\ShadySimDeals\ShadySimDeals.ts4script"
+```
+
+Expected: all tests pass, artifacts build, whitespace validation is clean, installation succeeds with the game closed, and both script hashes match.
+
+- [ ] **Step 9: Commit locally**
+
+```powershell
+git add src/shady_sim_deals/sims4_adapters.py tests/test_sims4_adapters.py README.md ARCHITECTURE.md DEVELOPMENT.md SPECS_CHECKLIST.md docs/superpowers/plans/2026-08-06-live-sale-eligibility-infant-carry.md
+git commit -m "fix: hand off carried infants before sale"
 ```
