@@ -47,7 +47,7 @@ verification remain unchecked.
 - [x] Seller trait and Happy moodlet
 - [x] Direct seller/target friendship consequences implemented and unit-tested
 - [x] Wider close-relative and household-witness friendship consequences implemented and unit-tested
-  - [ ] Live: after selling a toddler, its mother loses 50 friendship with the seller
+  - [x] Live: after selling a toddler, its mother loses 50 friendship with the seller
   - [ ] Live: household-only witness loses 25 and an overlapping relative receives one 50-point loss
 - [ ] Observer reaction buffs, sentiments, and persistent grudges
 
@@ -55,7 +55,7 @@ verification remain unchecked.
 
 - [x] Pregnant-Sim picker implemented and unit-tested
   - [x] Automated: both sale pickers exclude non-instanced/off-lot Sims
-  - [ ] Live: Sims at work or school are absent from both sale pickers
+  - [x] Live: Sims at work or school are absent from both sale pickers
 - [x] Pregnancy adapter and safe pregnancy conclusion verified for patch `1.125.59.1030`
 - [x] Unborn rabbit hole
   - [x] Automated: self-target uses a solo rabbit hole; another target uses a shared rabbit hole
@@ -99,7 +99,8 @@ verification remain unchecked.
   - [x] Live: child appears and completes a sale
   - [ ] Live: newborn, infant, and toddler sales
   - [x] Automated: infant sale queues native pickup before the shared rabbit hole
-  - [ ] Live: seller picks up an infant and carries it into the rabbit hole
+  - [x] Automated: an existing carrier hands the infant to the seller and carry ownership gates rabbit-hole startup
+  - [ ] Live: another carrier hands the infant to the seller, who carries it into the rabbit hole
 - [x] 5. Unborn picker includes only pregnant household members, including the actor.
   - [x] Repository filtering and picker-row tests
   - [x] Live: pregnant active Sim appears

@@ -20,7 +20,7 @@ Cancellation is allowed before confirmation. Failures are terminal and release r
 
 ## Rabbit-hole integration
 
-`Sims4RabbitHoleAdapter` maps household targets by age to private 75-, 90-, or 120-minute `TwoSimRabbitHole` tunings. Infant sales first queue EA's native pickup affordance and start the shared rabbit hole only after the seller is carrying the infant. Unborn sales map expected offspring to private 90-, 120-, or 150-minute tunings: self-target sales use `RabbitHole`, while other targets use `TwoSimRabbitHole` with the seller first. Only the seller's expiration callback resumes either transaction. Household targets then move to holdings before returning; unborn participants return before payment and pregnancy conclusion. Startup failure or cancellation releases reservations without processing the target.
+`Sims4RabbitHoleAdapter` maps household targets by age to private 75-, 90-, or 120-minute `TwoSimRabbitHole` tunings. Uncarried infant targets first queue EA pickup affordance `271032`; an infant carried by another Sim uses EA handoff continuation `269721` from that carrier to the seller. The shared rabbit hole starts only after carry ownership is verified. Unborn sales map expected offspring to private 90-, 120-, or 150-minute tunings: self-target sales use `RabbitHole`, while other targets use `TwoSimRabbitHole` with the seller first. Only the seller's expiration callback resumes either transaction. Household targets then move to holdings before returning; unborn participants return before payment and pregnancy conclusion. Startup failure or cancellation releases reservations without processing the target.
 
 ## Pricing pipeline
 

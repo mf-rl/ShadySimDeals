@@ -816,8 +816,110 @@ def test_native_infant_pickup_queues_ea_affordance(monkeypatch):
     assert requested_ids == [271032]
     assert pushes[0][0:2] == (affordance, target)
 
+    target.parent = actor
     finishing_callbacks[0](pickup_interaction)
     assert callbacks == [False]
+
+
+def carried_infant_handoff_environment(monkeypatch):
+    finishing_callbacks = []
+    interaction = SimpleNamespace(
+        is_finishing=False,
+        is_finishing_naturally=True,
+        register_on_finishing_callback=finishing_callbacks.append,
+    )
+
+    class Sim(FakeSimInfo):
+        is_sim = True
+
+        def __init__(self, age, sim_id):
+            super().__init__(age, sim_id=sim_id)
+            self.pushes = []
+
+        def push_super_affordance(
+            self, affordance, target, context, **kwargs
+        ):
+            self.pushes.append((affordance, target, context, kwargs))
+            return SimpleNamespace(interaction=interaction)
+
+    actor = Sim("ADULT", "seller")
+    mother = Sim("ADULT", "mother")
+    infant = FakeSimInfo("INFANT", sim_id="infant")
+    infant.parent = mother
+    pickup_affordance = object()
+    handoff_affordance = object()
+    requested_ids = []
+    affordances = {271032: pickup_affordance, 269721: handoff_affordance}
+    manager = SimpleNamespace(
+        get=lambda instance_id: (
+            requested_ids.append(instance_id) or affordances[instance_id]
+        )
+    )
+    services = SimpleNamespace(get_instance_manager=lambda resource: manager)
+    resources = SimpleNamespace(
+        Types=SimpleNamespace(INTERACTION="interaction")
+    )
+    sims4 = SimpleNamespace(resources=resources)
+
+    class InteractionContext:
+        SOURCE_SCRIPT = "script"
+
+        def __init__(self, sim, source, priority):
+            self.args = (sim, source, priority)
+
+    context_module = SimpleNamespace(InteractionContext=InteractionContext)
+    priority_module = SimpleNamespace(Priority=SimpleNamespace(High="high"))
+    interactions = SimpleNamespace(
+        context=context_module, priority=priority_module
+    )
+    monkeypatch.setitem(sys.modules, "services", services)
+    monkeypatch.setitem(sys.modules, "sims4", sims4)
+    monkeypatch.setitem(sys.modules, "sims4.resources", resources)
+    monkeypatch.setitem(sys.modules, "interactions", interactions)
+    monkeypatch.setitem(sys.modules, "interactions.context", context_module)
+    monkeypatch.setitem(sys.modules, "interactions.priority", priority_module)
+    return SimpleNamespace(
+        actor=actor,
+        mother=mother,
+        infant=infant,
+        handoff_affordance=handoff_affordance,
+        requested_ids=requested_ids,
+        finishing_callbacks=finishing_callbacks,
+        interaction=interaction,
+    )
+
+
+def test_carried_infant_uses_native_handoff_before_rabbit_hole(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch)
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+    assert env.requested_ids == [269721]
+    assert env.mother.pushes[0][0:2] == (
+        env.handoff_affordance,
+        env.actor,
+    )
+    assert env.mother.pushes[0][3] == {"carry_target": env.infant}
+
+    env.infant.parent = env.actor
+    env.finishing_callbacks[0](env.interaction)
+    assert callbacks == [False]
+
+
+def test_carried_infant_handoff_cancels_without_seller_ownership(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch)
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+    env.finishing_callbacks[0](env.interaction)
+
+    assert callbacks == [True]
 
 
 def test_rabbit_hole_callback_reattaches_after_cas_resets_hole():

@@ -410,6 +410,7 @@ class Sims4PregnancyAdapter:
 
 class Sims4RabbitHoleAdapter:
     INFANT_PICKUP_AFFORDANCE_ID = 271032
+    INFANT_HANDOFF_AFFORDANCE_ID = 269721
     RABBIT_HOLE_BY_AGE = {
         "elder": 0xEAA21FFB1081E005,
         "baby": 0xEAA21FFB1081E006,
@@ -542,22 +543,39 @@ class Sims4RabbitHoleAdapter:
 
         actor_sim = actor.get_sim_instance()
         target_sim = target.get_sim_instance()
+        if actor_sim is None or target_sim is None:
+            return False
+        carrier = getattr(target_sim, "parent", None)
+        if getattr(carrier, "is_sim", False) and carrier is not actor_sim:
+            source_sim = carrier
+            interaction_target = actor_sim
+            affordance_id = self.INFANT_HANDOFF_AFFORDANCE_ID
+            interaction_kwargs = {"carry_target": target_sim}
+        else:
+            source_sim = actor_sim
+            interaction_target = target_sim
+            affordance_id = self.INFANT_PICKUP_AFFORDANCE_ID
+            interaction_kwargs = {}
         affordance = services.get_instance_manager(
             sims4.resources.Types.INTERACTION
-        ).get(self.INFANT_PICKUP_AFFORDANCE_ID)
-        if actor_sim is None or target_sim is None or affordance is None:
+        ).get(affordance_id)
+        if affordance is None:
             return False
         context = InteractionContext(
-            actor_sim, InteractionContext.SOURCE_SCRIPT, Priority.High
+            source_sim, InteractionContext.SOURCE_SCRIPT, Priority.High
         )
-        result = actor_sim.push_super_affordance(
-            affordance, target_sim, context
+        result = source_sim.push_super_affordance(
+            affordance, interaction_target, context, **interaction_kwargs
         )
         if not result or result.interaction.is_finishing:
             return False
 
         def pickup_finished(interaction):
-            callback(not interaction.is_finishing_naturally)
+            completed = (
+                interaction.is_finishing_naturally
+                and target_sim.parent is actor_sim
+            )
+            callback(not completed)
 
         result.interaction.register_on_finishing_callback(pickup_finished)
         return True
