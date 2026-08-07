@@ -409,7 +409,8 @@ class Sims4PregnancyAdapter:
 
 
 class Sims4RabbitHoleAdapter:
-    NEWBORN_HOLD_AFFORDANCE_ID = 13011
+    NEWBORN_CHECK_ON_AFFORDANCE_ID = 275655
+    NEWBORN_HELD_ACTIONS_AFFORDANCE_ID = 275181
     INFANT_PICKUP_AFFORDANCE_ID = 271032
     INFANT_HANDOFF_AFFORDANCE_ID = 269721
     INFANT_SOLO_RABBIT_HOLE_ID = 0xEAA21FFB1081E00B
@@ -571,10 +572,10 @@ class Sims4RabbitHoleAdapter:
             return failed("target_unavailable")
         carrier = getattr(target_sim, "parent", None)
         if target_age == "baby":
-            def queue_hold(*_):
+            def queue_check_on(*_):
                 affordance = services.get_instance_manager(
                     sims4.resources.Types.INTERACTION
-                ).get(self.NEWBORN_HOLD_AFFORDANCE_ID)
+                ).get(self.NEWBORN_CHECK_ON_AFFORDANCE_ID)
                 if affordance is None:
                     callback(True)
                     return
@@ -591,7 +592,7 @@ class Sims4RabbitHoleAdapter:
                     return
                 parent = getattr(target_sim, "parent", None)
                 self._logger.log(
-                    "newborn_hold_queued",
+                    "newborn_check_on_queued",
                     parent_id=(
                         str(parent.sim_id)
                         if getattr(parent, "sim_id", None) is not None
@@ -601,21 +602,27 @@ class Sims4RabbitHoleAdapter:
                     target_id=str(target.sim_id),
                 )
 
-                def hold_finished(interaction):
+                def check_on_finished(interaction):
                     parent = getattr(target_sim, "parent", None)
-                    self._logger.log(
-                        "newborn_hold_finished",
-                        finishing_naturally=(
-                            interaction.is_finishing_naturally
-                        ),
-                        held_actions_active=any(
-                            getattr(
+                    held_actions = next(
+                        (
+                            active
+                            for active in getattr(actor_sim, "si_state", ())
+                            if getattr(
                                 getattr(active, "affordance", None),
                                 "guid64",
                                 None,
-                            ) == 275181
-                            for active in getattr(actor_sim, "si_state", ())
+                            ) == self.NEWBORN_HELD_ACTIONS_AFFORDANCE_ID
+                            and getattr(active, "target", None) is target_sim
                         ),
+                        None,
+                    )
+                    self._logger.log(
+                        "newborn_check_on_finished",
+                        finishing_naturally=(
+                            interaction.is_finishing_naturally
+                        ),
+                        held_actions_active=held_actions is not None,
                         parent_id=(
                             str(parent.sim_id)
                             if getattr(parent, "sim_id", None) is not None
@@ -627,12 +634,13 @@ class Sims4RabbitHoleAdapter:
                     callback(
                         not (
                             interaction.is_finishing_naturally
+                            and held_actions is not None
                             and target_sim.parent is actor_sim
                         )
                     )
 
                 result.interaction.register_on_finishing_callback(
-                    hold_finished
+                    check_on_finished
                 )
 
             if carrier is actor_sim:
@@ -649,13 +657,15 @@ class Sims4RabbitHoleAdapter:
                 )
                 if held_interaction is None:
                     return failed("carrier_interaction_unavailable")
-                held_interaction.register_on_finishing_callback(queue_hold)
+                held_interaction.register_on_finishing_callback(
+                    queue_check_on
+                )
                 if not held_interaction.cancel_user(
                     cancel_reason_msg="Shady Sim Deals newborn handoff"
                 ):
                     return failed("carrier_release_rejected")
                 return True
-            queue_hold()
+            queue_check_on()
             return True
         if getattr(carrier, "is_sim", False) and carrier is not actor_sim:
             source_sim = carrier

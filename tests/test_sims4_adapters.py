@@ -936,27 +936,27 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     events = []
     release_callbacks = []
-    hold_callbacks = []
+    check_on_callbacks = []
     env.interaction.target = env.carry_target
     env.interaction.cancel_user = lambda **kwargs: release_callbacks.append(
         kwargs
     ) or True
     env.mother.si_state = [env.interaction]
-    hold_interaction = SimpleNamespace(
+    check_on_interaction = SimpleNamespace(
         is_finishing=False,
         is_finishing_naturally=True,
-        register_on_finishing_callback=hold_callbacks.append,
+        register_on_finishing_callback=check_on_callbacks.append,
     )
     env.mother.pushes.clear()
     env.actor.push_super_affordance = lambda affordance, target, context: (
         env.actor.pushes.append((affordance, target, context, {}))
-        or SimpleNamespace(interaction=hold_interaction)
+        or SimpleNamespace(interaction=check_on_interaction)
     )
-    hold_affordance = object()
+    check_on_affordance = object()
     sys.modules["services"].get_instance_manager(
         "interaction"
     ).get = lambda instance_id: (
-        env.requested_ids.append(instance_id) or hold_affordance
+        env.requested_ids.append(instance_id) or check_on_affordance
     )
     callbacks = []
     adapter = sims4_adapters.Sims4RabbitHoleAdapter(
@@ -973,16 +973,17 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
     ]
     assert env.actor.pushes == []
 
+    env.carry_target.parent = None
     env.finishing_callbacks[0](env.interaction)
-    assert env.requested_ids == [13011]
+    assert env.requested_ids == [275655]
     assert env.actor.pushes[0][0:2] == (
-        hold_affordance,
+        check_on_affordance,
         env.carry_target,
     )
     assert events[-1] == (
-        "newborn_hold_queued",
+        "newborn_check_on_queued",
         {
-            "parent_id": "mother",
+            "parent_id": None,
             "parent_is_actor": False,
             "target_id": "infant",
         },
@@ -990,12 +991,15 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
 
     env.carry_target.parent = env.actor
     env.actor.si_state = [
-        SimpleNamespace(affordance=SimpleNamespace(guid64=275181))
+        SimpleNamespace(
+            affordance=SimpleNamespace(guid64=275181),
+            target=env.carry_target,
+        )
     ]
-    hold_callbacks[0](hold_interaction)
+    check_on_callbacks[0](check_on_interaction)
     assert callbacks == [False]
     assert events[-1] == (
-        "newborn_hold_finished",
+        "newborn_check_on_finished",
         {
             "finishing_naturally": True,
             "held_actions_active": True,

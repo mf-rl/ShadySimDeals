@@ -33,7 +33,7 @@
 - Consumes: `Sims4RabbitHoleAdapter._queue_infant_pickup(actor, target, callback) -> bool`
 - Produces: newborn pickup through constants `NEWBORN_CHECK_ON_AFFORDANCE_ID = 275655` and `NEWBORN_HELD_ACTIONS_AFFORDANCE_ID = 275181`; callback receives `False` only after persistent seller carry ownership is verified.
 
-- [ ] **Step 1: Replace the HoldOut regression with a failing native-continuation test**
+- [x] **Step 1: Replace the HoldOut regression with a failing native-continuation test**
 
 Update `test_carried_newborn_is_released_then_held_by_seller` so the fake CheckOn interaction finishes after adding the persistent interaction to the seller:
 
@@ -57,7 +57,7 @@ assert callbacks == [False]
 
 Keep `test_native_infant_pickup_queues_ea_affordance`, `test_carried_infant_uses_native_handoff_before_rabbit_hole`, and the parameterized BABY/INFANT seller-only rabbit-hole ordering test unchanged.
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -67,7 +67,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_sims
 
 Expected: the newborn test fails because production requests `13011` instead of `275655`; infant tests pass.
 
-- [ ] **Step 3: Implement the newborn-only native sequence**
+- [x] **Step 3: Implement the newborn-only native sequence**
 
 In `Sims4RabbitHoleAdapter`, replace `NEWBORN_HOLD_AFFORDANCE_ID` with:
 
@@ -100,17 +100,17 @@ callback(not completed)
 
 Retain diagnostic logging, renaming `newborn_hold_queued` and `newborn_hold_finished` to `newborn_check_on_queued` and `newborn_check_on_finished`, and include `held_actions_active=held_actions is not None` in the finish event.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run the Step 2 command. Expected: all selected newborn and infant tests pass.
 
-- [ ] **Step 5: Align current-state documentation**
+- [x] **Step 5: Align current-state documentation**
 
 - `README.md`, `ARCHITECTURE.md`, and `DEVELOPMENT.md`: replace Hold `13011` with CheckOn `275655` continuing into HeldActions `275181`.
 - `SPECS_CHECKLIST.md`: retain the unchecked live item and state that the corrected native continuation awaits live validation.
 - Do not rewrite historical design or plan documents.
 
-- [ ] **Step 6: Verify all existing functionality**
+- [x] **Step 6: Verify all existing functionality**
 
 Run:
 
@@ -122,7 +122,7 @@ git diff --check
 
 Expected: the complete suite passes, both mod artifacts build, and `git diff --check` exits zero.
 
-- [ ] **Step 7: Review scope and install**
+- [x] **Step 7: Review scope and install**
 
 Run `git diff -- src/shady_sim_deals/sims4_adapters.py tests/test_sims4_adapters.py README.md ARCHITECTURE.md DEVELOPMENT.md SPECS_CHECKLIST.md` and confirm no non-newborn production path changed. When The Sims 4 is closed, run:
 
