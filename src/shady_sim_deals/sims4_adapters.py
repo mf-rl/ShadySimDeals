@@ -704,11 +704,30 @@ class Sims4RabbitHoleAdapter:
                     return
 
                 reservation_released = False
+                seller_si_state = actor_sim.si_state
+                seller_watcher = object()
+                seller_watcher_active = False
+                check_on_interaction = None
+                settlement_scheduled = False
+
+                def remove_seller_watcher():
+                    nonlocal seller_watcher_active
+                    if not seller_watcher_active:
+                        return True
+                    try:
+                        seller_si_state.remove_watcher(seller_watcher)
+                    except Exception:
+                        failed("check_on_watcher_removal_exception")
+                        return False
+                    seller_watcher_active = False
+                    return True
 
                 def finish(canceled):
                     nonlocal reservation_released
                     if reservation_released:
                         return
+                    if not remove_seller_watcher():
+                        canceled = True
                     reservation_released = True
                     try:
                         reservation.end_reservation()
@@ -718,7 +737,66 @@ class Sims4RabbitHoleAdapter:
                         return
                     callback(canceled)
 
+                def settle_check_on(*_):
+                    try:
+                        parent = getattr(target_sim, "parent", None)
+                        held_actions = find_held_actions()
+                        self._logger.log(
+                            "newborn_check_on_settled",
+                            finishing_naturally=(
+                                check_on_interaction.is_finishing_naturally
+                            ),
+                            held_actions_active=(held_actions is not None),
+                            parent_id=(
+                                str(parent.sim_id)
+                                if getattr(parent, "sim_id", None)
+                                is not None
+                                else None
+                            ),
+                            parent_is_actor=parent is actor_sim,
+                            target_id=str(target.sim_id),
+                        )
+                        canceled = not (
+                            check_on_interaction.is_finishing_naturally
+                            and held_actions is not None
+                            and parent is actor_sim
+                        )
+                    except Exception:
+                        try:
+                            failed("check_on_settlement_exception")
+                        finally:
+                            finish(True)
+                        return
+                    finish(canceled)
+
+                def seller_state_changed(si_state):
+                    nonlocal settlement_scheduled
+                    if (
+                        reservation_released
+                        or check_on_interaction is None
+                        or check_on_interaction in si_state
+                        or settlement_scheduled
+                    ):
+                        return
+                    settlement_scheduled = True
+                    try:
+                        sequence = element_utils.build_element(
+                            (
+                                element_utils.sleep_until_next_tick_element(),
+                                settle_check_on,
+                            )
+                        )
+                        timeline = services.time_service().sim_timeline
+                        timeline.schedule(sequence, timeline.now)
+                    except Exception:
+                        failed("check_on_settlement_schedule_exception")
+                        finish(True)
+
                 try:
+                    seller_si_state.add_watcher(
+                        seller_watcher, seller_state_changed
+                    )
+                    seller_watcher_active = True
                     affordance = services.get_instance_manager(
                         sims4.resources.Types.INTERACTION
                     ).get(self.NEWBORN_CHECK_ON_AFFORDANCE_ID)
@@ -752,44 +830,8 @@ class Sims4RabbitHoleAdapter:
                         parent_is_actor=parent is actor_sim,
                         target_id=str(target.sim_id),
                     )
-
-                    def check_on_finished(interaction):
-                        try:
-                            parent = getattr(target_sim, "parent", None)
-                            held_actions = find_held_actions()
-                            self._logger.log(
-                                "newborn_check_on_finished",
-                                finishing_naturally=(
-                                    interaction.is_finishing_naturally
-                                ),
-                                held_actions_active=(
-                                    held_actions is not None
-                                ),
-                                parent_id=(
-                                    str(parent.sim_id)
-                                    if getattr(parent, "sim_id", None)
-                                    is not None
-                                    else None
-                                ),
-                                parent_is_actor=parent is actor_sim,
-                                target_id=str(target.sim_id),
-                            )
-                            canceled = not (
-                                interaction.is_finishing_naturally
-                                and held_actions is not None
-                                and target_sim.parent is actor_sim
-                            )
-                        except Exception:
-                            try:
-                                failed("check_on_finish_exception")
-                            finally:
-                                finish(True)
-                            return
-                        finish(canceled)
-
-                    result.interaction.register_on_finishing_callback(
-                        check_on_finished
-                    )
+                    check_on_interaction = result.interaction
+                    seller_state_changed(seller_si_state)
                 except Exception:
                     try:
                         failed("check_on_setup_exception")
@@ -832,10 +874,13 @@ class Sims4RabbitHoleAdapter:
 
                 carrier_si_state = carrier.si_state
                 carrier_watcher = object()
+                carrier_done = False
 
                 def carrier_state_changed(si_state):
-                    if held_interaction in si_state:
+                    nonlocal carrier_done
+                    if carrier_done or held_interaction in si_state:
                         return
+                    carrier_done = True
                     try:
                         si_state.remove_watcher(carrier_watcher)
                     except Exception:
@@ -859,6 +904,7 @@ class Sims4RabbitHoleAdapter:
                         cancel_reason_msg="Shady Sim Deals newborn handoff",
                     )
                 except Exception:
+                    carrier_done = True
                     try:
                         carrier_si_state.remove_watcher(carrier_watcher)
                     except Exception:

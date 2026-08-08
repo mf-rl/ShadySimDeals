@@ -33,7 +33,7 @@
 - Consumes: `carrier.si_state.add_watcher(handle, callback)` and `remove_watcher(handle)`.
 - Produces: unchanged `_queue_infant_pickup(actor, target, callback) -> bool`.
 
-- [ ] **Step 1: Give the newborn test fixture a minimal observable SI state**
+- [x] **Step 1: Give the newborn test fixture a minimal observable SI state**
 
 Add this test-only fake near `carried_infant_handoff_environment` and use it for
 the fixture's seller and caregiver Sims:
@@ -65,7 +65,7 @@ assignments such as `env.mother.si_state = [env.interaction]` with
 `env.mother.si_state.set_interactions(env.interaction)`. Keep the separate
 infant-only fixture unchanged.
 
-- [ ] **Step 2: Write the caregiver-removal regression first**
+- [x] **Step 2: Write the caregiver-removal regression first**
 
 In `test_carried_newborn_is_released_then_held_by_seller`, preserve the natural
 carrier cancel, but require that its early finishing callback cannot start the
@@ -92,7 +92,7 @@ Rename `test_newborn_natural_release_exception_unregisters_finishing_callback`
 to describe SI-state watcher cleanup. Remove assertions that require production
 registration of a carrier finishing callback.
 
-- [ ] **Step 3: Run the focused test and verify RED**
+- [x] **Step 3: Run the focused test and verify RED**
 
 Run:
 
@@ -104,7 +104,7 @@ Expected: the new timing assertion fails because current production schedules
 Check On from `register_on_finishing_callback`, before the exact carrier SI is
 removed.
 
-- [ ] **Step 4: Replace the carrier finishing callback with one SI-state watcher**
+- [x] **Step 4: Replace the carrier finishing callback with one SI-state watcher**
 
 In the foreign-carrier path, register a watcher before calling natural cancel.
 Use the exact `held_interaction` already resolved from parenting or the foreign
@@ -145,13 +145,13 @@ If cancel raises after registration, remove the watcher before reporting failure
 Do not retain `register_on_finishing_callback` or
 `unregister_on_finishing_callback` in this newborn carrier path.
 
-- [ ] **Step 5: Run focused tests and verify GREEN**
+- [x] **Step 5: Run focused tests and verify GREEN**
 
 Run the command from Step 3. Expected: all selected tests pass, including the
 existing foreign-reservation carrier identification and infant controls selected
 by their current names.
 
-- [ ] **Step 6: Commit the caregiver lifecycle boundary**
+- [x] **Step 6: Commit the caregiver lifecycle boundary**
 
 ```powershell
 git add src/shady_sim_deals/sims4_adapters.py tests/test_sims4_adapters.py docs/superpowers/plans/2026-08-07-newborn-si-state-settlement.md
@@ -173,7 +173,7 @@ git commit -m "fix: wait for newborn carrier exit"
 - Produces: pickup success only when native Held Actions `275181` targets the
   newborn and `target.parent is actor` after Check On fully exits.
 
-- [ ] **Step 1: Make fake Check On participate in seller SI state**
+- [x] **Step 1: Make fake Check On participate in seller SI state**
 
 Update the newborn fixture's `push_super_affordance` fake so the returned Check
 On interaction is inserted into `actor.si_state`. Tests then remove that exact
@@ -182,7 +182,7 @@ interaction with `set_interactions(...)` to model `SIState._remove_gen()`.
 Keep `scheduled_elements` as the observable timeline queue. The carrier removal
 must append the first next-tick element; Check On removal must append the second.
 
-- [ ] **Step 2: Write settlement-boundary regressions first**
+- [x] **Step 2: Write settlement-boundary regressions first**
 
 Update `test_carried_newborn_is_released_then_held_by_seller` to prove all four
 boundaries:
@@ -230,7 +230,7 @@ Replace obsolete `test_newborn_callback_registration_exception...` and
 settlement exceptions. Do not preserve tests for the removed early finishing
 callback mechanism.
 
-- [ ] **Step 3: Run focused tests and verify RED**
+- [x] **Step 3: Run focused tests and verify RED**
 
 Run:
 
@@ -241,7 +241,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_sims
 Expected: new tests fail because current production settles directly from Check
 On's early finishing callback and has no seller SI-state watcher.
 
-- [ ] **Step 4: Register the seller watcher before pushing Check On**
+- [x] **Step 4: Register the seller watcher before pushing Check On**
 
 Inside `queue_check_on`, keep the existing reservation acquisition and central
 `finish(canceled)` function. Add only local state and an idempotent watcher
@@ -270,7 +270,7 @@ Make `finish` call `remove_seller_watcher()` before releasing the reservation;
 any cleanup failure forces `canceled=True`. Register the watcher before
 `push_super_affordance` so an immediate SI-state transition cannot be missed.
 
-- [ ] **Step 5: Schedule settlement only when exact Check On leaves SI state**
+- [x] **Step 5: Schedule settlement only when exact Check On leaves SI state**
 
 Use the existing next-tick element mechanism rather than adding a timer or loop:
 
@@ -312,7 +312,7 @@ SI state during startup. Remove the old Check On
 `register_on_finishing_callback`. Keep all exception paths routed through
 `finish(True)` so the watcher and reservation are each cleaned up once.
 
-- [ ] **Step 6: Run focused and full automated tests**
+- [x] **Step 6: Run focused and full automated tests**
 
 Run:
 
@@ -324,7 +324,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider
 Expected: focused controls pass, then the complete suite passes with no newborn,
 infant, pregnancy, payment, or rabbit-hole regressions.
 
-- [ ] **Step 7: Commit the seller settlement boundary**
+- [x] **Step 7: Commit the seller settlement boundary**
 
 ```powershell
 git add src/shady_sim_deals/sims4_adapters.py tests/test_sims4_adapters.py docs/superpowers/plans/2026-08-07-newborn-si-state-settlement.md
