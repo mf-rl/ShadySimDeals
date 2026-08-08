@@ -30,27 +30,39 @@ EA's `Baby` object participates in the standard object reservation system.
 `ReservationHandlerBasic` excludes reservations from other Sims while allowing
 interactions owned by the reserving Sim to use the same target.
 
+The latest live diagnostic exposed an earlier branch in the failure. The
+newborn reported no `parent` or initial carrier, while Cassandra still owned a
+`ReservationHandlerUseList` and a `ReservationHandlerBasic` for Held Actions
+(`275181`). Carrier detection trusted `parent`, so it skipped the natural
+Held Actions finish and attempted the seller reservation immediately. Waiting
+one tick cannot release an interaction that was never asked to finish.
+
 ## Design
 
 Keep the existing newborn-only flow in
 `Sims4RabbitHoleAdapter._queue_infant_pickup`:
 
-1. If another Sim carries the newborn, finish that carrier's Held Actions with
-   `FinishingType.NATURAL` and wait for the visible put-down.
-2. After the carrier's finishing callback, schedule the remaining handoff on
+1. Resolve the carrier from the newborn's `parent` when it is a Sim. If the
+   parent is absent or is not a Sim, inspect the newborn's active reservation
+   handlers for a foreign Sim's interaction whose affordance is Held Actions
+   (`275181`). Ignore seller-owned and unrelated reservations.
+2. If another Sim carries or reserves the newborn through Held Actions, finish
+   that exact interaction with `FinishingType.NATURAL` and wait for the visible
+   put-down. If neither source exists, retain the existing uncarried path.
+3. After the carrier's finishing callback, schedule the remaining handoff on
    EA's simulation timeline with `sleep_until_next_tick_element()`. This lets
    the carrier interaction finish releasing its reservation before seller
    acquisition runs.
-3. Immediately before queueing seller Check On on that next tick, create a
+4. Immediately before queueing seller Check On on that next tick, create a
    `ReservationHandlerBasic` for the seller and newborn and begin the
    reservation.
-4. If reservation acquisition fails or raises, cancel the pickup without
+5. If reservation acquisition fails or raises, cancel the pickup without
    queueing Check On.
-5. Queue native Check On (`275655`). The seller's interaction may use the target
+6. Queue native Check On (`275655`). The seller's interaction may use the target
    because it belongs to the same Sim as the reservation.
-6. Release the reservation after Check On finishes, whether it succeeds,
+7. Release the reservation after Check On finishes, whether it succeeds,
    cancels, or fails to create. Also release it when startup raises.
-7. Start the existing seller-only rabbit hole only after Check On finishes
+8. Start the existing seller-only rabbit hole only after Check On finishes
    naturally, seller Held Actions (`275181`) targets the newborn, and the
    newborn is parented to the seller.
 
@@ -77,11 +89,21 @@ same transaction callback. Synchronous adapter failures release transaction
 participants and notify once; they cannot leave a target filtered from a later
 picker.
 
+Reservation inspection is read-only. Missing or malformed handlers are ignored;
+the existing seller reservation attempt remains the authoritative gate and
+fails cleanly if another owner still blocks the newborn. No reservation is
+removed, replaced, or force-released.
+
 ## Testing
 
 - Require reservation acquisition before Check On is pushed.
 - Require the carrier-finish path to wait one simulation tick before seller
   reservation acquisition.
+- With `parent` absent, resolve a foreign Held Actions (`275181`) reservation,
+  naturally finish its exact interaction, and defer seller reservation until
+  the next tick.
+- Ignore unrelated reservations, and preserve the existing seller-held path
+  when Held Actions belongs to the seller.
 - Model a competing caregiver reservation and verify it is rejected while the
   seller owns the reservation.
 - Verify cleanup after successful Check On, unnatural finish, rejected startup,
