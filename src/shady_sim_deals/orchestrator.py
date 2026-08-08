@@ -55,10 +55,12 @@ class TransactionOrchestrator:
             callback = lambda canceled=False: self._finish_after_rabbit_hole(
                 transaction, canceled, on_finished
             )
+            self._states.transition(transaction, "rabbit_hole_started")
             started = self._rabbit_holes.run(transaction, callback)
+            if transaction.state != "rabbit_hole_started":
+                return transaction.state == "completed"
             if started is False:
                 raise TransactionError("Rabbit hole could not start")
-            self._states.transition(transaction, "rabbit_hole_started")
         except Exception as exc:
             self._fail_before_target(transaction, exc, on_finished)
             return False

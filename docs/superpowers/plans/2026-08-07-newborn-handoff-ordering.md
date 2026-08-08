@@ -28,7 +28,7 @@
 - Consumes: `TransactionOrchestrator.confirm_and_complete(transaction, on_finished=None)` and rabbit-hole adapters exposing `run(transaction, on_finished)`.
 - Produces: the same public method and return contract, with callbacks valid as soon as adapter startup begins.
 
-- [ ] **Step 1: Write the failing synchronous-cancellation regression**
+- [x] **Step 1: Write the failing synchronous-cancellation regression**
 
 Add this test to `tests/test_transactions.py`:
 
@@ -61,7 +61,7 @@ def test_synchronous_rabbit_hole_cancellation_releases_once():
     assert completed == [deal]
 ```
 
-- [ ] **Step 2: Run the test and verify RED**
+- [x] **Step 2: Run the test and verify RED**
 
 Run:
 
@@ -71,7 +71,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_tran
 
 Expected: FAIL because the callback runs while the transaction is still `player_confirmed`; the state remains `rabbit_hole_started`, release is absent, and the observer is not called.
 
-- [ ] **Step 3: Implement callback-valid startup ordering**
+- [x] **Step 3: Implement callback-valid startup ordering**
 
 In `TransactionOrchestrator.confirm_and_complete`, transition before `run()` and stop processing adapter startup if a synchronous callback already changed the state:
 
@@ -90,7 +90,7 @@ if started is False:
 
 Remove the old post-`run()` transition. Retain the existing `started is None` compatibility callback after the `try` block.
 
-- [ ] **Step 4: Run transaction tests and verify GREEN**
+- [x] **Step 4: Run transaction tests and verify GREEN**
 
 Run:
 
@@ -100,7 +100,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_tran
 
 Expected: all transaction tests pass; delayed and immediate completion behavior remains unchanged.
 
-- [ ] **Step 5: Commit the independently verified transaction fix**
+- [x] **Step 5: Commit the independently verified transaction fix**
 
 ```powershell
 git add tests/test_transactions.py src/shady_sim_deals/orchestrator.py
@@ -267,4 +267,3 @@ git commit -m "docs: record newborn handoff ordering"
 - [ ] **Step 5: Push and install only while the game is closed**
 
 Confirm `TS4_x64` is not running. Push `fix/native-newborn-carry`, run `install_mod.ps1`, and verify PR #7 points to the pushed head. If the game is running, stop before installation and ask the user to close it.
-

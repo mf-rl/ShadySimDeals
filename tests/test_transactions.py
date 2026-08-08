@@ -66,6 +66,34 @@ class DelayedRabbitHole:
         return True
 
 
+def test_synchronous_rabbit_hole_cancellation_releases_once():
+    events = []
+
+    class SynchronousCancellation(Recorder):
+        def run(self, transaction, on_finished):
+            self.events.append("rabbit_hole")
+            on_finished(canceled=True)
+            return True
+
+    completed = []
+    workflow = TransactionOrchestrator(
+        Recorder(events),
+        Recorder(events),
+        SynchronousCancellation(events),
+        Recorder(events),
+        Recorder(events),
+        Recorder(events),
+    )
+    deal = transaction()
+    workflow.prepare(deal, SaleOffer(5000, {}, "buyer"))
+
+    assert not workflow.confirm_and_complete(deal, completed.append)
+    assert deal.state == "failed"
+    assert deal.failure_reason == "Rabbit hole was canceled"
+    assert events.count("release") == 1
+    assert completed == [deal]
+
+
 def test_household_completion_waits_for_rabbit_hole_expiration():
     events = []
     rabbit_hole = DelayedRabbitHole(events)
