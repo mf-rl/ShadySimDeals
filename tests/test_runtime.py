@@ -145,7 +145,6 @@ def test_eligible_household_member_ids_apply_shared_picker_rules(monkeypatch):
         sold_check=lambda sim_id: sim_id == "sold",
         reserved_check=lambda sim_id: sim_id == "reserved",
     ) == (
-        "baby",
         "infant",
         "toddler",
         "child",
@@ -154,40 +153,6 @@ def test_eligible_household_member_ids_apply_shared_picker_rules(monkeypatch):
         "adult",
         "elder",
     )
-
-
-def test_eligible_household_member_ids_includes_uninstantiated_newborn(
-    monkeypatch,
-):
-    install_newborn_objects(monkeypatch, "newborn")
-    sim_infos = (
-        FakeSimInfo("newborn", age="BABY", instanced=False),
-        FakeSimInfo("at-school", age="CHILD", instanced=False),
-    )
-
-    assert sims4_runtime.eligible_household_member_ids(
-        sim_infos,
-        actor_id="actor",
-        household_id="home",
-        sold_check=lambda sim_id: False,
-        reserved_check=lambda sim_id: False,
-    ) == ("newborn",)
-
-
-def test_eligible_household_member_ids_excludes_off_lot_newborn(monkeypatch):
-    install_newborn_objects(monkeypatch, "on-lot")
-    sim_infos = (
-        FakeSimInfo("on-lot", age="BABY", instanced=False),
-        FakeSimInfo("off-lot", age="BABY", instanced=False),
-    )
-
-    assert sims4_runtime.eligible_household_member_ids(
-        sim_infos,
-        actor_id="actor",
-        household_id="home",
-        sold_check=lambda sim_id: False,
-        reserved_check=lambda sim_id: False,
-    ) == ("on-lot",)
 
 
 class RuntimeRecorder:

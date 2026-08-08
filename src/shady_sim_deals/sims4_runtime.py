@@ -32,15 +32,6 @@ def _is_on_active_lot(sim_info):
         return False
 
 
-def _is_newborn_on_active_lot(sim_info):
-    try:
-        import services
-
-        return services.object_manager().get(sim_info.sim_id) is not None
-    except Exception:
-        return False
-
-
 def build_sale_candidate(sim_info, pregnancy_adapter=None):
     pregnant = bool(
         pregnancy_adapter is not None
@@ -69,16 +60,14 @@ def eligible_household_member_ids(
             age = age_key(sim_info)
         except ValueError:
             continue
+        if age == "baby":
+            continue
         records.append(
             SimRecord(
                 sim_id,
                 sim_info.household_id,
                 age=age,
-                valid=(
-                    _is_newborn_on_active_lot(sim_info)
-                    if age == "baby"
-                    else _is_on_active_lot(sim_info)
-                )
+                valid=_is_on_active_lot(sim_info)
                 and not getattr(sim_info, "is_dying", False)
                 and not getattr(sim_info, "is_destroyed", False),
                 sold=sold_check(sim_id),

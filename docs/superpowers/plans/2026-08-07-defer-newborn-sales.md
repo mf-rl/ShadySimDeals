@@ -30,7 +30,7 @@
 - Consumes: `age_key(sim_info) -> str` and existing `eligible_household_member_ids(sim_infos, actor_id, household_id, sold_check, reserved_check) -> tuple[str, ...]`.
 - Produces: the same eligibility API, with normalized age `baby` omitted.
 
-- [ ] **Step 1: Change the shared eligibility regression first**
+- [x] **Step 1: Change the shared eligibility regression first**
 
 Keep `install_newborn_objects(monkeypatch, "baby")` so the fixture represents an
 on-lot newborn that current production includes. Remove `"baby"` from the
@@ -62,7 +62,7 @@ test_eligible_household_member_ids_includes_uninstantiated_newborn
 test_eligible_household_member_ids_excludes_off_lot_newborn
 ```
 
-- [ ] **Step 2: Run the regression and verify RED**
+- [x] **Step 2: Run the regression and verify RED**
 
 Run:
 
@@ -72,7 +72,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_runt
 
 Expected: FAIL because the actual tuple still begins with `"baby"`.
 
-- [ ] **Step 3: Add the minimum eligibility guard**
+- [x] **Step 3: Add the minimum eligibility guard**
 
 After age normalization, skip newborn records:
 
@@ -96,7 +96,7 @@ and not getattr(sim_info, "is_destroyed", False),
 
 Do not change `sims4_adapters.py`, `build_mod.py`, or newborn tuning resources.
 
-- [ ] **Step 4: Run focused and full tests**
+- [x] **Step 4: Run focused and full tests**
 
 Run:
 
@@ -108,7 +108,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider
 Expected: focused eligibility tests pass; the complete suite passes with the
 updated test count.
 
-- [ ] **Step 5: Commit the eligibility change**
+- [x] **Step 5: Commit the eligibility change**
 
 ```powershell
 git add src/shady_sim_deals/sims4_runtime.py tests/test_runtime.py docs/superpowers/plans/2026-08-07-defer-newborn-sales.md
