@@ -60,6 +60,8 @@ def eligible_household_member_ids(
             age = age_key(sim_info)
         except ValueError:
             continue
+        if age == "baby":
+            continue
         records.append(
             SimRecord(
                 sim_id,
