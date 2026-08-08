@@ -831,6 +831,27 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
     finishing_callbacks = []
     reservation_events = []
     scheduled_elements = []
+
+    class FakeSIState:
+        def __init__(self, *interactions):
+            self.interactions = list(interactions)
+            self.watchers = {}
+
+        def __iter__(self):
+            return iter(self.interactions)
+
+        def add_watcher(self, handle, callback):
+            self.watchers[handle] = callback
+            return handle
+
+        def remove_watcher(self, handle):
+            return self.watchers.pop(handle)
+
+        def set_interactions(self, *interactions):
+            self.interactions[:] = interactions
+            for watcher in tuple(self.watchers.values()):
+                watcher(self)
+
     interaction = SimpleNamespace(
         is_finishing=False,
         is_finishing_naturally=True,
@@ -843,6 +864,7 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
         def __init__(self, age, sim_id):
             super().__init__(age, sim_id=sim_id)
             self.pushes = []
+            self.si_state = FakeSIState()
 
         def push_super_affordance(
             self, affordance, target, context, **kwargs
@@ -998,7 +1020,7 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
     env.interaction.cancel = lambda finishing_type, **kwargs: (
         release_requests.append((finishing_type, kwargs))
     )
-    env.mother.si_state = [env.interaction]
+    env.mother.si_state.set_interactions(env.interaction)
     check_on_interaction = SimpleNamespace(
         is_finishing=False,
         is_finishing_naturally=True,
@@ -1034,7 +1056,13 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
     assert env.actor.pushes == []
 
     env.carry_target.parent = None
-    env.finishing_callbacks[0](env.interaction)
+    assert env.finishing_callbacks == []
+    assert env.scheduled_elements == []
+
+    env.mother.si_state.set_interactions(env.interaction, object())
+    assert env.scheduled_elements == []
+
+    env.mother.si_state.set_interactions()
     assert env.reservation_events == []
     assert env.requested_ids == []
     assert len(env.scheduled_elements) == 1
@@ -1095,7 +1123,7 @@ def test_parentless_newborn_uses_foreign_held_actions_reservation(monkeypatch):
     env.interaction.cancel = lambda finishing_type, **kwargs: (
         release_requests.append((finishing_type, kwargs))
     )
-    env.mother.si_state = [env.interaction]
+    env.mother.si_state.set_interactions(env.interaction)
     foreign_handler = SimpleNamespace(
         sim=env.mother,
         reservation_interaction=env.interaction,
@@ -1116,7 +1144,7 @@ def test_parentless_newborn_uses_foreign_held_actions_reservation(monkeypatch):
     assert env.reservation_events == []
     assert env.requested_ids == []
 
-    env.finishing_callbacks[0](env.interaction)
+    env.mother.si_state.set_interactions()
     assert len(env.scheduled_elements) == 1
     sleep, continue_handoff = env.scheduled_elements[0]
     assert sleep is env.next_tick
@@ -1159,7 +1187,7 @@ def test_newborn_handoff_schedule_exception_cancels_pickup(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.interaction.target = env.carry_target
     env.interaction.cancel = lambda finishing_type, **kwargs: None
-    env.mother.si_state = [env.interaction]
+    env.mother.si_state.set_interactions(env.interaction)
 
     def fail_schedule(element, when):
         raise RuntimeError("schedule failed")
@@ -1179,7 +1207,7 @@ def test_newborn_handoff_schedule_exception_cancels_pickup(monkeypatch):
         env.actor, env.infant, callbacks.append
     )
     env.carry_target.parent = None
-    env.finishing_callbacks[0](env.interaction)
+    env.mother.si_state.set_interactions()
 
     assert callbacks == [True]
     assert env.reservation_events == []
@@ -1190,7 +1218,7 @@ def test_newborn_handoff_schedule_exception_cancels_pickup(monkeypatch):
 def test_parented_newborn_without_held_actions_queues_check_on(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.carry_target.parent = env.actor
-    env.actor.si_state = []
+    env.actor.si_state.set_interactions()
     callbacks = []
     adapter = sims4_adapters.Sims4RabbitHoleAdapter()
 
@@ -1475,7 +1503,7 @@ def test_newborn_check_on_startup_exception_cancels_pickup(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.interaction.target = env.carry_target
     env.interaction.cancel = lambda *args, **kwargs: None
-    env.mother.si_state = [env.interaction]
+    env.mother.si_state.set_interactions(env.interaction)
     env.actor.push_super_affordance = lambda *args, **kwargs: (_ for _ in ()).throw(
         RuntimeError("push failed")
     )
@@ -1486,7 +1514,7 @@ def test_newborn_check_on_startup_exception_cancels_pickup(monkeypatch):
         env.actor, env.infant, callbacks.append
     )
     env.carry_target.parent = None
-    env.finishing_callbacks[0](env.interaction)
+    env.mother.si_state.set_interactions()
     env.scheduled_elements[0][1]()
 
     assert callbacks == [True]
@@ -1497,7 +1525,7 @@ def test_newborn_check_on_startup_exception_cancels_pickup(monkeypatch):
     )
 
 
-def test_newborn_natural_release_exception_unregisters_finishing_callback(
+def test_newborn_natural_release_exception_removes_si_state_watcher(
     monkeypatch,
 ):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
@@ -1505,24 +1533,63 @@ def test_newborn_natural_release_exception_unregisters_finishing_callback(
     env.interaction.cancel = lambda *args, **kwargs: (_ for _ in ()).throw(
         RuntimeError("cancel failed")
     )
-    env.interaction.unregister_on_finishing_callback = (
-        env.finishing_callbacks.remove
-    )
-    env.mother.si_state = [env.interaction]
+    env.mother.si_state.set_interactions(env.interaction)
     adapter = sims4_adapters.Sims4RabbitHoleAdapter()
 
     assert not adapter._queue_infant_pickup(
         env.actor, env.infant, lambda canceled: None
     )
 
-    assert env.finishing_callbacks == []
+    assert env.mother.si_state.watchers == {}
+
+
+def test_newborn_carrier_watcher_registration_exception_stops_release(
+    monkeypatch,
+):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.interaction.target = env.carry_target
+    release_requests = []
+    env.interaction.cancel = lambda *args, **kwargs: release_requests.append(1)
+    env.mother.si_state.set_interactions(env.interaction)
+    env.mother.si_state.add_watcher = lambda handle, callback: (
+        (_ for _ in ()).throw(RuntimeError("register failed"))
+    )
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert not adapter._queue_infant_pickup(
+        env.actor, env.infant, lambda canceled: None
+    )
+    assert release_requests == []
+
+
+def test_newborn_carrier_watcher_removal_exception_cancels_pickup(
+    monkeypatch,
+):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.interaction.target = env.carry_target
+    env.interaction.cancel = lambda *args, **kwargs: None
+    env.mother.si_state.set_interactions(env.interaction)
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+    env.carry_target.parent = None
+    env.mother.si_state.remove_watcher = lambda handle: (_ for _ in ()).throw(
+        RuntimeError("remove failed")
+    )
+    env.mother.si_state.set_interactions()
+
+    assert callbacks == [True]
+    assert env.scheduled_elements == []
 
 
 def test_unnatural_newborn_release_cancels_without_check_on(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.interaction.target = env.carry_target
     env.interaction.cancel = lambda *args, **kwargs: None
-    env.mother.si_state = [env.interaction]
+    env.mother.si_state.set_interactions(env.interaction)
     callbacks = []
     adapter = sims4_adapters.Sims4RabbitHoleAdapter()
 
@@ -1531,7 +1598,7 @@ def test_unnatural_newborn_release_cancels_without_check_on(monkeypatch):
     )
 
     env.interaction.is_finishing_naturally = False
-    env.finishing_callbacks[0](env.interaction)
+    env.mother.si_state.set_interactions()
 
     assert callbacks == [True]
     assert env.requested_ids == []
@@ -1542,7 +1609,7 @@ def test_attached_newborn_release_cancels_without_check_on(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.interaction.target = env.carry_target
     env.interaction.cancel = lambda *args, **kwargs: None
-    env.mother.si_state = [env.interaction]
+    env.mother.si_state.set_interactions(env.interaction)
     callbacks = []
     adapter = sims4_adapters.Sims4RabbitHoleAdapter()
 
@@ -1550,7 +1617,7 @@ def test_attached_newborn_release_cancels_without_check_on(monkeypatch):
         env.actor, env.infant, callbacks.append
     )
 
-    env.finishing_callbacks[0](env.interaction)
+    env.mother.si_state.set_interactions()
 
     assert callbacks == [True]
     assert env.requested_ids == []

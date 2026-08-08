@@ -830,27 +830,39 @@ class Sims4RabbitHoleAdapter:
                 if held_interaction is None:
                     return failed("carrier_interaction_unavailable")
 
-                def carrier_finished(interaction):
+                carrier_si_state = carrier.si_state
+                carrier_watcher = object()
+
+                def carrier_state_changed(si_state):
+                    if held_interaction in si_state:
+                        return
+                    try:
+                        si_state.remove_watcher(carrier_watcher)
+                    except Exception:
+                        failed("carrier_watcher_removal_exception")
+                        callback(True)
+                        return
                     if (
-                        not interaction.is_finishing_naturally
+                        not held_interaction.is_finishing_naturally
                         or target_sim.parent is carrier
                     ):
                         callback(True)
                         return
                     schedule_check_on()
 
-                held_interaction.register_on_finishing_callback(
-                    carrier_finished
-                )
                 try:
+                    carrier_si_state.add_watcher(
+                        carrier_watcher, carrier_state_changed
+                    )
                     held_interaction.cancel(
                         FinishingType.NATURAL,
                         cancel_reason_msg="Shady Sim Deals newborn handoff",
                     )
                 except Exception:
-                    held_interaction.unregister_on_finishing_callback(
-                        carrier_finished
-                    )
+                    try:
+                        carrier_si_state.remove_watcher(carrier_watcher)
+                    except Exception:
+                        pass
                     return failed("carrier_release_exception")
                 return True
             queue_check_on()
