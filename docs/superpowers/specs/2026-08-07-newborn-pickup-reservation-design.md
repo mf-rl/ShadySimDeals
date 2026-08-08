@@ -8,11 +8,25 @@ all downstream sale behavior.
 
 ## Root cause
 
-The natural carrier finish correctly restores the newborn to an unparented,
-routable state. Native Check On queues for the seller, but it does not reserve
-the newborn immediately. The newborn caregiver situation can therefore queue
-the mother's autonomous pickup first. Seller Check On then finishes
-unnaturally without persistent Held Actions, and the transaction cancels.
+The newborn can be restored visibly to its cradle and become usable after the
+carrier interaction fully exits. Native Check On can then continue into seller
+Held Actions. The implementation does not wait for either full lifecycle
+boundary.
+
+EA bytecode confirms that `register_on_finishing_callback` reports the start of
+finishing, not completion. `Interaction.cancel()` calls
+`InteractionFinisher.on_finishing_move()`, which invokes finishing callbacks
+immediately. Only later does `SIState._remove_gen()` run the interaction's full
+`_exit()`, remove it from `_super_interactions`, release its reservations, and
+notify SI-state watchers. A one-tick delay measured from the finishing callback
+can therefore expire while Held Actions is still exiting.
+
+Check On has the same two-phase lifecycle. Its finishing callback runs before
+the interaction has exited and before its native Held Actions continuation is
+available. The adapter currently checks seller parenting and Held Actions at
+that early callback, cancels the sale, and releases its reservation even when
+Check On finishes naturally. Live evidence shows Check On finishing naturally
+with `parent=None` and no Held Actions observed at that premature check.
 
 The first reservation implementation acquired the seller's reservation inside
 the mother's finishing callback. Live evidence showed that callback runs before
@@ -49,22 +63,32 @@ Keep the existing newborn-only flow in
 2. If another Sim carries or reserves the newborn through Held Actions, finish
    that exact interaction with `FinishingType.NATURAL` and wait for the visible
    put-down. If neither source exists, retain the existing uncarried path.
-3. After the carrier's finishing callback, schedule the remaining handoff on
-   EA's simulation timeline with `sleep_until_next_tick_element()`. This lets
-   the carrier interaction finish releasing its reservation before seller
-   acquisition runs.
-4. Immediately before queueing seller Check On on that next tick, create a
+3. Before requesting the carrier finish, add a watcher to the carrier's
+   `SIState`. Continue only after the exact Held Actions interaction is absent
+   from that state, proving EA completed `_exit()` and released its interaction
+   reservations. Remove the watcher when that condition is met or startup
+   fails.
+4. After full carrier removal, schedule the remaining handoff on EA's
+   simulation timeline with `sleep_until_next_tick_element()` to avoid running
+   seller startup reentrantly inside the carrier's state notification.
+5. Immediately before queueing seller Check On on that next tick, create a
    `ReservationHandlerBasic` for the seller and newborn and begin the
    reservation.
-5. If reservation acquisition fails or raises, cancel the pickup without
+6. If reservation acquisition fails or raises, cancel the pickup without
    queueing Check On.
-6. Queue native Check On (`275655`). The seller's interaction may use the target
+7. Add a watcher to the seller's `SIState`, then queue native Check On
+   (`275655`). The seller's interaction may use the target
    because it belongs to the same Sim as the reservation.
-7. Release the reservation after Check On finishes, whether it succeeds,
-   cancels, or fails to create. Also release it when startup raises.
-8. Start the existing seller-only rabbit hole only after Check On finishes
-   naturally, seller Held Actions (`275181`) targets the newborn, and the
-   newborn is parented to the seller.
+8. Do not settle from Check On's finishing callback. When the seller watcher
+   observes that the exact Check On interaction has left `SIState`, wait one
+   simulation tick for its continuation to enter the state.
+9. On that settlement tick, succeed only if Check On finished naturally,
+   seller Held Actions (`275181`) targets the newborn, and the newborn is
+   parented to the seller. Otherwise cancel the pickup.
+10. Remove the seller watcher and release the reservation exactly once on
+    success, cancellation, failed startup, or exception.
+11. Start the existing seller-only rabbit hole only after verified seller carry
+    ownership.
 
 Before calling any rabbit-hole adapter, `TransactionOrchestrator` transitions
 the transaction from `player_confirmed` to `rabbit_hole_started`. A synchronous
@@ -77,12 +101,20 @@ autonomy globally or mutate newborn parenting or state.
 
 ## Failure handling
 
-Every terminal path after reservation acquisition releases it exactly once.
+Every terminal path after reservation acquisition removes the seller watcher
+and releases the reservation exactly once.
 Failure to acquire or an exception while releasing is logged and cancels the
 transaction before transfer or payment. EA's successful release returns
 `None`, so only exceptions signal release failure. Existing transaction cleanup
 remains responsible for sale reservations; the newborn object reservation is
 local to pickup.
+
+Carrier watcher registration happens before natural cancellation so immediate
+state changes cannot be missed. Registration failure cancels before requesting
+the interaction finish. Watcher-removal failure is logged while terminal
+reservation and transaction cleanup continue. Watchers are event-driven and
+scoped to the exact interaction; there is no fixed multi-tick delay, indefinite
+polling, or global autonomy change.
 
 Failure to schedule the next-tick continuation cancels the pickup through the
 same transaction callback. Synchronous adapter failures release transaction
@@ -97,8 +129,10 @@ removed, replaced, or force-released.
 ## Testing
 
 - Require reservation acquisition before Check On is pushed.
-- Require the carrier-finish path to wait one simulation tick before seller
-  reservation acquisition.
+- Require the carrier-finish path to ignore the early finishing callback and
+  wait until the exact interaction is removed from the carrier's `SIState`.
+- Require seller reservation acquisition to occur no earlier than the next tick
+  after full carrier removal.
 - With `parent` absent, resolve a foreign Held Actions (`275181`) reservation,
   naturally finish its exact interaction, and defer seller reservation until
   the next tick.
@@ -106,8 +140,13 @@ removed, replaced, or force-released.
   when Held Actions belongs to the seller.
 - Model a competing caregiver reservation and verify it is rejected while the
   seller owns the reservation.
+- Require Check On's early finishing callback to leave the transaction pending.
+- After Check On leaves seller `SIState`, require one settlement tick before
+  checking for its targeted Held Actions continuation and seller parenting.
+- Verify a natural Check On without its continuation cancels only after the
+  settlement tick; verify the continuation succeeds when it appears in time.
 - Verify cleanup after successful Check On, unnatural finish, rejected startup,
-  and exceptions.
+  watcher failures, and exceptions.
 - Verify a synchronous rabbit-hole adapter failure reaches terminal state,
   releases transaction participants, and invokes completion once.
 - Keep carried and uncarried newborn tests passing.
