@@ -225,6 +225,6 @@ git add SPECS_CHECKLIST.md docs/superpowers/plans/2026-08-07-newborn-held-action
 git commit -m "docs: record held actions carrier recovery"
 ```
 
-- [ ] **Step 5: Push and install only while the game is closed**
+- [x] **Step 5: Push and install only while the game is closed**
 
 Confirm `TS4_x64` is not running. Push `fix/native-newborn-carry`, run `install_mod.ps1`, and verify PR #7 points to the pushed head. If the game is running, stop before installation and ask the user to close it.
