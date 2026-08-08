@@ -310,7 +310,7 @@ git commit -m "fix: use deterministic newborn pickup"
 - Modify: `SPECS_CHECKLIST.md`
 - Modify: `docs/superpowers/plans/2026-08-07-deterministic-newborn-pickup.md`
 
-- [ ] **Step 1: Align maintained documentation with the implementation**
+- [x] **Step 1: Align maintained documentation with the implementation**
 
 Update the newborn lifecycle descriptions to state that the private invisible
 interaction deterministically enters native Cuddle under Held Actions, while the
@@ -324,7 +324,7 @@ checklist detail with:
 Add an automated checklist item for the packaged single Cuddle/Held Actions
 continuation. Do not mark live newborn sale complete.
 
-- [ ] **Step 2: Build and inspect the package**
+- [x] **Step 2: Build and inspect the package**
 
 Run:
 
@@ -337,7 +337,7 @@ Expected: build succeeds; script archive contains updated
 `shady_sim_deals/sims4_adapters.pyc`; package tests already prove interaction
 resource `0xEAA21FFB1081E025` is present exactly once.
 
-- [ ] **Step 3: Review and verify the complete PR range**
+- [x] **Step 3: Review and verify the complete PR range**
 
 Run:
 

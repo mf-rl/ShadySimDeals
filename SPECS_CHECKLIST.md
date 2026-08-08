@@ -103,11 +103,12 @@ verification remain unchecked.
   - [x] Baby, infant, toddler, and child filtering and pricing
   - [x] Live: child appears and completes a sale
   - [x] Live: infant sale completes after the seller carries the infant into the rabbit hole
-  - [ ] Live: newborn appears and can be selected; from inside the lot, Check On queues and finishes naturally, but the adapter checks before its Held Actions continuation appears and immediately shows **Inconvenient Fact**
+  - [ ] Live: newborn appears and can be selected; the latest event-driven Check On attempt reached settlement but selected a valid non-carry care outcome, so no Held Actions or seller parenting appeared (private deterministic native Cuddle pickup awaits validation)
   - [x] Live: toddler appears and completes a sale
   - [x] Automated: newborn and infant sales acquire carry ownership before a seller-only 90-minute rabbit hole
-  - [x] Automated: newborn `SimInfo` resolves its matching `Baby` object before native Check On
-  - [x] Automated: carried-newborn handoff waits for exact carrier Held Actions SI-state removal, then exact seller Check On removal and one continuation-settlement tick
+  - [x] Automated: newborn `SimInfo` resolves its matching active-zone `Baby` object before private pickup
+  - [x] Automated: carried-newborn handoff waits for exact carrier Held Actions SI-state removal, then exact private pickup removal and one continuation-settlement tick
+  - [x] Package: private newborn pickup has exactly one EA Cuddle (`275239`) continuation with Held Actions (`275181`) as its SI override
   - [x] Automated: when a newborn has no `parent`, a foreign Held Actions (`275181`) reservation identifies the carrier interaction to finish naturally
   - [x] Automated: rejected newborn reservations log their EA rejection reason, initial carrier, current parent, and active reservation owners
   - [x] Automated: the carried newborn or infant is not registered as a second rabbit-hole participant
