@@ -268,6 +268,6 @@ git add README.md ARCHITECTURE.md DEVELOPMENT.md SPECS_CHECKLIST.md docs/superpo
 git commit -m "docs: record newborn handoff ordering"
 ```
 
-- [ ] **Step 5: Push and install only while the game is closed**
+- [x] **Step 5: Push and install only while the game is closed**
 
 Confirm `TS4_x64` is not running. Push `fix/native-newborn-carry`, run `install_mod.ps1`, and verify PR #7 points to the pushed head. If the game is running, stop before installation and ask the user to close it.
