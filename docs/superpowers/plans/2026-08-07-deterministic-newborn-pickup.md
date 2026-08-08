@@ -353,7 +353,7 @@ Use `superpowers:requesting-code-review` for base
 Resolve every Critical or Important finding and rerun the affected tests, full
 suite, build, and diff check. Do not add collaborator or AI attribution.
 
-- [ ] **Step 4: Commit docs, push PR #7, and verify remote tip**
+- [x] **Step 4: Commit docs, push PR #7, and verify remote tip**
 
 ```powershell
 git add README.md ARCHITECTURE.md DEVELOPMENT.md SPECS_CHECKLIST.md docs/superpowers/plans/2026-08-07-deterministic-newborn-pickup.md
@@ -368,7 +368,7 @@ git status --short
 Expected: local and remote SHAs match, the worktree is clean, and GitHub either
 reports configured checks or explicitly reports none.
 
-- [ ] **Step 5: Install only while the game is closed**
+- [x] **Step 5: Install only while the game is closed**
 
 Confirm `TS4_x64.exe` is absent, then run:
 
