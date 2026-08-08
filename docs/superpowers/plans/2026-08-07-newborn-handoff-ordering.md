@@ -228,7 +228,7 @@ git commit -m "fix: defer newborn pickup reservation"
 - Consumes: the verified behavior from Tasks 1 and 2.
 - Produces: maintained documentation matching the tested implementation and latest live result.
 
-- [ ] **Step 1: Record the implementation and live result accurately**
+- [x] **Step 1: Record the implementation and live result accurately**
 
 Update maintained docs to say the carried-newborn path waits one simulation tick after natural put-down before seller reservation and native Check On. Replace the current newborn checklist detail with:
 
@@ -238,7 +238,7 @@ Update maintained docs to say the carried-newborn path waits one simulation tick
 
 Keep the overall newborn sale item unchecked.
 
-- [ ] **Step 2: Run full verification**
+- [x] **Step 2: Run full verification**
 
 Run:
 
@@ -255,11 +255,11 @@ git diff --check
 
 Expected: all tests pass, both `dist/ShadySimDeals.ts4script` and `dist/ShadySimDeals.package` build, and `git diff --check` is silent.
 
-- [ ] **Step 3: Request read-only review**
+- [x] **Step 3: Request read-only review**
 
 Review the branch diff from `bb78c4821c24faaf544557b0a120c817170bae4a` through `HEAD` plus the working tree. Fix every Critical or Important finding and rerun the affected tests.
 
-- [ ] **Step 4: Mark this plan complete and commit documentation**
+- [x] **Step 4: Mark this plan complete and commit documentation**
 
 Mark completed checkboxes in this plan, then run:
 
