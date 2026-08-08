@@ -55,7 +55,7 @@ verification remain unchecked.
 ### Phase 4: Unborn-Nooboo transaction
 
 - [x] Pregnant-Sim picker implemented and unit-tested
-  - [x] Automated: sale pickers exclude off-lot Sims; the household picker retains an uninstantiated newborn only when its `Baby` object exists in the active zone
+  - [x] Automated: sale pickers exclude off-lot Sims; the household picker also excludes newborns
   - [x] Live: Sims at work or school are absent from both sale pickers
 - [x] Pregnancy adapter and safe pregnancy conclusion verified for patch `1.125.59.1030`
 - [x] Unborn rabbit hole
@@ -98,20 +98,16 @@ verification remain unchecked.
 - [x] 1. ShadySimDeals appears on supported phones.
 - [x] 2. ShadySimDeals appears on supported computers.
 - [x] 3. Both entry points expose household-member and unborn-Nooboo sales.
-- [ ] 4. Household picker supports every required age and excludes the actor.
+- [x] 4. Household picker supports infant through elder and excludes newborns and the actor.
   - [x] Actor exclusion and Teen-through-Elder filtering
-  - [x] Baby, infant, toddler, and child filtering and pricing
+  - [x] Infant, toddler, and child filtering and pricing
   - [x] Live: child appears and completes a sale
   - [x] Live: infant sale completes after the seller carries the infant into the rabbit hole
-  - [ ] Live: newborn appears and can be selected; the latest event-driven Check On attempt reached settlement but selected a valid non-carry care outcome, so no Held Actions or seller parenting appeared (private deterministic native Cuddle pickup awaits validation)
+  - [x] Newborn sales deferred after native carry could not be made reliable; newborns are excluded before picker-row construction
   - [x] Live: toddler appears and completes a sale
-  - [x] Automated: newborn and infant sales acquire carry ownership before a seller-only 90-minute rabbit hole
-  - [x] Automated: newborn `SimInfo` resolves its matching active-zone `Baby` object before private pickup
-  - [x] Automated: carried-newborn handoff waits for exact carrier Held Actions SI-state removal, then exact private pickup removal and one continuation-settlement tick
-  - [x] Package: private newborn pickup has exactly one EA Cuddle (`275239`) continuation with Held Actions (`275181`) as its SI override
-  - [x] Automated: when a newborn has no `parent`, a foreign Held Actions (`275181`) reservation identifies the carrier interaction to finish naturally
-  - [x] Automated: rejected newborn reservations log their EA rejection reason, initial carrier, current parent, and active reservation owners
-  - [x] Automated: the carried newborn or infant is not registered as a second rabbit-hole participant
+  - [x] Automated: infant sales acquire carry ownership before a seller-only 90-minute rabbit hole
+  - [x] Dormant newborn pickup internals remain packaged and regression-tested but unreachable from the picker
+  - [x] Automated: the carried infant is not registered as a second rabbit-hole participant
   - [x] Live: another carrier hands the infant to the seller, who carries it into the rabbit hole
 - [x] 5. Unborn picker includes only pregnant household members, including the actor.
   - [x] Repository filtering and picker-row tests
@@ -124,7 +120,7 @@ verification remain unchecked.
 - [x] 7. Cancellation makes no changes.
 - [x] 8. Confirmation starts the appropriate rabbit hole.
   - [x] Automated: toddler-through-elder target age selects the 75-, 90-, or 120-minute shared household tuning
-  - [x] Automated: newborn and infant sales use the private 90-minute solo tuning for the seller
+  - [x] Automated: infant sales use the private 90-minute solo tuning for the seller
   - [x] Automated: expected offspring selects the 90-, 120-, or 150-minute unborn tuning
   - [x] Package: shared `TwoSimRabbitHole` resources map Actor then PickedSim
   - [x] Package: self-target unborn resources use a solo `RabbitHole`

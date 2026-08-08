@@ -130,7 +130,7 @@ git commit -m "fix: exclude newborns from sale picker"
 - Consumes: Task 1 household picker behavior.
 - Produces: maintained documentation and an installed package that describe and enforce infant-through-elder eligibility.
 
-- [ ] **Step 1: Align maintained documentation**
+- [x] **Step 1: Align maintained documentation**
 
 Make these exact semantic changes:
 
@@ -141,7 +141,7 @@ Make these exact semantic changes:
 
 Do not rewrite historical specs or plans that record prior investigations.
 
-- [ ] **Step 2: Review and verify**
+- [x] **Step 2: Review and verify**
 
 Use `superpowers:requesting-code-review` over base
 `4a75553ca6b6cf9b0ac19b55cfe7d13319c45322` through HEAD plus working docs.
@@ -157,7 +157,7 @@ tar -tf dist\ShadySimDeals.ts4script
 Expected: no diff errors, all tests pass, build succeeds, and the archive contains
 `shady_sim_deals/sims4_runtime.pyc`.
 
-- [ ] **Step 3: Commit and push PR #7**
+- [x] **Step 3: Commit and push PR #7**
 
 ```powershell
 git add README.md ARCHITECTURE.md DEVELOPMENT.md SPECS_CHECKLIST.md docs/superpowers/plans/2026-08-07-defer-newborn-sales.md
