@@ -572,6 +572,7 @@ class Sims4RabbitHoleAdapter:
             return failed("target_unavailable")
         carrier = getattr(target_sim, "parent", None)
         if target_age == "baby":
+            import element_utils
             from interactions.interaction_finisher import FinishingType
             from reservation.reservation_handler_basic import (
                 ReservationHandlerBasic,
@@ -699,6 +700,20 @@ class Sims4RabbitHoleAdapter:
                     finally:
                         finish(True)
 
+            def schedule_check_on():
+                try:
+                    sequence = element_utils.build_element(
+                        (
+                            element_utils.sleep_until_next_tick_element(),
+                            queue_check_on,
+                        )
+                    )
+                    timeline = services.time_service().sim_timeline
+                    timeline.schedule(sequence, timeline.now)
+                except Exception:
+                    failed("newborn_handoff_schedule_exception")
+                    callback(True)
+
             if carrier is actor_sim:
                 if find_held_actions() is not None:
                     callback(False)
@@ -724,7 +739,7 @@ class Sims4RabbitHoleAdapter:
                     ):
                         callback(True)
                         return
-                    queue_check_on()
+                    schedule_check_on()
 
                 held_interaction.register_on_finishing_callback(
                     carrier_finished

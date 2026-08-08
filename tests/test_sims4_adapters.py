@@ -830,6 +830,7 @@ def test_native_infant_pickup_queues_ea_affordance(monkeypatch):
 def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
     finishing_callbacks = []
     reservation_events = []
+    scheduled_elements = []
     interaction = SimpleNamespace(
         is_finishing=False,
         is_finishing_naturally=True,
@@ -881,6 +882,16 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
         get_instance_manager=lambda resource: manager,
         object_manager=lambda: object_manager,
     )
+    next_tick = object()
+    element_utils = SimpleNamespace(
+        build_element=lambda sequence: sequence,
+        sleep_until_next_tick_element=lambda: next_tick,
+    )
+    timeline = SimpleNamespace(
+        now=object(),
+        schedule=lambda element, when: scheduled_elements.append(element),
+    )
+    services.time_service = lambda: SimpleNamespace(sim_timeline=timeline)
     resources = SimpleNamespace(
         Types=SimpleNamespace(INTERACTION="interaction")
     )
@@ -923,6 +934,7 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
         priority=priority_module,
     )
     monkeypatch.setitem(sys.modules, "services", services)
+    monkeypatch.setitem(sys.modules, "element_utils", element_utils)
     monkeypatch.setitem(sys.modules, "sims4", sims4)
     monkeypatch.setitem(sys.modules, "sims4.resources", resources)
     monkeypatch.setitem(sys.modules, "interactions", interactions)
@@ -947,6 +959,8 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
         requested_ids=requested_ids,
         reservation_basic_module=reservation_basic_module,
         reservation_events=reservation_events,
+        next_tick=next_tick,
+        scheduled_elements=scheduled_elements,
         finishing_callbacks=finishing_callbacks,
         interaction=interaction,
     )
@@ -1021,6 +1035,13 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
 
     env.carry_target.parent = None
     env.finishing_callbacks[0](env.interaction)
+    assert env.reservation_events == []
+    assert env.requested_ids == []
+    assert len(env.scheduled_elements) == 1
+    sleep, continue_handoff = env.scheduled_elements[0]
+    assert sleep is env.next_tick
+
+    continue_handoff()
     assert env.reservation_events == [
         ("created", env.actor, env.carry_target),
         ("begun", env.actor, env.carry_target),
@@ -1063,6 +1084,38 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
             "target_id": "infant",
         },
     )
+
+
+def test_newborn_handoff_schedule_exception_cancels_pickup(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.interaction.target = env.carry_target
+    env.interaction.cancel = lambda finishing_type, **kwargs: None
+    env.mother.si_state = [env.interaction]
+
+    def fail_schedule(element, when):
+        raise RuntimeError("schedule failed")
+
+    sys.modules["services"].time_service = lambda: SimpleNamespace(
+        sim_timeline=SimpleNamespace(now=object(), schedule=fail_schedule)
+    )
+    events = []
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        logger=SimpleNamespace(
+            log=lambda event, **fields: events.append((event, fields))
+        )
+    )
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+    env.carry_target.parent = None
+    env.finishing_callbacks[0](env.interaction)
+
+    assert callbacks == [True]
+    assert env.reservation_events == []
+    assert events[-1][0] == "baby_pickup_failed"
+    assert events[-1][1]["reason"] == "newborn_handoff_schedule_exception"
 
 
 def test_parented_newborn_without_held_actions_queues_check_on(monkeypatch):
@@ -1290,6 +1343,7 @@ def test_newborn_check_on_startup_exception_cancels_pickup(monkeypatch):
     )
     env.carry_target.parent = None
     env.finishing_callbacks[0](env.interaction)
+    env.scheduled_elements[0][1]()
 
     assert callbacks == [True]
     assert env.reservation_events[-1] == (

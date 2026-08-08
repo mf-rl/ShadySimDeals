@@ -116,10 +116,10 @@ git commit -m "fix: settle synchronous sale failures"
 - Modify: `src/shady_sim_deals/sims4_adapters.py:548-742`
 
 **Interfaces:**
-- Consumes: EA `element_utils.build_element`, `element_utils.sleep_until_next_tick_element`, and `services.time_service().sim_timeline.schedule(element)`.
+- Consumes: EA `element_utils.build_element`, `element_utils.sleep_until_next_tick_element`, and `services.time_service().sim_timeline.schedule(element, when)`.
 - Produces: unchanged `Sims4RabbitHoleAdapter._queue_infant_pickup(actor, target, callback) -> bool`; only the carried-newborn continuation becomes next-tick asynchronous.
 
-- [ ] **Step 1: Extend the fake game environment with a simulation timeline**
+- [x] **Step 1: Extend the fake game environment with a simulation timeline**
 
 In `carried_infant_handoff_environment`, add `scheduled_elements = []`, a fake `element_utils` module, and a time service:
 
@@ -129,14 +129,17 @@ element_utils = SimpleNamespace(
     build_element=lambda sequence: sequence,
     sleep_until_next_tick_element=lambda: next_tick,
 )
-timeline = SimpleNamespace(schedule=scheduled_elements.append)
+timeline = SimpleNamespace(
+    now=object(),
+    schedule=lambda element, when: scheduled_elements.append(element),
+)
 services.time_service = lambda: SimpleNamespace(sim_timeline=timeline)
 monkeypatch.setitem(sys.modules, "element_utils", element_utils)
 ```
 
 Expose `next_tick` and `scheduled_elements` on the returned environment.
 
-- [ ] **Step 2: Change the carried-newborn test to require next-tick acquisition**
+- [x] **Step 2: Change the carried-newborn test to require next-tick acquisition**
 
 In `test_carried_newborn_is_released_then_held_by_seller`, immediately after invoking the mother's finishing callback, require no seller reservation or Check On yet:
 
@@ -157,11 +160,11 @@ assert env.reservation_events == [
 
 Keep the existing Check On, Held Actions, reservation release, and final callback assertions after this block.
 
-- [ ] **Step 3: Add a schedule-failure regression**
+- [x] **Step 3: Add a schedule-failure regression**
 
 Add a test that replaces `services.time_service().sim_timeline.schedule` with a function raising `RuntimeError("schedule failed")`, naturally finishes the carrier interaction, and asserts `callbacks == [True]`, no reservation was created, and the logger records `baby_pickup_failed` with reason `newborn_handoff_schedule_exception`.
 
-- [ ] **Step 4: Run the focused tests and verify RED**
+- [x] **Step 4: Run the focused tests and verify RED**
 
 Run:
 
@@ -171,7 +174,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_sims
 
 Expected: the carried-newborn test fails because reservation acquisition is still immediate; the new schedule-failure test also fails because no scheduling boundary exists.
 
-- [ ] **Step 5: Implement the native next-tick continuation**
+- [x] **Step 5: Implement the native next-tick continuation**
 
 Import `element_utils` inside the newborn branch. Add this local function beside `queue_check_on`:
 
@@ -184,7 +187,8 @@ def schedule_check_on():
                 queue_check_on,
             )
         )
-        services.time_service().sim_timeline.schedule(sequence)
+        timeline = services.time_service().sim_timeline
+        timeline.schedule(sequence, timeline.now)
     except Exception:
         failed("newborn_handoff_schedule_exception")
         callback(True)
@@ -192,7 +196,7 @@ def schedule_check_on():
 
 In `carrier_finished`, retain the natural-finish and detached-parent checks, but call `schedule_check_on()` instead of `queue_check_on()`. Do not defer the already-unparented or seller-carried newborn paths, and do not change infant handoff code.
 
-- [ ] **Step 6: Run focused newborn and infant tests and verify GREEN**
+- [x] **Step 6: Run focused newborn and infant tests and verify GREEN**
 
 Run:
 
@@ -202,7 +206,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_sims
 
 Expected: all selected tests pass, including unchanged infant controls.
 
-- [ ] **Step 7: Commit the independently verified handoff fix**
+- [x] **Step 7: Commit the independently verified handoff fix**
 
 ```powershell
 git add tests/test_sims4_adapters.py src/shady_sim_deals/sims4_adapters.py
