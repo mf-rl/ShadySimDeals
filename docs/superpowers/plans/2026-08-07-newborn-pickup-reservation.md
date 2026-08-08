@@ -175,7 +175,7 @@ Run the Step 3 command. Expected: all selected newborn and infant tests pass.
   natural put-down passed, but the mother reacquired the newborn before seller
   Check On and both sale attempts canceled with **Inconvenient Fact**.
 
-- [ ] **Step 7: Verify, review, commit, push, and install**
+- [x] **Step 7: Verify, review, commit, push, and install**
 
 Run:
 
