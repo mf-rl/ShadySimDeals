@@ -172,7 +172,7 @@ git status --short
 Expected: local and remote SHAs match, the worktree is clean, and GitHub reports
 configured checks or explicitly reports none.
 
-- [ ] **Step 4: Install only while the game is closed**
+- [x] **Step 4: Install only while the game is closed**
 
 Confirm `TS4_x64.exe` is absent, then run:
 
