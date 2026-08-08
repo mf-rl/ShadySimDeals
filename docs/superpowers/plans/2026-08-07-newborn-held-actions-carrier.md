@@ -29,7 +29,7 @@
 - Consumes: `target_sim.get_reservation_handlers()`, each handler's `sim` and `reservation_interaction`, and Held Actions affordance ID `275181`.
 - Produces: unchanged `Sims4RabbitHoleAdapter._queue_infant_pickup(actor, target, callback) -> bool`; a parentless newborn with a foreign Held Actions owner enters the existing carried-newborn release flow.
 
-- [ ] **Step 1: Write the missing-parent regression**
+- [x] **Step 1: Write the missing-parent regression**
 
 Add this test beside `test_carried_newborn_is_released_then_held_by_seller`:
 
@@ -78,7 +78,7 @@ def test_parentless_newborn_uses_foreign_held_actions_reservation(monkeypatch):
     assert callbacks == []
 ```
 
-- [ ] **Step 2: Run the regression and verify RED**
+- [x] **Step 2: Run the regression and verify RED**
 
 Run:
 
@@ -88,7 +88,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_sims
 
 Expected: FAIL because the parentless path immediately attempts the seller reservation instead of naturally finishing the foreign Held Actions interaction.
 
-- [ ] **Step 3: Implement the reservation-owner fallback**
+- [x] **Step 3: Implement the reservation-owner fallback**
 
 Inside the newborn branch, add a local lookup and use it only when `carrier` is not a Sim:
 
@@ -120,7 +120,7 @@ if not getattr(carrier, "is_sim", False):
 
 In the existing foreign-carrier branch, scan `carrier.si_state` only when `held_interaction is None`. Keep the existing `carrier_finished`, natural cancellation, next-tick scheduling, seller reservation, and Check On code unchanged.
 
-- [ ] **Step 4: Add the unrelated-reservation control**
+- [x] **Step 4: Add the unrelated-reservation control**
 
 Add this control beside the missing-parent regression:
 
@@ -152,7 +152,7 @@ def test_parentless_newborn_ignores_unrelated_reservation(monkeypatch):
 
 This proves the fallback does not disturb unrelated EA reservations.
 
-- [ ] **Step 5: Run focused newborn and infant tests and verify GREEN**
+- [x] **Step 5: Run focused newborn and infant tests and verify GREEN**
 
 Run:
 
@@ -162,7 +162,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_sims
 
 Expected: all selected tests pass, including the new parentless fallback, unrelated-reservation control, seller-held newborn controls, and unchanged infant handoff tests.
 
-- [ ] **Step 6: Commit the independently verified fix**
+- [x] **Step 6: Commit the independently verified fix**
 
 ```powershell
 git add tests/test_sims4_adapters.py src/shady_sim_deals/sims4_adapters.py
@@ -181,7 +181,7 @@ git commit -m "fix: recover newborn held actions carrier"
 - Consumes: the verified adapter behavior from Task 1 and the latest live diagnostic result.
 - Produces: documentation matching the implementation, a reviewed branch, built mod artifacts, and an installed test build while the game is closed.
 
-- [ ] **Step 1: Record the implementation without claiming a live pass**
+- [x] **Step 1: Record the implementation without claiming a live pass**
 
 Replace the current newborn live detail with:
 
@@ -195,7 +195,7 @@ Add this automated line beside the newborn handoff checks:
 - [x] Automated: when a newborn has no `parent`, a foreign Held Actions (`275181`) reservation identifies the carrier; its exact interaction finishes naturally before the existing next-tick seller reservation and Check On flow
 ```
 
-- [ ] **Step 2: Run full verification**
+- [x] **Step 2: Run full verification**
 
 Run:
 
@@ -212,11 +212,11 @@ git diff --check
 
 Expected: all tests pass, `dist/ShadySimDeals.ts4script` and `dist/ShadySimDeals.package` build, and `git diff --check` is silent.
 
-- [ ] **Step 3: Request read-only review**
+- [x] **Step 3: Request read-only review**
 
 Review the branch diff from `bb78c4821c24faaf544557b0a120c817170bae4a` through `HEAD` plus the working tree. Fix every Critical or Important finding and rerun affected tests.
 
-- [ ] **Step 4: Mark this plan complete and commit documentation**
+- [x] **Step 4: Mark this plan complete and commit documentation**
 
 Mark completed checkboxes in this plan, then run:
 

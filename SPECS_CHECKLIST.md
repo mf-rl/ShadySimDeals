@@ -103,11 +103,12 @@ verification remain unchecked.
   - [x] Baby, infant, toddler, and child filtering and pricing
   - [x] Live: child appears and completes a sale
   - [x] Live: infant sale completes after the seller carries the infant into the rabbit hole
-  - [ ] Live: newborn appears and can be selected, but the next-tick seller reservation is still rejected before Check On and **Inconvenient Fact** appears immediately; transaction cleanup now restores the newborn to later pickers (active EA reservation diagnostics await validation)
+  - [ ] Live: newborn appears and can be selected; the latest attempt found `parent=None` while another Sim still owned Held Actions (`275181`), so the seller reservation was rejected before Check On (Held Actions carrier recovery awaits validation)
   - [x] Live: toddler appears and completes a sale
   - [x] Automated: newborn and infant sales acquire carry ownership before a seller-only 90-minute rabbit hole
   - [x] Automated: newborn `SimInfo` resolves its matching `Baby` object before native Check On
   - [x] Automated: an existing newborn carrier completes a natural put-down, the seller waits one simulation tick before reserving it, then native Check On verifies persistent Held Actions; an existing infant carrier hands it to the seller
+  - [x] Automated: when a newborn has no `parent`, a foreign Held Actions (`275181`) reservation identifies the carrier; its exact interaction finishes naturally before the existing next-tick seller reservation and Check On flow
   - [x] Automated: rejected newborn reservations log their EA rejection reason, initial carrier, current parent, and active reservation owners
   - [x] Automated: the carried newborn or infant is not registered as a second rabbit-hole participant
   - [x] Live: another carrier hands the infant to the seller, who carries it into the rabbit hole
