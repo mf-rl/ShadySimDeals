@@ -578,6 +578,32 @@ class Sims4RabbitHoleAdapter:
                 ReservationHandlerBasic,
             )
 
+            def find_foreign_held_actions_reservation():
+                try:
+                    handlers = target_sim.get_reservation_handlers()
+                except Exception:
+                    return None, None
+                for handler in handlers:
+                    interaction = getattr(
+                        handler, "reservation_interaction", None
+                    )
+                    affordance = getattr(interaction, "affordance", None)
+                    owner = getattr(handler, "sim", None)
+                    if (
+                        getattr(affordance, "guid64", None)
+                        == self.NEWBORN_HELD_ACTIONS_AFFORDANCE_ID
+                        and owner is not actor_sim
+                        and getattr(owner, "is_sim", False)
+                    ):
+                        return owner, interaction
+                return None, None
+
+            held_interaction = None
+            if not getattr(carrier, "is_sim", False):
+                carrier, held_interaction = (
+                    find_foreign_held_actions_reservation()
+                )
+
             def find_held_actions():
                 return next(
                     (
@@ -791,14 +817,16 @@ class Sims4RabbitHoleAdapter:
                     queue_check_on()
                 return True
             if getattr(carrier, "is_sim", False):
-                held_interaction = next(
-                    (
-                        interaction
-                        for interaction in carrier.si_state
-                        if getattr(interaction, "target", None) is target_sim
-                    ),
-                    None,
-                )
+                if held_interaction is None:
+                    held_interaction = next(
+                        (
+                            interaction
+                            for interaction in carrier.si_state
+                            if getattr(interaction, "target", None)
+                            is target_sim
+                        ),
+                        None,
+                    )
                 if held_interaction is None:
                     return failed("carrier_interaction_unavailable")
 

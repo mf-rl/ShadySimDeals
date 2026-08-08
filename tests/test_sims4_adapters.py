@@ -1086,6 +1086,75 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
     )
 
 
+def test_parentless_newborn_uses_foreign_held_actions_reservation(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.carry_target.parent = None
+    release_requests = []
+    env.interaction.target = env.carry_target
+    env.interaction.affordance = SimpleNamespace(guid64=275181)
+    env.interaction.cancel = lambda finishing_type, **kwargs: (
+        release_requests.append((finishing_type, kwargs))
+    )
+    env.mother.si_state = [env.interaction]
+    foreign_handler = SimpleNamespace(
+        sim=env.mother,
+        reservation_interaction=env.interaction,
+    )
+    env.carry_target.get_reservation_handlers = lambda: (foreign_handler,)
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+    assert release_requests == [
+        (
+            "natural",
+            {"cancel_reason_msg": "Shady Sim Deals newborn handoff"},
+        )
+    ]
+    assert env.reservation_events == []
+    assert env.requested_ids == []
+
+    env.finishing_callbacks[0](env.interaction)
+    assert len(env.scheduled_elements) == 1
+    sleep, continue_handoff = env.scheduled_elements[0]
+    assert sleep is env.next_tick
+
+    continue_handoff()
+    assert env.reservation_events[:2] == [
+        ("created", env.actor, env.carry_target),
+        ("begun", env.actor, env.carry_target),
+    ]
+    assert env.requested_ids == [275655]
+    assert callbacks == []
+
+
+def test_parentless_newborn_ignores_unrelated_reservation(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.carry_target.parent = None
+    release_requests = []
+    unrelated_interaction = SimpleNamespace(
+        affordance=SimpleNamespace(guid64=12345),
+        cancel=lambda *args, **kwargs: release_requests.append((args, kwargs)),
+    )
+    env.carry_target.get_reservation_handlers = lambda: (
+        SimpleNamespace(
+            sim=env.mother,
+            reservation_interaction=unrelated_interaction,
+        ),
+    )
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+    assert release_requests == []
+    assert env.requested_ids == [275655]
+    assert callbacks == []
+
+
 def test_newborn_handoff_schedule_exception_cancels_pickup(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.interaction.target = env.carry_target
