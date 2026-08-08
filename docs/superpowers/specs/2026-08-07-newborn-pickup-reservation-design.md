@@ -46,9 +46,11 @@ autonomy globally or mutate newborn parenting or state.
 ## Failure handling
 
 Every terminal path after reservation acquisition releases it exactly once.
-Failure to acquire or release is logged and cancels the transaction before
-transfer or payment. Existing transaction cleanup remains responsible for sale
-reservations; the newborn object reservation is local to pickup.
+Failure to acquire or an exception while releasing is logged and cancels the
+transaction before transfer or payment. EA's successful release returns
+`None`, so only exceptions signal release failure. Existing transaction cleanup
+remains responsible for sale reservations; the newborn object reservation is
+local to pickup.
 
 ## Testing
 

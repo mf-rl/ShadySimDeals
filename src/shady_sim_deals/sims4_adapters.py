@@ -573,6 +573,9 @@ class Sims4RabbitHoleAdapter:
         carrier = getattr(target_sim, "parent", None)
         if target_age == "baby":
             from interactions.interaction_finisher import FinishingType
+            from reservation.reservation_handler_basic import (
+                ReservationHandlerBasic,
+            )
 
             def find_held_actions():
                 return next(
@@ -591,11 +594,39 @@ class Sims4RabbitHoleAdapter:
 
             def queue_check_on(*_):
                 try:
+                    reservation = ReservationHandlerBasic(
+                        actor_sim, target_sim
+                    )
+                    if not reservation.begin_reservation():
+                        failed("newborn_reservation_rejected")
+                        callback(True)
+                        return
+                except Exception:
+                    failed("newborn_reservation_exception")
+                    callback(True)
+                    return
+
+                reservation_released = False
+
+                def finish(canceled):
+                    nonlocal reservation_released
+                    if reservation_released:
+                        return
+                    reservation_released = True
+                    try:
+                        reservation.end_reservation()
+                    except Exception:
+                        failed("newborn_reservation_release_exception")
+                        callback(True)
+                        return
+                    callback(canceled)
+
+                try:
                     affordance = services.get_instance_manager(
                         sims4.resources.Types.INTERACTION
                     ).get(self.NEWBORN_CHECK_ON_AFFORDANCE_ID)
                     if affordance is None:
-                        callback(True)
+                        finish(True)
                         return
                     context = InteractionContext(
                         actor_sim,
@@ -607,32 +638,15 @@ class Sims4RabbitHoleAdapter:
                     )
                 except Exception:
                     failed("check_on_startup_exception")
-                    callback(True)
+                    finish(True)
                     return
-                if not result or result.interaction.is_finishing:
-                    callback(True)
-                    return
-                parent = getattr(target_sim, "parent", None)
-                self._logger.log(
-                    "newborn_check_on_queued",
-                    parent_id=(
-                        str(parent.sim_id)
-                        if getattr(parent, "sim_id", None) is not None
-                        else None
-                    ),
-                    parent_is_actor=parent is actor_sim,
-                    target_id=str(target.sim_id),
-                )
-
-                def check_on_finished(interaction):
+                try:
+                    if not result or result.interaction.is_finishing:
+                        finish(True)
+                        return
                     parent = getattr(target_sim, "parent", None)
-                    held_actions = find_held_actions()
                     self._logger.log(
-                        "newborn_check_on_finished",
-                        finishing_naturally=(
-                            interaction.is_finishing_naturally
-                        ),
-                        held_actions_active=held_actions is not None,
+                        "newborn_check_on_queued",
                         parent_id=(
                             str(parent.sim_id)
                             if getattr(parent, "sim_id", None) is not None
@@ -641,17 +655,49 @@ class Sims4RabbitHoleAdapter:
                         parent_is_actor=parent is actor_sim,
                         target_id=str(target.sim_id),
                     )
-                    callback(
-                        not (
-                            interaction.is_finishing_naturally
-                            and held_actions is not None
-                            and target_sim.parent is actor_sim
-                        )
-                    )
 
-                result.interaction.register_on_finishing_callback(
-                    check_on_finished
-                )
+                    def check_on_finished(interaction):
+                        try:
+                            parent = getattr(target_sim, "parent", None)
+                            held_actions = find_held_actions()
+                            self._logger.log(
+                                "newborn_check_on_finished",
+                                finishing_naturally=(
+                                    interaction.is_finishing_naturally
+                                ),
+                                held_actions_active=(
+                                    held_actions is not None
+                                ),
+                                parent_id=(
+                                    str(parent.sim_id)
+                                    if getattr(parent, "sim_id", None)
+                                    is not None
+                                    else None
+                                ),
+                                parent_is_actor=parent is actor_sim,
+                                target_id=str(target.sim_id),
+                            )
+                            canceled = not (
+                                interaction.is_finishing_naturally
+                                and held_actions is not None
+                                and target_sim.parent is actor_sim
+                            )
+                        except Exception:
+                            try:
+                                failed("check_on_finish_exception")
+                            finally:
+                                finish(True)
+                            return
+                        finish(canceled)
+
+                    result.interaction.register_on_finishing_callback(
+                        check_on_finished
+                    )
+                except Exception:
+                    try:
+                        failed("check_on_setup_exception")
+                    finally:
+                        finish(True)
 
             if carrier is actor_sim:
                 if find_held_actions() is not None:

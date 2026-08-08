@@ -829,6 +829,7 @@ def test_native_infant_pickup_queues_ea_affordance(monkeypatch):
 
 def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
     finishing_callbacks = []
+    reservation_events = []
     interaction = SimpleNamespace(
         is_finishing=False,
         is_finishing_naturally=True,
@@ -896,6 +897,26 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
     finisher_module = SimpleNamespace(
         FinishingType=SimpleNamespace(NATURAL="natural")
     )
+
+    class ReservationHandlerBasic:
+        def __init__(self, sim, target):
+            self.sim = sim
+            self.target = target
+            reservation_events.append(("created", sim, target))
+
+        def begin_reservation(self):
+            reservation_events.append(("begun", self.sim, self.target))
+            return True
+
+        def end_reservation(self):
+            reservation_events.append(("ended", self.sim, self.target))
+
+    reservation_basic_module = SimpleNamespace(
+        ReservationHandlerBasic=ReservationHandlerBasic
+    )
+    reservation_module = SimpleNamespace(
+        reservation_handler_basic=reservation_basic_module
+    )
     interactions = SimpleNamespace(
         context=context_module,
         interaction_finisher=finisher_module,
@@ -910,6 +931,12 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
         sys.modules, "interactions.interaction_finisher", finisher_module
     )
     monkeypatch.setitem(sys.modules, "interactions.priority", priority_module)
+    monkeypatch.setitem(sys.modules, "reservation", reservation_module)
+    monkeypatch.setitem(
+        sys.modules,
+        "reservation.reservation_handler_basic",
+        reservation_basic_module,
+    )
     return SimpleNamespace(
         actor=actor,
         mother=mother,
@@ -918,6 +945,8 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
         handoff_affordance=handoff_affordance,
         check_on_affordance=check_on_affordance,
         requested_ids=requested_ids,
+        reservation_basic_module=reservation_basic_module,
+        reservation_events=reservation_events,
         finishing_callbacks=finishing_callbacks,
         interaction=interaction,
     )
@@ -992,6 +1021,10 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
 
     env.carry_target.parent = None
     env.finishing_callbacks[0](env.interaction)
+    assert env.reservation_events == [
+        ("created", env.actor, env.carry_target),
+        ("begun", env.actor, env.carry_target),
+    ]
     assert env.requested_ids == [275655]
     assert env.actor.pushes[0][0:2] == (
         check_on_affordance,
@@ -1014,6 +1047,11 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
         )
     ]
     check_on_callbacks[0](check_on_interaction)
+    assert env.reservation_events[-1] == (
+        "ended",
+        env.actor,
+        env.carry_target,
+    )
     assert callbacks == [False]
     assert events[-1] == (
         "newborn_check_on_finished",
@@ -1042,6 +1080,200 @@ def test_parented_newborn_without_held_actions_queues_check_on(monkeypatch):
     assert callbacks == []
 
 
+def test_newborn_reservation_blocks_competing_caregiver(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.carry_target.parent = env.actor
+    handlers = []
+
+    class BlockingReservation:
+        def __init__(self, sim, target):
+            self.sim = sim
+            self.target = target
+            handlers.append(self)
+
+        def begin_reservation(self):
+            return True
+
+        def may_reserve(self, sim):
+            return sim is self.sim
+
+        def end_reservation(self):
+            pass
+
+    env.reservation_basic_module.ReservationHandlerBasic = (
+        BlockingReservation
+    )
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+
+    assert not handlers[0].may_reserve(env.mother)
+    assert env.requested_ids == [275655]
+    assert callbacks == []
+
+
+def test_newborn_reservation_rejection_cancels_without_check_on(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.carry_target.parent = env.actor
+
+    class RejectedReservation:
+        def __init__(self, sim, target):
+            pass
+
+        def begin_reservation(self):
+            return False
+
+    env.reservation_basic_module.ReservationHandlerBasic = (
+        RejectedReservation
+    )
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+
+    assert callbacks == [True]
+    assert env.requested_ids == []
+
+
+def test_newborn_reservation_acquisition_exception_cancels_pickup(
+    monkeypatch,
+):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.carry_target.parent = env.actor
+
+    class BrokenReservation:
+        def __init__(self, sim, target):
+            pass
+
+        def begin_reservation(self):
+            raise RuntimeError("reserve failed")
+
+    env.reservation_basic_module.ReservationHandlerBasic = BrokenReservation
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+
+    assert callbacks == [True]
+    assert env.requested_ids == []
+
+
+def test_newborn_reservation_releases_after_unnatural_check_on(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.carry_target.parent = env.actor
+    env.interaction.is_finishing_naturally = False
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+    env.finishing_callbacks[0](env.interaction)
+
+    assert env.reservation_events[-1] == (
+        "ended",
+        env.actor,
+        env.carry_target,
+    )
+    assert callbacks == [True]
+
+
+def test_newborn_reservation_release_exception_cancels_pickup(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.carry_target.parent = env.actor
+
+    class BrokenReleaseReservation:
+        def __init__(self, sim, target):
+            pass
+
+        def begin_reservation(self):
+            return True
+
+        def end_reservation(self):
+            raise RuntimeError("release failed")
+
+    env.reservation_basic_module.ReservationHandlerBasic = (
+        BrokenReleaseReservation
+    )
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+    env.actor.si_state = [
+        SimpleNamespace(
+            affordance=SimpleNamespace(guid64=275181),
+            target=env.carry_target,
+        )
+    ]
+    env.finishing_callbacks[0](env.interaction)
+
+    assert callbacks == [True]
+
+
+def test_newborn_callback_registration_exception_releases_reservation(
+    monkeypatch,
+):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.carry_target.parent = env.actor
+    broken_interaction = SimpleNamespace(
+        is_finishing=False,
+        register_on_finishing_callback=lambda callback: (_ for _ in ()).throw(
+            RuntimeError("register failed")
+        ),
+    )
+    env.actor.push_super_affordance = lambda *args, **kwargs: SimpleNamespace(
+        interaction=broken_interaction
+    )
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+
+    assert env.reservation_events[-1] == (
+        "ended",
+        env.actor,
+        env.carry_target,
+    )
+    assert callbacks == [True]
+
+
+def test_newborn_finishing_exception_releases_reservation(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.carry_target.parent = env.actor
+
+    def log(event, **fields):
+        if event == "newborn_check_on_finished":
+            raise RuntimeError("finish failed")
+
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        logger=SimpleNamespace(log=log)
+    )
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+    env.finishing_callbacks[0](env.interaction)
+
+    assert env.reservation_events[-1] == (
+        "ended",
+        env.actor,
+        env.carry_target,
+    )
+    assert callbacks == [True]
+
+
 def test_newborn_check_on_startup_exception_cancels_pickup(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.interaction.target = env.carry_target
@@ -1060,6 +1292,11 @@ def test_newborn_check_on_startup_exception_cancels_pickup(monkeypatch):
     env.finishing_callbacks[0](env.interaction)
 
     assert callbacks == [True]
+    assert env.reservation_events[-1] == (
+        "ended",
+        env.actor,
+        env.carry_target,
+    )
 
 
 def test_newborn_natural_release_exception_unregisters_finishing_callback(
@@ -1100,6 +1337,7 @@ def test_unnatural_newborn_release_cancels_without_check_on(monkeypatch):
 
     assert callbacks == [True]
     assert env.requested_ids == []
+    assert env.reservation_events == []
 
 
 def test_attached_newborn_release_cancels_without_check_on(monkeypatch):

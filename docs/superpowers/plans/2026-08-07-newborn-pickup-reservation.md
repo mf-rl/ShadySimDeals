@@ -32,10 +32,10 @@
 - Modify: `docs/superpowers/plans/2026-08-07-newborn-pickup-reservation.md`
 
 **Interfaces:**
-- Consumes: `ReservationHandlerBasic(sim, target)`, `begin_reservation() -> ReservationResult`, and `end_reservation() -> ReservationResult` from EA's reservation API.
+- Consumes: `ReservationHandlerBasic(sim, target)`, `begin_reservation() -> ReservationResult`, and `end_reservation() -> None` from EA's reservation API.
 - Produces: unchanged `_queue_infant_pickup(actor, target, callback) -> bool`; callback receives `False` only after reservation cleanup and verified seller Held Actions.
 
-- [ ] **Step 1: Extend the newborn test environment with a fake EA reservation**
+- [x] **Step 1: Extend the newborn test environment with a fake EA reservation**
 
 In `carried_infant_handoff_environment`, install a fake
 `reservation.reservation_handler_basic` module. Record creation, acquisition,
@@ -56,12 +56,11 @@ class ReservationHandlerBasic:
 
     def end_reservation(self):
         reservation_events.append(("ended", self.sim, self.target))
-        return True
 ```
 
 Expose `reservation_events` from the returned environment.
 
-- [ ] **Step 2: Write failing acquisition, competition, and cleanup regressions**
+- [x] **Step 2: Write failing acquisition, competition, and cleanup regressions**
 
 Update `test_carried_newborn_is_released_then_held_by_seller` to require this
 order before the carrier finishing callback returns:
@@ -100,7 +99,7 @@ assert one `ended` event. Add an acquisition-exception test where
 `end_reservation()` raise after otherwise successful Check On, and assert the
 pickup callback receives `True` rather than starting the rabbit hole.
 
-- [ ] **Step 3: Run focused tests and verify RED**
+- [x] **Step 3: Run focused tests and verify RED**
 
 Run:
 
@@ -111,7 +110,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_sims
 Expected: reservation assertions fail because production does not import or
 acquire `ReservationHandlerBasic`; existing infant controls pass.
 
-- [ ] **Step 4: Acquire and centrally release the newborn reservation**
+- [x] **Step 4: Acquire and centrally release the newborn reservation**
 
 Inside the newborn branch, import the EA handler:
 
@@ -146,17 +145,16 @@ def finish(canceled):
         return
     reservation_released = True
     try:
-        released = reservation.end_reservation()
+        reservation.end_reservation()
     except Exception:
         failed("newborn_reservation_release_exception")
         callback(True)
         return
-    if not released:
-        failed("newborn_reservation_release_rejected")
-        callback(True)
-        return
     callback(canceled)
 ```
+
+EA's successful `end_reservation()` returns `None`; do not interpret its return
+value as rejection. Only an exception signals release failure.
 
 Replace every `callback(True)` inside `queue_check_on` after acquisition with
 `finish(True)`. In `check_on_finished`, retain the existing natural-finish,
@@ -164,11 +162,11 @@ targeted Held Actions, and seller-parent checks, but pass their cancellation
 result to `finish(...)` instead of calling `callback(...)` directly. Do not
 change the carrier natural-put-down callback or any infant code.
 
-- [ ] **Step 5: Run focused tests and verify GREEN**
+- [x] **Step 5: Run focused tests and verify GREEN**
 
 Run the Step 3 command. Expected: all selected newborn and infant tests pass.
 
-- [ ] **Step 6: Align maintained documentation with the failed live result and reservation flow**
+- [x] **Step 6: Align maintained documentation with the failed live result and reservation flow**
 
 - `README.md`, `ARCHITECTURE.md`, and `DEVELOPMENT.md`: say the seller reserves
   the newborn after the natural put-down and before Check On so another
