@@ -1172,18 +1172,38 @@ def test_newborn_reservation_rejection_cancels_without_check_on(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.carry_target.parent = env.actor
 
+    class RejectedResult:
+        def __bool__(self):
+            return False
+
+        def __str__(self):
+            return "blocked by caregiver reservation"
+
+    class CareReservation:
+        sim = env.mother
+        reservation_interaction = SimpleNamespace(
+            affordance=SimpleNamespace(guid64=12345)
+        )
+
+    env.carry_target.get_reservation_handlers = lambda: (CareReservation(),)
+
     class RejectedReservation:
         def __init__(self, sim, target):
             pass
 
         def begin_reservation(self):
-            return False
+            return RejectedResult()
 
     env.reservation_basic_module.ReservationHandlerBasic = (
         RejectedReservation
     )
     callbacks = []
-    adapter = sims4_adapters.Sims4RabbitHoleAdapter()
+    events = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        logger=SimpleNamespace(
+            log=lambda event, **fields: events.append((event, fields))
+        )
+    )
 
     assert adapter._queue_infant_pickup(
         env.actor, env.infant, callbacks.append
@@ -1191,6 +1211,61 @@ def test_newborn_reservation_rejection_cancels_without_check_on(monkeypatch):
 
     assert callbacks == [True]
     assert env.requested_ids == []
+    assert events[0] == (
+        "newborn_reservation_diagnostic",
+        {
+            "active_reservations": [
+                {
+                    "handler_type": "CareReservation",
+                    "interaction_id": "12345",
+                    "sim_id": "mother",
+                }
+            ],
+            "current_parent_id": "seller",
+            "initial_carrier_id": "seller",
+            "rejection": "blocked by caregiver reservation",
+            "target_id": "infant",
+        },
+    )
+
+
+def test_newborn_diagnostic_exception_preserves_rejection_path(monkeypatch):
+    env = carried_infant_handoff_environment(monkeypatch, "BABY")
+    env.carry_target.parent = env.actor
+
+    class UnprintableRejection:
+        def __bool__(self):
+            return False
+
+        def __str__(self):
+            raise RuntimeError("diagnostic unavailable")
+
+    class RejectedReservation:
+        def __init__(self, sim, target):
+            pass
+
+        def begin_reservation(self):
+            return UnprintableRejection()
+
+    env.reservation_basic_module.ReservationHandlerBasic = (
+        RejectedReservation
+    )
+    env.carry_target.get_reservation_handlers = lambda: ()
+    events = []
+    callbacks = []
+    adapter = sims4_adapters.Sims4RabbitHoleAdapter(
+        logger=SimpleNamespace(
+            log=lambda event, **fields: events.append((event, fields))
+        )
+    )
+
+    assert adapter._queue_infant_pickup(
+        env.actor, env.infant, callbacks.append
+    )
+
+    assert callbacks == [True]
+    assert events[-1][0] == "baby_pickup_failed"
+    assert events[-1][1]["reason"] == "newborn_reservation_rejected"
 
 
 def test_newborn_reservation_acquisition_exception_cancels_pickup(

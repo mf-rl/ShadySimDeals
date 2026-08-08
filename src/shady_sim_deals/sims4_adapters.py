@@ -598,7 +598,77 @@ class Sims4RabbitHoleAdapter:
                     reservation = ReservationHandlerBasic(
                         actor_sim, target_sim
                     )
-                    if not reservation.begin_reservation():
+                    reservation_result = reservation.begin_reservation()
+                    if not reservation_result:
+                        active_reservations = []
+                        try:
+                            for handler in (
+                                target_sim.get_reservation_handlers()
+                            ):
+                                owner = getattr(handler, "sim", None)
+                                interaction = getattr(
+                                    handler,
+                                    "reservation_interaction",
+                                    None,
+                                )
+                                affordance = getattr(
+                                    interaction, "affordance", None
+                                )
+                                active_reservations.append(
+                                    {
+                                        "handler_type": type(
+                                            handler
+                                        ).__name__,
+                                        "interaction_id": (
+                                            str(affordance.guid64)
+                                            if getattr(
+                                                affordance,
+                                                "guid64",
+                                                None,
+                                            )
+                                            is not None
+                                            else None
+                                        ),
+                                        "sim_id": (
+                                            str(owner.sim_id)
+                                            if getattr(
+                                                owner, "sim_id", None
+                                            )
+                                            is not None
+                                            else None
+                                        ),
+                                    }
+                                )
+                        except Exception:
+                            active_reservations = [
+                                {"inspection_error": True}
+                            ]
+                        try:
+                            current_parent = getattr(
+                                target_sim, "parent", None
+                            )
+                            self._logger.log(
+                                "newborn_reservation_diagnostic",
+                                active_reservations=active_reservations,
+                                current_parent_id=(
+                                    str(current_parent.sim_id)
+                                    if getattr(
+                                        current_parent, "sim_id", None
+                                    )
+                                    is not None
+                                    else None
+                                ),
+                                initial_carrier_id=(
+                                    str(carrier.sim_id)
+                                    if getattr(carrier, "sim_id", None)
+                                    is not None
+                                    else None
+                                ),
+                                rejection=str(reservation_result),
+                                target_id=str(target.sim_id),
+                            )
+                        except Exception:
+                            pass
                         failed("newborn_reservation_rejected")
                         callback(True)
                         return
