@@ -55,7 +55,7 @@ verification remain unchecked.
 ### Phase 4: Unborn-Nooboo transaction
 
 - [x] Pregnant-Sim picker implemented and unit-tested
-  - [x] Automated: sale pickers exclude off-lot non-newborn Sims; the household picker retains uninstantiated newborns
+  - [x] Automated: sale pickers exclude off-lot Sims; the household picker retains an uninstantiated newborn only when its `Baby` object exists in the active zone
   - [x] Live: Sims at work or school are absent from both sale pickers
 - [x] Pregnancy adapter and safe pregnancy conclusion verified for patch `1.125.59.1030`
 - [x] Unborn rabbit hole
@@ -107,7 +107,7 @@ verification remain unchecked.
   - [x] Live: toddler appears and completes a sale
   - [x] Automated: newborn and infant sales acquire carry ownership before a seller-only 90-minute rabbit hole
   - [x] Automated: newborn `SimInfo` resolves its matching `Baby` object before native Check On
-  - [ ] Automated: carried-newborn handoff waits for full carrier SI-state removal and for Check On continuation settlement; current tests do not model EA's two-phase interaction exit
+  - [x] Automated: carried-newborn handoff waits for exact carrier Held Actions SI-state removal, then exact seller Check On removal and one continuation-settlement tick
   - [x] Automated: when a newborn has no `parent`, a foreign Held Actions (`275181`) reservation identifies the carrier interaction to finish naturally
   - [x] Automated: rejected newborn reservations log their EA rejection reason, initial carrier, current parent, and active reservation owners
   - [x] Automated: the carried newborn or infant is not registered as a second rabbit-hole participant

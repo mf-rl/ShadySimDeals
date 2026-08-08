@@ -16,7 +16,7 @@
 - Schedule one next-tick continuation after caregiver removal and one next-tick settlement after Check On removal.
 - Do not force-release reservations, disable autonomy, mutate newborn parenting, or implement custom carry behavior.
 - Preserve infant pickup `271032`, infant handoff `269721`, Check On `275655`, and Held Actions `275181`.
-- Remove every registered watcher and release the seller reservation exactly once on every terminal path.
+- Remove watchers outside EA's live notification iteration and release the seller reservation exactly once; a settlement-scheduling failure leaves its guarded watcher inert rather than mutating the watcher dictionary reentrantly.
 - Keep live newborn completion pending until the complete sale passes in game.
 - Commit and push reviewed changes to existing PR #7 without collaborator or AI attribution.
 
@@ -56,7 +56,7 @@ class FakeSIState:
 
     def set_interactions(self, *interactions):
         self.interactions[:] = interactions
-        for watcher in tuple(self.watchers.values()):
+        for watcher in self.watchers.values():
             watcher(self)
 ```
 
@@ -113,15 +113,22 @@ Held Actions reservation:
 ```python
 carrier_si_state = carrier.si_state
 carrier_watcher = object()
-carrier_watcher_active = True
+carrier_done = False
 
 def carrier_state_changed(si_state):
-    nonlocal carrier_watcher_active
-    if held_interaction in si_state:
+    nonlocal carrier_done
+    if carrier_done or held_interaction in si_state:
         return
+    carrier_done = True
+    sequence = element_utils.build_element(
+        (element_utils.sleep_until_next_tick_element(), finish_carrier_exit)
+    )
+    timeline = services.time_service().sim_timeline
+    timeline.schedule(sequence, timeline.now)
+
+def finish_carrier_exit(_timeline=None):
     try:
-        si_state.remove_watcher(carrier_watcher)
-        carrier_watcher_active = False
+        carrier_si_state.remove_watcher(carrier_watcher)
     except Exception:
         callback(True)
         return
@@ -131,12 +138,12 @@ def carrier_state_changed(si_state):
     ):
         callback(True)
         return
-    schedule_check_on()
+    queue_check_on()
 
 carrier_si_state.add_watcher(carrier_watcher, carrier_state_changed)
 held_interaction.cancel(
     FinishingType.NATURAL,
-    cancel_reason_msg="ShadySimDeals newborn handoff",
+    cancel_reason_msg="Shady Sim Deals newborn handoff",
 )
 ```
 
@@ -310,7 +317,10 @@ After assigning `check_on_interaction = result.interaction`, call
 `seller_state_changed(seller_si_state)` once to cover an interaction that left
 SI state during startup. Remove the old Check On
 `register_on_finishing_callback`. Keep all exception paths routed through
-`finish(True)` so the watcher and reservation are each cleaned up once.
+`finish(True)` so the watcher and reservation are each cleaned up once. The
+settlement-scheduling exception calls `finish(True, remove_watcher=False)` to
+avoid mutating EA's live watcher dictionary during notification; its guarded
+watcher is inert after reservation cleanup.
 
 - [x] **Step 6: Run focused and full automated tests**
 
@@ -342,7 +352,7 @@ git commit -m "fix: settle newborn pickup after SI exit"
 - Modify: `SPECS_CHECKLIST.md`
 - Modify: `docs/superpowers/plans/2026-08-07-newborn-si-state-settlement.md`
 
-- [ ] **Step 1: Align implementation-state documentation**
+- [x] **Step 1: Align implementation-state documentation**
 
 Update the newborn lifecycle descriptions to say:
 
@@ -358,7 +368,7 @@ Mark the automated SI-state lifecycle checklist item complete only after the
 full test suite passes. Preserve the latest failed live result as historical
 evidence rather than claiming the live issue fixed.
 
-- [ ] **Step 2: Build the mod and inspect the archive**
+- [x] **Step 2: Build the mod and inspect the archive**
 
 ```powershell
 py -3.12 build_mod.py
@@ -368,7 +378,7 @@ tar -tf dist\ShadySimDeals.ts4script
 Expected: build succeeds and the archive contains the updated
 `shady_sim_deals/sims4_adapters.pyc` with the normal package modules.
 
-- [ ] **Step 3: Review the complete PR diff and run final verification**
+- [x] **Step 3: Review the complete PR diff and run final verification**
 
 Review all session work since the user-specified base commit:
 
@@ -422,8 +432,9 @@ Report the installed artifact and request this focused live retest:
   changing routing, autonomy, parenting, or reservation ownership.
 - Exact interaction identity prevents unrelated SI changes from advancing the
   sale.
-- Each watcher is registered before the transition it observes and removed by
-  one idempotent cleanup path.
+- Each watcher is registered before the transition it observes; removal occurs
+  outside EA's live notification iteration, with scheduler failure leaving an
+  inert guarded watcher after exact-once reservation cleanup.
 - Each SI notification schedules work once on the next tick, avoiding reentrant
   EA SI-state mutation without introducing polling.
 - Success still requires native Held Actions targeting the newborn plus seller

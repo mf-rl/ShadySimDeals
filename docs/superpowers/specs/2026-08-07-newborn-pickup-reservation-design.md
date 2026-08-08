@@ -66,8 +66,9 @@ Keep the existing newborn-only flow in
 3. Before requesting the carrier finish, add a watcher to the carrier's
    `SIState`. Continue only after the exact Held Actions interaction is absent
    from that state, proving EA completed `_exit()` and released its interaction
-   reservations. Remove the watcher when that condition is met or startup
-   fails.
+   reservations. Because EA iterates its live watcher dictionary during state
+   notification, defer watcher removal to the next-tick continuation; remove it
+   immediately only when startup fails outside notification.
 4. After full carrier removal, schedule the remaining handoff on EA's
    simulation timeline with `sleep_until_next_tick_element()` to avoid running
    seller startup reentrantly inside the carrier's state notification.
@@ -86,7 +87,10 @@ Keep the existing newborn-only flow in
    seller Held Actions (`275181`) targets the newborn, and the newborn is
    parented to the seller. Otherwise cancel the pickup.
 10. Remove the seller watcher and release the reservation exactly once on
-    success, cancellation, failed startup, or exception.
+    success, cancellation, failed startup, or exception. If scheduling the
+    settlement itself fails inside EA's live watcher notification, release and
+    cancel once while leaving the guarded watcher inert; removing it there would
+    corrupt EA's dictionary iteration.
 11. Start the existing seller-only rabbit hole only after verified seller carry
     ownership.
 
@@ -101,8 +105,10 @@ autonomy globally or mutate newborn parenting or state.
 
 ## Failure handling
 
-Every terminal path after reservation acquisition removes the seller watcher
-and releases the reservation exactly once.
+Every normal terminal path after reservation acquisition removes the seller
+watcher and releases the reservation exactly once. A settlement-scheduling
+failure inside EA's live watcher notification releases and cancels once but
+leaves the watcher inert, because mutation during `notify_dirty()` raises.
 Failure to acquire or an exception while releasing is logged and cancels the
 transaction before transfer or payment. EA's successful release returns
 `None`, so only exceptions signal release failure. Existing transaction cleanup

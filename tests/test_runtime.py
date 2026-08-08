@@ -1,3 +1,6 @@
+import sys
+from types import SimpleNamespace
+
 from shady_sim_deals import sims4_runtime
 from shady_sim_deals.orchestrator import TransactionOrchestrator
 from shady_sim_deals.pricing import SimSalePricingService
@@ -57,6 +60,17 @@ class FakePicker:
         self.on_response = on_response
 
 
+def install_newborn_objects(monkeypatch, *sim_ids):
+    objects = {sim_id: object() for sim_id in sim_ids}
+    monkeypatch.setitem(
+        sys.modules,
+        "services",
+        SimpleNamespace(
+            object_manager=lambda: SimpleNamespace(get=objects.get)
+        ),
+    )
+
+
 class FakePregnancies:
     def __init__(self, pregnant_ids=(), counts=None):
         self.pregnant_ids = {str(sim_id) for sim_id in pregnant_ids}
@@ -105,7 +119,8 @@ def test_build_sale_candidate_uses_public_pregnancy_count():
     assert candidate.expected_offspring == 2
 
 
-def test_eligible_household_member_ids_apply_shared_picker_rules():
+def test_eligible_household_member_ids_apply_shared_picker_rules(monkeypatch):
+    install_newborn_objects(monkeypatch, "baby")
     sim_infos = (
         FakeSimInfo("actor", age="ADULT"),
         FakeSimInfo("baby", age="BABY"),
@@ -141,7 +156,10 @@ def test_eligible_household_member_ids_apply_shared_picker_rules():
     )
 
 
-def test_eligible_household_member_ids_includes_uninstantiated_newborn():
+def test_eligible_household_member_ids_includes_uninstantiated_newborn(
+    monkeypatch,
+):
+    install_newborn_objects(monkeypatch, "newborn")
     sim_infos = (
         FakeSimInfo("newborn", age="BABY", instanced=False),
         FakeSimInfo("at-school", age="CHILD", instanced=False),
@@ -154,6 +172,22 @@ def test_eligible_household_member_ids_includes_uninstantiated_newborn():
         sold_check=lambda sim_id: False,
         reserved_check=lambda sim_id: False,
     ) == ("newborn",)
+
+
+def test_eligible_household_member_ids_excludes_off_lot_newborn(monkeypatch):
+    install_newborn_objects(monkeypatch, "on-lot")
+    sim_infos = (
+        FakeSimInfo("on-lot", age="BABY", instanced=False),
+        FakeSimInfo("off-lot", age="BABY", instanced=False),
+    )
+
+    assert sims4_runtime.eligible_household_member_ids(
+        sim_infos,
+        actor_id="actor",
+        household_id="home",
+        sold_check=lambda sim_id: False,
+        reserved_check=lambda sim_id: False,
+    ) == ("on-lot",)
 
 
 class RuntimeRecorder:

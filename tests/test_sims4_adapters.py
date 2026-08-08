@@ -849,7 +849,7 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
 
         def set_interactions(self, *interactions):
             self.interactions[:] = interactions
-            for watcher in tuple(self.watchers.values()):
+            for watcher in self.watchers.values():
                 watcher(self)
 
     interaction = SimpleNamespace(
@@ -1689,9 +1689,12 @@ def test_newborn_carrier_watcher_removal_exception_cancels_pickup(
     )
     env.mother.si_state.set_interactions()
     env.mother.si_state.set_interactions(object())
+    assert callbacks == []
+
+    env.scheduled_elements[0][1]()
 
     assert callbacks == [True]
-    assert env.scheduled_elements == []
+    assert env.requested_ids == []
 
 
 def test_unnatural_newborn_release_cancels_without_check_on(monkeypatch):
@@ -1708,6 +1711,7 @@ def test_unnatural_newborn_release_cancels_without_check_on(monkeypatch):
 
     env.interaction.is_finishing_naturally = False
     env.mother.si_state.set_interactions()
+    env.scheduled_elements[0][1]()
 
     assert callbacks == [True]
     assert env.requested_ids == []
@@ -1727,6 +1731,7 @@ def test_attached_newborn_release_cancels_without_check_on(monkeypatch):
     )
 
     env.mother.si_state.set_interactions()
+    env.scheduled_elements[0][1]()
 
     assert callbacks == [True]
     assert env.requested_ids == []

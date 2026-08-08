@@ -722,11 +722,11 @@ class Sims4RabbitHoleAdapter:
                     seller_watcher_active = False
                     return True
 
-                def finish(canceled):
+                def finish(canceled, remove_watcher=True):
                     nonlocal reservation_released
                     if reservation_released:
                         return
-                    if not remove_seller_watcher():
+                    if remove_watcher and not remove_seller_watcher():
                         canceled = True
                     reservation_released = True
                     try:
@@ -790,7 +790,7 @@ class Sims4RabbitHoleAdapter:
                         timeline.schedule(sequence, timeline.now)
                     except Exception:
                         failed("check_on_settlement_schedule_exception")
-                        finish(True)
+                        finish(True, remove_watcher=False)
 
                 try:
                     seller_si_state.add_watcher(
@@ -838,20 +838,6 @@ class Sims4RabbitHoleAdapter:
                     finally:
                         finish(True)
 
-            def schedule_check_on():
-                try:
-                    sequence = element_utils.build_element(
-                        (
-                            element_utils.sleep_until_next_tick_element(),
-                            queue_check_on,
-                        )
-                    )
-                    timeline = services.time_service().sim_timeline
-                    timeline.schedule(sequence, timeline.now)
-                except Exception:
-                    failed("newborn_handoff_schedule_exception")
-                    callback(True)
-
             if carrier is actor_sim:
                 if find_held_actions() is not None:
                     callback(False)
@@ -876,13 +862,9 @@ class Sims4RabbitHoleAdapter:
                 carrier_watcher = object()
                 carrier_done = False
 
-                def carrier_state_changed(si_state):
-                    nonlocal carrier_done
-                    if carrier_done or held_interaction in si_state:
-                        return
-                    carrier_done = True
+                def finish_carrier_exit(*_):
                     try:
-                        si_state.remove_watcher(carrier_watcher)
+                        carrier_si_state.remove_watcher(carrier_watcher)
                     except Exception:
                         failed("carrier_watcher_removal_exception")
                         callback(True)
@@ -893,7 +875,25 @@ class Sims4RabbitHoleAdapter:
                     ):
                         callback(True)
                         return
-                    schedule_check_on()
+                    queue_check_on()
+
+                def carrier_state_changed(si_state):
+                    nonlocal carrier_done
+                    if carrier_done or held_interaction in si_state:
+                        return
+                    carrier_done = True
+                    try:
+                        sequence = element_utils.build_element(
+                            (
+                                element_utils.sleep_until_next_tick_element(),
+                                finish_carrier_exit,
+                            )
+                        )
+                        timeline = services.time_service().sim_timeline
+                        timeline.schedule(sequence, timeline.now)
+                    except Exception:
+                        failed("newborn_handoff_schedule_exception")
+                        callback(True)
 
                 try:
                     carrier_si_state.add_watcher(
