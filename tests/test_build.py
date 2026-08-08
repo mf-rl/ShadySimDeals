@@ -32,6 +32,7 @@ EXPECTED_RESOURCE_KEYS = {
     (0x6017E896, 0, 0xEAA21FFB1081E017),
     (0x6017E896, 0, 0xEAA21FFB1081E018),
     (0x6017E896, 0, 0xEAA21FFB1081E019),
+    (0xE882D22F, 0, 0xEAA21FFB1081E025),
     (0x545AC67A, 0x005FDD0C, 0xEAA21FFB1081E014),
     (0x545AC67A, 0x005FDD0C, 0xEAA21FFB1081E015),
     (0x545AC67A, 0x005FDD0C, 0xEAA21FFB1081E016),
@@ -199,6 +200,29 @@ def test_package_resources_include_every_planned_resource():
     keys = {(resource_type, group, instance) for _, resource_type, group, instance in resources}
 
     assert keys == EXPECTED_RESOURCE_KEYS
+
+
+def test_newborn_pickup_has_one_native_held_cuddle_continuation():
+    pickup = packaged_interactions()[0xEAA21FFB1081E025]
+
+    assert pickup.attrib == {
+        "c": "SuperInteraction",
+        "i": "interaction",
+        "m": "interactions.base.super_interaction",
+        "n": "ShadySimDeals:NewbornPickup",
+        "s": str(0xEAA21FFB1081E025),
+    }
+    assert pickup.find("./T[@n='allow_autonomous']").text == "False"
+    assert pickup.find("./T[@n='allow_user_directed']").text == "False"
+    assert pickup.find("./T[@n='visible']").text == "False"
+
+    continuations = pickup.findall(".//L[@n='continuation']/U")
+    assert len(continuations) == 1
+    assert continuations[0].find("./T[@n='affordance']").text == "275239"
+    assert (
+        continuations[0].find("./T[@n='si_affordance_override']").text
+        == "275181"
+    )
 
 
 def test_custom_icons_are_packaged_as_dst5_images():

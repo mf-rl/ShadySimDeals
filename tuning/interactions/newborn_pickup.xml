@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<I c="SuperInteraction" i="interaction" m="interactions.base.super_interaction" n="ShadySimDeals:NewbornPickup" s="16907111114276462629">
+  <L n="_constraints"><U><L n="constraints"><U><V n="value" t="posture"><U n="posture"><L n="posture_manifest_tuning">
+    <U><V n="posture_type" t="enabled"><T n="enabled">15537</T></V></U>
+    <U><V n="posture_type" t="enabled"><T n="enabled">30530</T></V></U>
+    <U><V n="posture_type" t="enabled"><T n="enabled">23832</T></V></U>
+    <U><V n="posture_type" t="enabled"><T n="enabled">15535</T></V></U>
+  </L></U></V></U></L></U></L>
+  <V n="_saveable" t="disabled" />
+  <T n="allow_autonomous">False</T>
+  <T n="allow_user_directed">False</T>
+  <V n="basic_content" t="one_shot" />
+  <V n="canonical_animation" t="disabled" />
+  <V n="outcome" t="test_based"><U n="test_based">
+    <L n="fallback_outcomes"><U>
+      <U n="outcome"><L n="continuation"><U>
+        <T n="affordance">275239</T>
+        <T n="si_affordance_override">275181</T>
+      </U></L></U>
+      <U n="weight"><T n="base_value">1</T></U>
+    </U></L>
+    <T n="use_fallback_as_default">True</T>
+  </U></V>
+  <E n="target_type">OBJECT</E>
+  <T n="visible">False</T>
+</I>

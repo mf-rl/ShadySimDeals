@@ -633,6 +633,17 @@ def package_resources():
             0xEAA1200000000020,
         ),
         (
+            (
+                ROOT
+                / "tuning"
+                / "interactions"
+                / "newborn_pickup.xml"
+            ).read_bytes(),
+            INTERACTION_TUNING_TYPE,
+            0,
+            0xEAA21FFB1081E025,
+        ),
+        (
             build_stbl({int(key, 16): value for key, value in strings.items()}),
             STRING_TABLE_TYPE,
             0x80000000,

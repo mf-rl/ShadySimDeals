@@ -35,7 +35,7 @@
 - Consumes: EA interaction tuning IDs Cuddle `275239` and Held Actions `275181`.
 - Produces: packaged interaction resource `(0xE882D22F, 0, 0xEAA21FFB1081E025)` retrievable from the game interaction instance manager.
 
-- [ ] **Step 1: Add the expected package key and deterministic tuning test**
+- [x] **Step 1: Add the expected package key and deterministic tuning test**
 
 Add this key to `EXPECTED_RESOURCE_KEYS`:
 
@@ -72,7 +72,7 @@ def test_newborn_pickup_has_one_native_held_cuddle_continuation():
 This catches a missing resource, accidental visibility/injection, multiple
 weighted outcomes, the wrong native action, or a missing persistent SI override.
 
-- [ ] **Step 2: Run the package tests and verify RED**
+- [x] **Step 2: Run the package tests and verify RED**
 
 Run:
 
@@ -83,7 +83,7 @@ py -3.12 -m pytest -q -p no:cacheprovider tests\test_build.py -k "newborn_pickup
 Expected: failures report missing key `0xEAA21FFB1081E025` and absent packaged
 interaction.
 
-- [ ] **Step 3: Create the private tuning XML**
+- [x] **Step 3: Create the private tuning XML**
 
 Create `tuning/interactions/newborn_pickup.xml` with this complete content:
 
@@ -120,7 +120,7 @@ The decimal instance value is exactly `0xEAA21FFB1081E025`. The four posture
 types are copied from patch `1.125.59.1030` `baby_CheckOn_Minor`; the outcome
 removes all random need-selection branches.
 
-- [ ] **Step 4: Add the tuning to `package_resources()`**
+- [x] **Step 4: Add the tuning to `package_resources()`**
 
 Add this tuple beside the existing interaction tuning resources:
 
@@ -136,7 +136,7 @@ Add this tuple beside the existing interaction tuning resources:
 Do not add it to Lot51 injectors, categories, phone/computer affordances, or icon
 resources.
 
-- [ ] **Step 5: Run focused and complete build tests**
+- [x] **Step 5: Run focused and complete build tests**
 
 Run:
 
@@ -147,7 +147,7 @@ py -3.12 -m pytest -q -p no:cacheprovider tests\test_build.py
 
 Expected: focused resource/tuning tests pass, then all build tests pass.
 
-- [ ] **Step 6: Commit the packaged interaction**
+- [x] **Step 6: Commit the packaged interaction**
 
 ```powershell
 git add tuning/interactions/newborn_pickup.xml build_mod.py tests/test_build.py docs/superpowers/plans/2026-08-07-deterministic-newborn-pickup.md
