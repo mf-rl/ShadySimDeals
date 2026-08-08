@@ -393,7 +393,7 @@ Use `superpowers:requesting-code-review` for the base-to-HEAD diff. Resolve any
 correctness finding, rerun affected tests and the full suite, then recheck the
 diff. Do not add collaborator or AI attribution.
 
-- [ ] **Step 4: Commit docs, push PR #7, and verify remote state**
+- [x] **Step 4: Commit docs, push PR #7, and verify remote state**
 
 ```powershell
 git add README.md ARCHITECTURE.md DEVELOPMENT.md SPECS_CHECKLIST.md docs/superpowers/plans/2026-08-07-newborn-si-state-settlement.md
@@ -405,7 +405,7 @@ gh pr checks 7
 Verify every change after `bb78c4821c24faaf544557b0a120c817170bae4a` is in
 the PR diff and the worktree is clean.
 
-- [ ] **Step 5: Install only while the game is closed**
+- [x] **Step 5: Install only while the game is closed**
 
 Confirm `TS4_x64.exe` is not running, then run:
 
