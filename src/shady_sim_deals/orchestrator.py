@@ -62,6 +62,8 @@ class TransactionOrchestrator:
             if started is False:
                 raise TransactionError("Rabbit hole could not start")
         except Exception as exc:
+            if transaction.state in ("completed", "failed"):
+                return transaction.state == "completed"
             self._fail_before_target(transaction, exc, on_finished)
             return False
         if started is None:
