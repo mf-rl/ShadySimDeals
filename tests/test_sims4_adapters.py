@@ -888,12 +888,12 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
     carry_target.parent = mother
     pickup_affordance = object()
     handoff_affordance = object()
-    check_on_affordance = object()
+    newborn_pickup_affordance = object()
     requested_ids = []
     affordances = {
         271032: pickup_affordance,
         269721: handoff_affordance,
-        275655: check_on_affordance,
+        0xEAA21FFB1081E025: newborn_pickup_affordance,
     }
     manager = SimpleNamespace(
         get=lambda instance_id: (
@@ -978,7 +978,7 @@ def carried_infant_handoff_environment(monkeypatch, target_age="INFANT"):
         infant=infant,
         carry_target=carry_target,
         handoff_affordance=handoff_affordance,
-        check_on_affordance=check_on_affordance,
+        newborn_pickup_affordance=newborn_pickup_affordance,
         requested_ids=requested_ids,
         reservation_basic_module=reservation_basic_module,
         reservation_events=reservation_events,
@@ -1016,28 +1016,28 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     events = []
     release_requests = []
-    check_on_callbacks = []
+    newborn_pickup_callbacks = []
     env.interaction.target = env.carry_target
     env.interaction.cancel = lambda finishing_type, **kwargs: (
         release_requests.append((finishing_type, kwargs))
     )
     env.mother.si_state.set_interactions(env.interaction)
-    check_on_interaction = SimpleNamespace(
+    newborn_pickup_interaction = SimpleNamespace(
         is_finishing=False,
-        is_finishing_naturally=True,
-        register_on_finishing_callback=check_on_callbacks.append,
+        is_finishing_naturally=[],
+        register_on_finishing_callback=newborn_pickup_callbacks.append,
     )
     env.mother.pushes.clear()
     env.actor.push_super_affordance = lambda affordance, target, context: (
         env.actor.pushes.append((affordance, target, context, {}))
-        or env.actor.si_state.set_interactions(check_on_interaction)
-        or SimpleNamespace(interaction=check_on_interaction)
+        or env.actor.si_state.set_interactions(newborn_pickup_interaction)
+        or SimpleNamespace(interaction=newborn_pickup_interaction)
     )
-    check_on_affordance = object()
+    newborn_pickup_affordance = object()
     sys.modules["services"].get_instance_manager(
         "interaction"
     ).get = lambda instance_id: (
-        env.requested_ids.append(instance_id) or check_on_affordance
+        env.requested_ids.append(instance_id) or newborn_pickup_affordance
     )
     callbacks = []
     adapter = sims4_adapters.Sims4RabbitHoleAdapter(
@@ -1076,13 +1076,13 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
         ("created", env.actor, env.carry_target),
         ("begun", env.actor, env.carry_target),
     ]
-    assert env.requested_ids == [275655]
+    assert env.requested_ids == [0xEAA21FFB1081E025]
     assert env.actor.pushes[0][0:2] == (
-        check_on_affordance,
+        newborn_pickup_affordance,
         env.carry_target,
     )
     assert events[-1] == (
-        "newborn_check_on_queued",
+        "newborn_pickup_queued",
         {
             "parent_id": None,
             "parent_is_actor": False,
@@ -1090,15 +1090,15 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
         },
     )
 
-    assert env.actor.si_state.interactions == [check_on_interaction]
-    assert check_on_callbacks == []
+    assert env.actor.si_state.interactions == [newborn_pickup_interaction]
+    assert newborn_pickup_callbacks == []
 
     env.carry_target.parent = env.actor
     held_actions = SimpleNamespace(
         affordance=SimpleNamespace(guid64=275181),
         target=env.carry_target,
     )
-    env.actor.si_state.set_interactions(check_on_interaction, object())
+    env.actor.si_state.set_interactions(newborn_pickup_interaction, object())
     assert len(env.scheduled_elements) == 1
 
     env.actor.si_state.set_interactions(held_actions)
@@ -1118,9 +1118,9 @@ def test_carried_newborn_is_released_then_held_by_seller(monkeypatch):
     )
     assert callbacks == [False]
     assert events[-1] == (
-        "newborn_check_on_settled",
+        "newborn_pickup_settled",
         {
-            "finishing_naturally": True,
+            "finishing_naturally": [],
             "held_actions_active": True,
             "parent_id": "seller",
             "parent_is_actor": True,
@@ -1169,7 +1169,7 @@ def test_parentless_newborn_uses_foreign_held_actions_reservation(monkeypatch):
         ("created", env.actor, env.carry_target),
         ("begun", env.actor, env.carry_target),
     ]
-    assert env.requested_ids == [275655]
+    assert env.requested_ids == [0xEAA21FFB1081E025]
     assert callbacks == []
 
 
@@ -1194,7 +1194,7 @@ def test_parentless_newborn_ignores_unrelated_reservation(monkeypatch):
         env.actor, env.infant, callbacks.append
     )
     assert release_requests == []
-    assert env.requested_ids == [275655]
+    assert env.requested_ids == [0xEAA21FFB1081E025]
     assert callbacks == []
 
 
@@ -1230,7 +1230,7 @@ def test_newborn_handoff_schedule_exception_cancels_pickup(monkeypatch):
     assert events[-1][1]["reason"] == "newborn_handoff_schedule_exception"
 
 
-def test_parented_newborn_without_held_actions_queues_check_on(monkeypatch):
+def test_parented_newborn_without_held_actions_queues_pickup(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.carry_target.parent = env.actor
     env.actor.si_state.set_interactions()
@@ -1241,7 +1241,7 @@ def test_parented_newborn_without_held_actions_queues_check_on(monkeypatch):
         env.actor, env.infant, callbacks.append
     )
 
-    assert env.requested_ids == [275655]
+    assert env.requested_ids == [0xEAA21FFB1081E025]
     assert callbacks == []
 
 
@@ -1276,11 +1276,11 @@ def test_newborn_reservation_blocks_competing_caregiver(monkeypatch):
     )
 
     assert not handlers[0].may_reserve(env.mother)
-    assert env.requested_ids == [275655]
+    assert env.requested_ids == [0xEAA21FFB1081E025]
     assert callbacks == []
 
 
-def test_newborn_reservation_rejection_cancels_without_check_on(monkeypatch):
+def test_newborn_reservation_rejection_cancels_without_pickup(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.carry_target.parent = env.actor
 
@@ -1405,7 +1405,7 @@ def test_newborn_reservation_acquisition_exception_cancels_pickup(
     assert env.requested_ids == []
 
 
-def test_newborn_reservation_releases_after_unnatural_check_on(monkeypatch):
+def test_newborn_reservation_releases_after_unnatural_pickup(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.carry_target.parent = env.actor
     env.interaction.is_finishing_naturally = False
@@ -1426,7 +1426,7 @@ def test_newborn_reservation_releases_after_unnatural_check_on(monkeypatch):
     assert callbacks == [True]
 
 
-def test_newborn_check_on_without_held_actions_cancels_on_settlement(
+def test_newborn_pickup_without_held_actions_cancels_on_settlement(
     monkeypatch,
 ):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
@@ -1449,7 +1449,7 @@ def test_newborn_check_on_without_held_actions_cancels_on_settlement(
     )
 
 
-def test_newborn_check_on_for_wrong_held_target_cancels(monkeypatch):
+def test_newborn_pickup_for_wrong_held_target_cancels(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.carry_target.parent = env.actor
     callbacks = []
@@ -1585,7 +1585,7 @@ def test_newborn_settlement_exception_releases_reservation(monkeypatch):
     env.carry_target.parent = env.actor
 
     def log(event, **fields):
-        if event == "newborn_check_on_settled":
+        if event == "newborn_pickup_settled":
             raise RuntimeError("settlement failed")
 
     callbacks = []
@@ -1607,7 +1607,7 @@ def test_newborn_settlement_exception_releases_reservation(monkeypatch):
     assert callbacks == [True]
 
 
-def test_newborn_check_on_startup_exception_cancels_pickup(monkeypatch):
+def test_newborn_pickup_startup_exception_cancels_pickup(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.interaction.target = env.carry_target
     env.interaction.cancel = lambda *args, **kwargs: None
@@ -1697,7 +1697,7 @@ def test_newborn_carrier_watcher_removal_exception_cancels_pickup(
     assert env.requested_ids == []
 
 
-def test_unnatural_newborn_release_cancels_without_check_on(monkeypatch):
+def test_unnatural_newborn_release_cancels_without_pickup(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.interaction.target = env.carry_target
     env.interaction.cancel = lambda *args, **kwargs: None
@@ -1718,7 +1718,7 @@ def test_unnatural_newborn_release_cancels_without_check_on(monkeypatch):
     assert env.reservation_events == []
 
 
-def test_attached_newborn_release_cancels_without_check_on(monkeypatch):
+def test_attached_newborn_release_cancels_without_pickup(monkeypatch):
     env = carried_infant_handoff_environment(monkeypatch, "BABY")
     env.interaction.target = env.carry_target
     env.interaction.cancel = lambda *args, **kwargs: None

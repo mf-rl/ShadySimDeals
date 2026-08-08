@@ -409,7 +409,7 @@ class Sims4PregnancyAdapter:
 
 
 class Sims4RabbitHoleAdapter:
-    NEWBORN_CHECK_ON_AFFORDANCE_ID = 275655
+    NEWBORN_PICKUP_AFFORDANCE_ID = 0xEAA21FFB1081E025
     NEWBORN_HELD_ACTIONS_AFFORDANCE_ID = 275181
     INFANT_PICKUP_AFFORDANCE_ID = 271032
     INFANT_HANDOFF_AFFORDANCE_ID = 269721
@@ -619,7 +619,7 @@ class Sims4RabbitHoleAdapter:
                     None,
                 )
 
-            def queue_check_on(*_):
+            def queue_newborn_pickup(*_):
                 try:
                     reservation = ReservationHandlerBasic(
                         actor_sim, target_sim
@@ -707,7 +707,7 @@ class Sims4RabbitHoleAdapter:
                 seller_si_state = actor_sim.si_state
                 seller_watcher = object()
                 seller_watcher_active = False
-                check_on_interaction = None
+                newborn_pickup_interaction = None
                 settlement_scheduled = False
 
                 def remove_seller_watcher():
@@ -717,7 +717,7 @@ class Sims4RabbitHoleAdapter:
                     try:
                         seller_si_state.remove_watcher(seller_watcher)
                     except Exception:
-                        failed("check_on_watcher_removal_exception")
+                        failed("newborn_pickup_watcher_removal_exception")
                         return False
                     seller_watcher_active = False
                     return True
@@ -737,14 +737,14 @@ class Sims4RabbitHoleAdapter:
                         return
                     callback(canceled)
 
-                def settle_check_on(*_):
+                def settle_newborn_pickup(*_):
                     try:
                         parent = getattr(target_sim, "parent", None)
                         held_actions = find_held_actions()
                         self._logger.log(
-                            "newborn_check_on_settled",
+                            "newborn_pickup_settled",
                             finishing_naturally=(
-                                check_on_interaction.is_finishing_naturally
+                                newborn_pickup_interaction.is_finishing_naturally
                             ),
                             held_actions_active=(held_actions is not None),
                             parent_id=(
@@ -757,13 +757,11 @@ class Sims4RabbitHoleAdapter:
                             target_id=str(target.sim_id),
                         )
                         canceled = not (
-                            check_on_interaction.is_finishing_naturally
-                            and held_actions is not None
-                            and parent is actor_sim
+                            held_actions is not None and parent is actor_sim
                         )
                     except Exception:
                         try:
-                            failed("check_on_settlement_exception")
+                            failed("newborn_pickup_settlement_exception")
                         finally:
                             finish(True)
                         return
@@ -773,8 +771,8 @@ class Sims4RabbitHoleAdapter:
                     nonlocal settlement_scheduled
                     if (
                         reservation_released
-                        or check_on_interaction is None
-                        or check_on_interaction in si_state
+                        or newborn_pickup_interaction is None
+                        or newborn_pickup_interaction in si_state
                         or settlement_scheduled
                     ):
                         return
@@ -783,13 +781,15 @@ class Sims4RabbitHoleAdapter:
                         sequence = element_utils.build_element(
                             (
                                 element_utils.sleep_until_next_tick_element(),
-                                settle_check_on,
+                                settle_newborn_pickup,
                             )
                         )
                         timeline = services.time_service().sim_timeline
                         timeline.schedule(sequence, timeline.now)
                     except Exception:
-                        failed("check_on_settlement_schedule_exception")
+                        failed(
+                            "newborn_pickup_settlement_schedule_exception"
+                        )
                         finish(True, remove_watcher=False)
 
                 try:
@@ -799,7 +799,7 @@ class Sims4RabbitHoleAdapter:
                     seller_watcher_active = True
                     affordance = services.get_instance_manager(
                         sims4.resources.Types.INTERACTION
-                    ).get(self.NEWBORN_CHECK_ON_AFFORDANCE_ID)
+                    ).get(self.NEWBORN_PICKUP_AFFORDANCE_ID)
                     if affordance is None:
                         finish(True)
                         return
@@ -812,7 +812,7 @@ class Sims4RabbitHoleAdapter:
                         affordance, target_sim, context
                     )
                 except Exception:
-                    failed("check_on_startup_exception")
+                    failed("newborn_pickup_startup_exception")
                     finish(True)
                     return
                 try:
@@ -821,7 +821,7 @@ class Sims4RabbitHoleAdapter:
                         return
                     parent = getattr(target_sim, "parent", None)
                     self._logger.log(
-                        "newborn_check_on_queued",
+                        "newborn_pickup_queued",
                         parent_id=(
                             str(parent.sim_id)
                             if getattr(parent, "sim_id", None) is not None
@@ -830,11 +830,11 @@ class Sims4RabbitHoleAdapter:
                         parent_is_actor=parent is actor_sim,
                         target_id=str(target.sim_id),
                     )
-                    check_on_interaction = result.interaction
+                    newborn_pickup_interaction = result.interaction
                     seller_state_changed(seller_si_state)
                 except Exception:
                     try:
-                        failed("check_on_setup_exception")
+                        failed("newborn_pickup_setup_exception")
                     finally:
                         finish(True)
 
@@ -842,7 +842,7 @@ class Sims4RabbitHoleAdapter:
                 if find_held_actions() is not None:
                     callback(False)
                 else:
-                    queue_check_on()
+                    queue_newborn_pickup()
                 return True
             if getattr(carrier, "is_sim", False):
                 if held_interaction is None:
@@ -875,7 +875,7 @@ class Sims4RabbitHoleAdapter:
                     ):
                         callback(True)
                         return
-                    queue_check_on()
+                    queue_newborn_pickup()
 
                 def carrier_state_changed(si_state):
                     nonlocal carrier_done
@@ -911,7 +911,7 @@ class Sims4RabbitHoleAdapter:
                         pass
                     return failed("carrier_release_exception")
                 return True
-            queue_check_on()
+            queue_newborn_pickup()
             return True
         if getattr(carrier, "is_sim", False) and carrier is not actor_sim:
             source_sim = carrier

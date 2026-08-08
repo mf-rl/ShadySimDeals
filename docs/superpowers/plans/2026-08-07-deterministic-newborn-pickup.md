@@ -167,7 +167,7 @@ git commit -m "feat: package deterministic newborn pickup"
 - Consumes: private interaction `0xEAA21FFB1081E025` packaged by Task 1.
 - Produces: unchanged `_queue_infant_pickup(actor, target, callback) -> bool`; callback receives `False` only after targeted seller Held Actions and seller parenting are observed.
 
-- [ ] **Step 1: Change the newborn fixture to expose only the private pickup**
+- [x] **Step 1: Change the newborn fixture to expose only the private pickup**
 
 Replace the fixture's Check On mapping with:
 
@@ -184,7 +184,7 @@ Expose `newborn_pickup_affordance` in the returned environment. Rename local
 `check_on_interaction` variables in newborn tests to `newborn_pickup_interaction`
 so the tests describe the new contract; leave infant fixture names unchanged.
 
-- [ ] **Step 2: Write the private-ID and falsey-completion regressions**
+- [x] **Step 2: Write the private-ID and falsey-completion regressions**
 
 In `test_carried_newborn_is_released_then_held_by_seller`, require:
 
@@ -216,7 +216,7 @@ Keep the existing missing-Held-Actions and wrong-target-Held-Actions tests
 expecting `[True]`. They prove the change trusts ownership, not mere interaction
 exit.
 
-- [ ] **Step 3: Run the focused adapter test and verify RED**
+- [x] **Step 3: Run the focused adapter test and verify RED**
 
 Run:
 
@@ -227,7 +227,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider tests\test_sims
 Expected: the main test fails because production requests `275655` and rejects
 the falsey natural-finishing value even though carry ownership is verified.
 
-- [ ] **Step 4: Switch the newborn-only interaction constant and request**
+- [x] **Step 4: Switch the newborn-only interaction constant and request**
 
 Replace the Check On constant with:
 
@@ -253,7 +253,7 @@ Request `self.NEWBORN_PICKUP_AFFORDANCE_ID` from the interaction instance
 manager. Keep seller watcher registration before the push and exact interaction
 identity removal detection unchanged.
 
-- [ ] **Step 5: Make carry ownership the settlement success condition**
+- [x] **Step 5: Make carry ownership the settlement success condition**
 
 Keep `is_finishing_naturally` in the diagnostic log, but remove it from the
 decision:
@@ -281,7 +281,7 @@ finish(not succeeded)
 `find_held_actions()` already requires affordance `275181` and exact target
 identity, so no additional state or helper is needed.
 
-- [ ] **Step 6: Run focused controls and the full suite**
+- [x] **Step 6: Run focused controls and the full suite**
 
 Run:
 
@@ -292,7 +292,7 @@ $env:PYTHONPATH='src'; py -3.12 -m pytest -q -p no:cacheprovider
 
 Expected: all newborn and infant controls pass, then the complete suite passes.
 
-- [ ] **Step 7: Commit the adapter switch**
+- [x] **Step 7: Commit the adapter switch**
 
 ```powershell
 git add src/shady_sim_deals/sims4_adapters.py tests/test_sims4_adapters.py docs/superpowers/plans/2026-08-07-deterministic-newborn-pickup.md
